@@ -28,8 +28,7 @@ static bool cal_profile_stored        = false;
 static unsigned long last_cal_poll_ms = 0;
 static uint8_t cal_ok_count           = 0;
 const unsigned long CAL_POLL_MS       = 500;    // 2 x per second
-const uint8_t CAL_OK_REQUIRED         = 3;      // expect 3 consequtive OK signs
-static bool CMPS14_MANUAL_CAL         = false;  // manual calibration started?
+const uint8_t CAL_OK_REQUIRED         = 2;      // expect 2 consequtive OK signs
 
 // CMPS14 reading parameters
 const float HEADING_ALPHA               = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
@@ -391,6 +390,7 @@ bool cmps14_store_profile() {
   if (!cmps14_cmd(0xF0)) return false;
   if (!cmps14_cmd(0xF5)) return false;
   if (!cmps14_cmd(0xF6)) return false;
+  if (!cmps14_cmd(0x80)) return false;
   return true;
 }
 
@@ -489,8 +489,7 @@ void setup() {
 
   Serial.begin(115200);
   delay(2000);
-  Serial.println("--");
-  delay(2000);
+  Serial.println(" ");
   Serial.println("PROGRAM START");
 
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -507,9 +506,12 @@ void setup() {
       lcd_print_lines("AUTOCALIBRATION", "FAILED");
     }
   } else {
-    cmps14_cmd((uint8_t)0x80);
-    lcd_print_lines("CALIBRATION", "MANUAL MODE");
-    Serial.println("MANUAL CALIBRATION MODE");
+    if (cmps14_cmd(0x80)) {
+      lcd_print_lines("CALIBRATION", "MANUAL MODE");
+      Serial.println("MANUAL CALIBRATION MODE");
+    } else {
+      lcd_print_lines("MANUAL MODE", "FAILED");
+    }
   }
 
   delay(250);
