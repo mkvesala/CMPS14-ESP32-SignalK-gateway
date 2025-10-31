@@ -1,10 +1,15 @@
 #include <WiFi.h>
+#include <WebServer.h>
 #include <ArduinoJson.h>
 #include <ArduinoWebsockets.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ArduinoOTA.h>
 #include "secrets.h"
+
+#ifndef WEB_KEY
+#define WEB_KEY ""
+#endif
 
 using namespace websockets;
 
@@ -23,7 +28,7 @@ const uint8_t REG_PITCH         = 0x04;  // signed degrees
 const uint8_t REG_ROLL          = 0x05;  // signed degrees
 
 // CMPS14 calibration
-const bool CMPS14_AUTOCAL_ON          = false;
+static bool cmps14_autocal_on         = false;
 static bool cal_profile_stored        = false;
 static unsigned long last_cal_poll_ms = 0;
 static uint8_t cal_ok_count           = 0;
@@ -53,6 +58,17 @@ volatile bool ws_open = false;
 unsigned long next_ws_try_ms = 0;
 const unsigned long WS_RETRY_MS = 2000;
 const unsigned long WS_RETRY_MAX = 20000;
+
+// Webserver
+WebServer server(80);
+static bool monitor_continuous  = false;
+String manual_mode              = "OFF";
+String calibrate_status         = "OFF";
+String store_status             = "OFF";
+String monitor_status           = "OFF";
+String reset_status             = "OFF";
+String auto_status              = "OFF";
+String status                   = " ";
 
 // Values in degrees for LCD output
 float heading_deg     = NAN;
@@ -210,7 +226,7 @@ void send_minmax_delta_if_due() {
 }
 
 // Read values from CMPS14 compass and attitude sensor
-bool readCompass(){
+bool read_compass(){
   
   Wire.beginTransmission(CMPS14_ADDR);
   Wire.write(REG_ANGLE_16_H);
@@ -411,11 +427,12 @@ void cmps14_monitor_and_store(bool save) {
   uint8_t gyro  = (st >> 4) & 0x03;
   uint8_t sys   = (st >> 6) & 0x03;
 
-  if (!save) Serial.printf("Cal: SYS=%u G=%u A=%u M=%u\n", sys, gyro, accel, mag);
+  status = "SYS "+ String(sys) + ", ACC " + String(accel) + ", MAG " + String(mag);
+  if (!save) Serial.println(status);
 
   static uint8_t prev = 0xFF;
   if (save && prev != st) {
-    Serial.printf("Cal: SYS=%u G=%u A=%u M=%u\n", sys, gyro, accel, mag);
+    Serial.println(status);
     prev = st;
   }
 
@@ -435,15 +452,283 @@ void cmps14_monitor_and_store(bool save) {
   }
 }
 
+void handle_calibrate_on(){
+  if (cmps14_enable_background_cal(false)) {
+    manual_mode = "ON";
+    calibrate_status = "ON";
+    store_status = "OFF";
+    monitor_status = "OFF";
+    reset_status = "OFF";
+    auto_status = "OFF";
+    cmps14_autocal_on = false;
+  }
+  handle_root();
+}
+
+void handle_calibrate_off(){
+  if (cmps14_cmd(0x80)) {
+    manual_mode = "ON";
+    calibrate_status = "OFF";
+    store_status = "OFF";
+    monitor_status = "OFF";
+    reset_status = "OFF";
+    auto_status = "OFF";
+    cmps14_autocal_on = false;
+  }
+  handle_root();
+}
+
+void handle_store(){
+  if (cmps14_store_profile()) {
+    cal_profile_stored = true;
+    cmps14_autocal_on = false;
+    manual_mode = "ON";
+    calibrate_status = "OFF";
+    store_status = "ON";
+    monitor_status = "OFF";
+    reset_status = "OFF";
+    auto_status = "OFF";
+  }
+  handle_root();
+}
+
+void handle_monitor(){
+  cmps14_monitor_and_store(false);
+  monitor_status = "ON";
+  handle_root();
+}
+
+void handle_reset(){
+  if (cmps14_cmd(0xE0) && cmps14_cmd(0xE5) && cmps14_cmd(0xE2)) {
+    manual_mode = "ON";
+    calibrate_status = "OFF";
+    store_status = "OFF";
+    monitor_status = "OFF";
+    reset_status = "ON";
+    auto_status = "OFF";
+    cal_profile_stored = false;
+    cmps14_autocal_on = false;
+    delay(500); 
+  }
+  handle_root();                                                        // Wait for the sensor to boot
+}
+
+void handle_auto_on(){
+  if (cmps14_enable_background_cal(true)) {
+    manual_mode = "OFF";
+    calibrate_status = "ON";
+    store_status = "OFF";
+    monitor_status = "OFF";
+    reset_status = "OFF";
+    auto_status = "ON";
+    cmps14_autocal_on = true;
+  }
+  handle_root();
+}
+
+void handle_root(){
+  String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+  html += "<link rel=\"icon\" href=\"data:,\">";
+  html += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}";
+  html += ".button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px; text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}";
+  html += ".button2 { background-color: #555555; }</style></head>";
+  html += "<body><h1>CMPS14 Control</h1>";
+
+  // Display Calibrate controls
+  html += "<p>Manual calibration mode: " + manual_mode + "</p>";
+  if (calibrate_status == "OFF") {
+    html += "<p><a href=\"/cal/on\"><button class=\"button\">CALIBRATE</button></a></p>";
+  } else {
+    html += "<p><a href=\"/cal/off\"><button class=\"button button2\">STOP CALIBRATION</button></a></p>";
+  }
+
+  // Display Store controls
+  html += "<p>Store calibration: " + store_status + "</p>";
+  if (store_status == "OFF") {
+    html += "<p><a href=\"/store/on\"><button class=\"button\">STORE</button></a></p>";
+  } else {
+    html += "<p><a href=\"/store/on\"><button class=\"button button2\">STORE</button></a></p>";
+  }
+
+  // Display Monitor controls
+  html += "<p>Calibration status: " + status + "</p>";
+  if (monitor_status == "OFF") {
+    html += "<p><a href=\"/monitor/on\"><button class=\"button\">UPDATE</button></a></p>";
+  } else {
+    html += "<p><a href=\"/monitor/on\"><button class=\"button button2\">UPDATE</button></a></p>";
+  }
+
+   // Display Reset controls
+  html += "<p>Reset status: " + reset_status + "</p>";
+  if (reset_status == "OFF") {
+    html += "<p><a href=\"/reset/on\"><button class=\"button\">RESET</button></a></p>";
+  } else {
+    html += "<p><a href=\"/reset/on\"><button class=\"button button2\">RESET</button></a></p>";
+  }
+
+  // Display Auto controls
+  html += "<p>Autocalibration status: " + auto_status + "</p>";
+  if (auto_status == "OFF") {
+    html += "<p><a href=\"/auto/on\"><button class=\"button\">AUTO ON</button></a></p>";
+  } else {
+    html += "<p><a href=\"/auto/on\"><button class=\"button button2\">AUTO ON</button></a></p>";
+  }
+
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+bool http_key_ok(){
+  if (strlen(WEB_KEY) == 0) return true;
+  String key = server.hasArg("key") ? server.arg("key") : "";
+  return key.length() && key == WEB_KEY;
+}
+
+void webUi(){
+  server.on("/", HTTP_GET, []() {
+    if (!http_key_ok()) { server.send(403, "text/plain", "Forbidden"); return; }
+
+    // Pieni HTML-sivu napeilla ja auto-päivittyvä status
+    String html = R"(
+      <!doctype html>
+      <html>
+      <head><meta charset="utf-8"><title>CMPS14 Control</title>
+      <style>
+      body{font-family:system-ui,Arial;max-width:680px;margin:20px auto;}
+      button{padding:10px 16px;margin:6px;font-size:16px;border-radius:10px;border:1px solid #ccc;cursor:pointer}
+      pre{background:#f7f7f7;padding:12px;border-radius:8px;white-space:pre-wrap}
+      .row{margin:10px 0}
+      </style>
+      </head>
+      <body>
+      <h2>CMPS14 Control</h2>
+      <div class="row">
+        <a href="/cmd?c=C)RAW";
+        if (strlen(WEB_KEY)) html += "&key=" + String(WEB_KEY);
+        html += R"("><button>Start Cal (C)</button></a>
+        <a href="/cmd?c=S)";
+        if (strlen(WEB_KEY)) html += "&key=" + String(WEB_KEY);
+        html += R"("><button>Store (S)</button></a>
+        <a href="/cmd?c=R)";
+        if (strlen(WEB_KEY)) html += "&key=" + String(WEB_KEY);
+        html += R"("><button>Reset Profile (R)</button></a>
+      </div>
+      <div class="row">
+        <a href="/cmd?c=U)";
+        if (strlen(WEB_KEY)) html += "&key=" + String(WEB_KEY);
+        html += R"("><button>Use Mode (U)</button></a>
+        <a href="/cmd?c=M)";
+        if (strlen(WEB_KEY)) html += "&key=" + String(WEB_KEY);
+        html += R"("><button>Toggle Monitor (M)</button></a>
+      </div>
+      <h3>Status</h3>
+      <pre id="st">Loading...</pre>
+      <script>
+      function upd(){
+        fetch('/status)";
+        if (strlen(WEB_KEY)) html += "?key=" + String(WEB_KEY);
+        html += R"(').then(r=>r.json()).then(j=>{
+          const d = [
+            'mode: ' + j.mode,
+            'monitor: ' + (j.monitor?'ON':'OFF'),
+            'wifi: ' + j.wifi + ' (' + j.rssi + ' dBm)',
+            'ws_open: ' + j.ws_open,
+            'heading(M): ' + j.hdg_deg.toFixed(1) + '°',
+            'pitch: ' + j.pitch_deg.toFixed(1) + '°',
+            'roll: ' + j.roll_deg.toFixed(1) + '°',
+            'CAL: ACC=' + j.acc + ', MAG=' + j.mag + ' (SYS=' + j.sys + ', G=' + j.g + ')',
+            'stored: ' + (j.stored?'YES':'NO')
+          ];
+          document.getElementById('st').textContent = d.join('\\n');
+        }).catch(_=>{ document.getElementById('st').textContent='Status fetch failed'; });
+      }
+      setInterval(upd,1000); upd();
+      </script>
+      </body></html>
+  )";
+    server.send(200, "text/html", html);
+  });
+
+  server.on("/cmd", HTTP_GET, [](){
+    if (!http_key_ok()) { server.send(403, "text/plain", "Forbidden"); return; }
+    if (!server.hasArg("c")) { server.send(400, "text/plain", "Missing c"); return; }
+    char c = toupper(server.arg("c")[0]);
+    String msg;
+
+    switch (c) {
+      case 'C': {
+        bool ok = cmps14_enable_background_cal(false); // ilman autosavea
+        msg = ok ? "Background calibration ENABLED (Mag+Accel, no autosave)" : "Enable FAILED";
+        break;
+      }
+      case 'S': {
+        bool ok = cmps14_store_profile();
+        if (ok) { cal_profile_stored = true; }
+        msg = ok ? "Calibration profile STORED" : "Store FAILED";
+        break;
+      }
+      case 'U': { // use-mode (0x80)
+        cmps14_cmd(0x80);
+        msg = "Use mode set (0x80)";
+        break;
+      }
+      case 'R': {
+        bool ok = cmps14_cmd(0xE0) && cmps14_cmd(0xE5) && cmps14_cmd(0xE2);
+        msg = ok ? "Profile ERASED, sensor resetting" : "Erase FAILED";
+        break;
+      }
+      case 'M': {
+        monitor_continuous = !monitor_continuous;
+        msg = String("Monitor ") + (monitor_continuous ? "ON" : "OFF");
+        break;
+      }
+      default:
+        msg = "Unknown command";
+    }
+    server.send(200, "text/plain", msg);
+  });
+
+  server.on("/status", HTTP_GET, [](){
+    if (!http_key_ok()) { server.send(403, "application/json", "{\"err\":\"forbidden\"}"); return; }
+    // lue 0x1E
+    uint8_t st = cmps14_read_cal_status();
+    uint8_t mag=255, acc=255, gyr=255, sys=255;
+    if (st!=0xFF) { mag=(st)&3; acc=(st>>2)&3; gyr=(st>>4)&3; sys=(st>>6)&3; }
+
+    // mode: "AUTO" jos uskot autocal olevan päällä, muuten "MANUAL".
+    const char* mode = cmps14_autocal_on ? "AUTO" : "MANUAL";
+
+    String json = "{";
+    json += "\"mode\":\"" + String(mode) + "\",";
+    json += "\"monitor\":" + String(monitor_continuous ? "true":"false") + ",";
+    json += "\"wifi\":\"" + (WiFi.isConnected()? WiFi.localIP().toString() : String("disconnected")) + "\",";
+    json += "\"rssi\":" + String(WiFi.isConnected()? WiFi.RSSI(): 0) + ",";
+    json += "\"ws_open\":" + String(ws_open ? "true":"false") + ",";
+    json += "\"hdg_deg\":" + String(validf(heading_deg)? heading_deg: NAN) + ",";
+    json += "\"pitch_deg\":" + String(validf(pitch_deg)? pitch_deg: NAN) + ",";
+    json += "\"roll_deg\":" + String(validf(roll_deg)? roll_deg: NAN) + ",";
+    json += "\"acc\":" + String(acc) + ",";
+    json += "\"mag\":" + String(mag) + ",";
+    json += "\"g\":"   + String(gyr) + ",";
+    json += "\"sys\":" + String(sys) + ",";
+    json += "\"stored\":" + String(cal_profile_stored? "true":"false");
+    json += "}";
+    server.send(200, "application/json", json);
+  });
+
+  server.begin();
+
+}
+
 // Read C, S, M or R command from serial port to enable, save, monitor or reset CMPS14 calibration
-void readCalCommandFromSerial() {
+void read_cal_command_from_serial() {
   if (Serial.available()) {
     char cmd = toupper(Serial.read());                                                // Read one letter from serial port
     if (cmd == '\r' || cmd == '\n') return;                                           // Ignore return and line endings
     switch (cmd) {
       case 'C':
         Serial.println("CMD: ENABLE BACKGROUND CALIBRATION (Mag+Accel+autosave)");
-        if (cmps14_enable_background_cal(CMPS14_AUTOCAL_ON)) {
+        if (cmps14_enable_background_cal(false)) {
           Serial.println("CMPS14 manual background calibration ENABLED.");
         } else {
           Serial.println("Enable FAILED!");
@@ -462,7 +747,7 @@ void readCalCommandFromSerial() {
       
       case 'M':
         Serial.println("CMD: MONITOR CALIBRATION STATUS");
-        cmps14_monitor_and_store(CMPS14_AUTOCAL_ON);
+        cmps14_monitor_and_store(false);
         break;
 
       case 'R':
@@ -488,7 +773,7 @@ void readCalCommandFromSerial() {
 void setup() {
 
   Serial.begin(115200);
-  delay(2000);
+  delay(3000);
   Serial.println(" ");
   Serial.println("PROGRAM START");
 
@@ -499,14 +784,28 @@ void setup() {
   lcd_init_safe();
   delay(100);
 
-  if (CMPS14_AUTOCAL_ON){
-    if (cmps14_enable_background_cal(CMPS14_AUTOCAL_ON)) {             // Switch on CMPS14 autocalibration
+  if (cmps14_autocal_on){
+    if (cmps14_enable_background_cal(true)) {             // Switch on CMPS14 autocalibration
       lcd_print_lines("AUTOCALIBRATION", "ENABLED");
+      manual_mode = "OFF";
+      calibrate_status = "ON";
+      store_status = "OFF";
+      monitor_status = "OFF";
+      reset_status = "OFF";
+      auto_status = "ON";
+      cmps14_autocal_on = true;
     } else {
       lcd_print_lines("AUTOCALIBRATION", "FAILED");
     }
   } else {
     if (cmps14_cmd(0x80)) {
+      manual_mode = "ON";
+      calibrate_status = "OFF";
+      store_status = "OFF";
+      monitor_status = "OFF";
+      reset_status = "OFF";
+      auto_status = "OFF";
+      cmps14_autocal_on = false;
       lcd_print_lines("CALIBRATION", "MANUAL MODE");
       Serial.println("MANUAL CALIBRATION MODE");
     } else {
@@ -525,6 +824,7 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {                                                       // Execute if wifi successfully connected
     make_source_from_mac();
     lcd_print_lines("WIFI OK", WiFi.localIP().toString().c_str());
+    Serial.println(WiFi.localIP().toString().c_str());
     delay(250);
 
     int RSSIi = WiFi.RSSI();                                                                 // Wifi signal quality
@@ -565,6 +865,16 @@ void setup() {
     });
     ArduinoOTA.begin();
 
+    // Set up the web server to handle different routes
+    server.on("/", handle_root);
+    server.on("/cal/on", handle_calibrate_on);
+    server.on("/cal/off", handle_calibrate_off);
+    server.on("/store/on", handle_store);
+    server.on("/monitor/on", handle_monitor);
+    server.on("/reset/on", handle_reset);
+    server.on("/auto/on", handle_auto_on);
+    server.begin();
+
     setup_ws_callbacks();                                             // Websocket
   } else {                                                            // No wifi, use only LCD output
     LCD_ONLY = true;
@@ -581,6 +891,8 @@ void loop() {
 
   if (!LCD_ONLY) {                                                    // Execute on each tick, except in LCD ONLY mode
     ArduinoOTA.handle();                                              // OTA
+    server.handleClient();                                            // Webservcer
+    if (monitor_continuous) cmps14_monitor_and_store(false);
     ws.poll();                                                        // Keep websocket alive
     if (WiFi.status() != WL_CONNECTED && ws_open) {                   // Kill ghost websocket
       ws.close();
@@ -596,12 +908,12 @@ void loop() {
   }
   if (ws_open) expn_retry_ms = WS_RETRY_MS;
 
-  bool success = readCompass();                                       // Read values from CMPS14 on each loop
+  bool success = read_compass();                                       // Read values from CMPS14 on each loop
 
-  if (CMPS14_AUTOCAL_ON) {
-    cmps14_monitor_and_store(CMPS14_AUTOCAL_ON);                      // Monitor and autosave CMPS14 autocalibration
+  if (cmps14_autocal_on) {
+    cmps14_monitor_and_store(cmps14_autocal_on);                      // Monitor and autosave CMPS14 autocalibration
   } else {
-    readCalCommandFromSerial();                                       // Read and execute manual calibration commands from serial port
+    read_cal_command_from_serial();                                       // Read and execute manual calibration commands from serial port
   }
   if (!LCD_ONLY && success) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
     send_batch_delta_if_needed();
