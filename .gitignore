@@ -1,0 +1,5 @@
+secrets.h
+secrets.frida.h
+*.bak
+*.tmp
+.DS_Store
