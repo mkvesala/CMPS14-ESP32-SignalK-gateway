@@ -5,16 +5,18 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ArduinoOTA.h>
+#include <Preferences.h>
+#include "harmonic.h"
 #include "secrets.h"
 
 using namespace websockets;
 
 // Wifi and OTA settings
 const String SK_URL             = String("ws://") + SK_HOST + ":" + String(SK_PORT) + "/signalk/v1/stream" + ((strlen(SK_TOKEN) > 0) ? "?token=" + String(SK_TOKEN) : "");
-String RSSIc                    = "NA"; // Wifi quality
+String RSSIc                    = "NA";           // Wifi quality
 String SK_SOURCE                = "esp32.cmps14"; // SignalK server source, used also as the OTA hostname
-bool LCD_ONLY                   = false; // True when no wifi available, using only LCD
-const uint32_t WIFI_TIMEOUT_MS  = 90000; // Trying wifi connection max 1.5 minutes
+bool LCD_ONLY                   = false;          // True when no wifi available, using only LCD
+const uint32_t WIFI_TIMEOUT_MS  = 90000;          // Trying wifi connection max 1.5 minutes
 
 // CMPS14 I2C address and registers
 const uint8_t CMPS14_ADDR       = 0x60;  // I2C address of CMPS14
@@ -35,7 +37,7 @@ const uint8_t CAL_OK_REQUIRED         = 2;      // Wait for 2 consequtive OKs
 
 // CMPS14 reading parameters
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
-const float INSTALLATION_OFFSET_DEG       = 0.0f;                      // Physical installation error of the compass module
+float installation_offset_deg             = 0.0f;                      // Physical installation error of the compass module, configured via web UI
 const unsigned long MIN_TX_INTERVAL_MS    = 150;                       // Max frequency for sending deltas to SignalK
 const float DB_HDG_RAD                    = 0.005f;                    // ~0.29°: deadband threshold for heading
 const float DB_ATT_RAD                    = 0.003f;                    // ~0.17°: pitch/roll deadband threshold
@@ -51,6 +53,9 @@ const unsigned long LCD_MS                = 1000;                      // Freque
 // SH-ESP32 default pins for I2C
 const uint8_t I2C_SDA = 16;
 const uint8_t I2C_SCL = 17;
+
+// Permanently stored preferences
+Preferences prefs;
 
 // Websocket
 WebsocketsClient ws;
@@ -217,6 +222,11 @@ void send_minmax_delta_if_due() {
   last_minmax_tx_ms = now;
 }
 
+// Compass deviation harmonic model
+const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and ordinal directions N, NE, E, SE, S, SW, W, NE in deg
+float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and ordinal directions
+HarmonicCoeffs hc {0,0,0,0,0};
+
 // Read values from CMPS14 compass and attitude sensor
 bool read_compass(){
   
@@ -230,13 +240,13 @@ bool read_compass(){
 
   uint8_t hi   = Wire.read();
   uint8_t lo   = Wire.read();
-  int8_t pitch = (int8_t)Wire.read();
+  int8_t pitch = (int8_t)Wire.read();         // Pitch and roll are -90°...90°
   int8_t roll  = (int8_t)Wire.read();
 
   uint16_t ang10 = ((uint16_t)hi << 8) | lo;  // 0..3599 (0.1°)
   float deg = ((float)ang10) / 10.0f;         // 0..359.9°
   
-  deg += INSTALLATION_OFFSET_DEG;             // Correct physical installation error
+  deg += installation_offset_deg;             // Correct physical installation error if such
   if (deg >= 360.0f) deg -= 360.0f;
   if (deg <    0.0f) deg += 360.0f;
 
@@ -250,6 +260,12 @@ bool read_compass(){
     if (heading_deg >= 360.0f) heading_deg -= 360.0f;
     if (heading_deg < 0.0f)   heading_deg += 360.0f;
   }
+
+  float dev_deg = deviation_harm_deg(hc, heading_deg);
+  float hdg_corr_deg = heading_deg + dev_deg;
+  if (hdg_corr_deg < 0) hdg_corr_deg += 360.0f;
+  if (hdg_corr_deg >= 360.0f) hdg_corr_deg -= 360.0f;
+  heading_deg = hdg_corr_deg;
 
   pitch_deg   = (float)pitch;
   roll_deg    = (float)roll;
@@ -296,7 +312,7 @@ bool i2c_device_present(uint8_t addr) {
 void lcd_init_safe() {
 
   uint8_t addr = 0;
-  if (i2c_device_present(LCD_ADDR1)) addr = LCD_ADDR1;
+  if (i2c_device_present(LCD_ADDR1)) addr = LCD_ADDR1;        // Scan both I2C addresses
   else if (i2c_device_present(LCD_ADDR2)) addr = LCD_ADDR2;
 
   if (addr) {
@@ -309,7 +325,7 @@ void lcd_init_safe() {
   }
 }
 
-// Helper for LCD printing
+// Helper for safe LCD printing
 static inline void copy16(char* dst, const char* src) {
   strncpy(dst, src, 16);   // copy max 16 characters
   dst[16] = '\0';          // ensure 0 termination
@@ -318,7 +334,7 @@ static inline void copy16(char* dst, const char* src) {
 // LCD basic printing on two lines
 void lcd_print_lines(const char* l1, const char* l2) {
   if (!lcd_present) return;
-  if (!strcmp(prev_top, l1) && !strcmp(prev_bot, l2)) return;
+  if (!strcmp(prev_top, l1) && !strcmp(prev_bot, l2)) return; // If content not changed, do nothing - less blinking
 
   char t[17], b[17];
   copy16(t, l1);
@@ -342,7 +358,7 @@ bool cmps14_cmd(uint8_t cmd) {
   Wire.write(0x00);
   Wire.write(cmd);
   if (Wire.endTransmission() != 0) return false;
-  delay(20);  
+  delay(20);  // Delay as recommended on datasheet
 
   Wire.requestFrom(CMPS14_ADDR, (uint8_t)1);
   if (Wire.available() < 1) return false;
@@ -510,62 +526,168 @@ void handle_status(){
   server.send(200, "application/json; charset=utf-8", json);
 }
 
+// Web UI handler for installation offset
+void handle_set_offset() {
+  if (server.hasArg("v")) {
+    float v = server.arg("v").toFloat();
+    if (isnan(v) || !isfinite(v)) v = 0.0f;
+    if (v < -180.0f) v = -180.0f;
+    if (v >  180.0f) v =  180.0f;
+
+    installation_offset_deg = v;
+
+    // Save prefrences permanently
+    prefs.begin("cmps14", false);
+    prefs.putFloat("offset_deg", installation_offset_deg);
+    prefs.end();
+
+    char line2[17];
+    snprintf(line2, sizeof(line2), "SET: %6.1f%c", installation_offset_deg, 223);
+    lcd_print_lines("INSTALL OFFSET", line2);
+  }
+  handle_root();
+}
+
+// Web UI handler for 8 measured deviation values, to correct headingCompass --> headingMagnetic
+void handle_dev8_set() {
+  auto getf = [&](const char* k) -> float {
+    if (!server.hasArg(k)) return 0.0f;
+    float v = server.arg(k).toFloat();
+    if (isnan(v) || !isfinite(v)) v = 0.0f;
+    if (v < -90.0f) v = -90.0f;
+    if (v >  90.0f) v =  90.0f;
+    return v;
+  };
+
+  dev_at_card_deg[0] = getf("N");
+  dev_at_card_deg[1] = getf("NE");
+  dev_at_card_deg[2] = getf("E");
+  dev_at_card_deg[3] = getf("SE");
+  dev_at_card_deg[4] = getf("S");
+  dev_at_card_deg[5] = getf("SW");
+  dev_at_card_deg[6] = getf("W");
+  dev_at_card_deg[7] = getf("NW");
+
+  hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg);
+
+  // Save preferences permanently
+  prefs.begin("cmps14", false);
+  for (int i = 0; i < 8; i++) {
+    prefs.putFloat((String("dev") + String(i)).c_str(), dev_at_card_deg[i]);
+  }
+  prefs.putFloat("hc_A", hc.A);
+  prefs.putFloat("hc_B", hc.B);
+  prefs.putFloat("hc_C", hc.C);
+  prefs.putFloat("hc_D", hc.D);
+  prefs.putFloat("hc_E", hc.E);
+  prefs.end();
+
+  lcd_print_lines("DEVIATION (8)", "FIT & SAVED");
+
+  handle_root();
+}
+
 // Web UI handler for the HTML page
 void handle_root(){
 
   const char* mode = cmps14_autocal_on ? "AUTO_CAL" : cmps14_cal_on ? "MANUAL_CAL" : "USE";
-  
+  const char* dirs[8] = {"N","NE","E","SE","S","SW","W","NW"};
+
   String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
   html += "<link rel=\"icon\" href=\"data:,\">";
   html += "<style>";
-  html += "html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}";
-  html += ".button { background-color: #00A300; border: none; color: white; padding: 16px 40px; text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}";
+  html += "html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}";
+  html += "body { background:#000; color:#fff; }";
+  html += ".button { background-color: #00A300; border: none; color: white; padding: 16px 40px; text-decoration: none; font-size: 30px; margin: 6px; cursor: pointer; border-radius:10px;}";
   html += ".button2 { background-color: #D10000; }";
+  html += ".card { width:92%; margin:14px auto; padding:14px; background:#0b0b0b; border-radius:12px; box-shadow:0 0 0 1px #222 inset; }";
+  html += "h1 { margin:16px 0 8px 0; } h2 { margin:10px 0; font-size:22px; } h3 { margin:8px 0; font-size:18px; }";
+  html += "label { display:inline-block; min-width:40px; text-align:right; margin-right:8px; }";
+  html += "input[type=number]{ font-size:18px; width:90px; padding:6px 8px; margin:4px; border-radius:8px; border:1px solid #333; background:#111; color:#fff; }";
   html += "#st { font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; line-height: 1.4; color: #DBDBDB; background-color: #000; padding: 10px; border-radius: 10px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}";
-  html += "</style></head>";
-  html += "<body style=\"background-color:black; color:white;\"><h1>CMPS14 CONFIG</h1>";
-  
-  // Display Calibrate controls
-  if (strcmp(mode, "AUTO_CAL") == 0){
+  html += "</style></head><body><h1>CMPS14 CONFIG</h1>";
+
+  // === CAL / USE controls ===
+  html += "<div class='card'>";
+  html += "<h2>Mode: ";
+  if (strcmp(mode, "AUTO_CAL")==0) html += "AUTO CAL";
+  else if (strcmp(mode, "MANUAL_CAL")==0) html += "MANUAL CAL";
+  else html += "USE";
+  html += "</h2>";
+
+  if (strcmp(mode, "AUTO_CAL") == 0 || strcmp(mode, "MANUAL_CAL") == 0){
     html += "<p><a href=\"/cal/off\"><button class=\"button button2\">STOP</button></a></p>";
     if (!cmps14_cal_profile_stored) {
       html += "<p><a href=\"/store/on\"><button class=\"button\">SAVE</button></a></p>";
     } else {
-      html += "<p><a href=\"/store/on\"><button class=\"button button2\">REPLACE</button></a></p>"; // Is this possible thread at all?
+      html += "<p><a href=\"/store/on\"><button class=\"button button2\">REPLACE</button></a></p>";
     }
-  }
-
-  if (strcmp(mode, "MANUAL_CAL") == 0){
-    html += "<p><a href=\"/cal/off\"><button class=\"button button2\">STOP</button></a></p>";
-    if (!cmps14_cal_profile_stored) {
-      html += "<p><a href=\"/store/on\"><button class=\"button\">SAVE</button></a></p>";
-    } else {
-      html += "<p><a href=\"/store/on\"><button class=\"button button2\">REPLACE</button></a></p>"; // Is this possible thread at all?
-    }
-  }
-
-  if (strcmp(mode, "USE") == 0){
+  } else {
     html += "<p><a href=\"/cal/on\"><button class=\"button\">CALIBRATE</button></a></p>";
   }
 
-   // Display Reset button
   if (!cmps14_factory_reset){
     html += "<p><a href=\"/reset/on\"><button class=\"button button2\">RESET</button></a></p>";
   }
-  html += "<h3>STATUS</h3><div id=\"st\">Loading...</div>";
+  html += "</div>";
+
+  // === INSTALLATION OFFSET ===
+  html += "<div class='card'>";
+  html += "<h2>Installation Offset</h2>";
+  html += "<p>Korjaa fyysisen asennusvirheen asteina (−180…+180). Käytetään ennen eksymäkorjausta.</p>";
+  html += "<form action=\"/offset/set\" method=\"get\">";
+  html += "<label>Offset</label>";
+  html += "<input type=\"number\" name=\"v\" step=\"0.1\" min=\"-180\" max=\"180\" value=\"" + String(installation_offset_deg, 1) + "\">";
+  html += "<input type=\"submit\" value=\"SET\" class=\"button\">";
+  html += "</form>";
+  html += "</div>";
+
+  // === 8-point deviation form (harmonic model) ===
+  html += "<div class='card'>";
+  html += "<h2>Deviation (deg) at Cardinal & Intercardinal Points</h2>";
+  html += "<p>Syötä mitatut residuaalit <b>asteina</b> (N, NE, E, SE, S, SW, W, NW). Sovitus laskee harmonisen mallin (A,B,C,D,E).</p>";
+  html += "<form action=\"/dev8/set\" method=\"get\">";
+  // Row 1: N NE E SE
+  html += "<div>";
+  html += "<label>N</label><input name=\"N\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[0],1) + "\">";
+  html += "<label>NE</label><input name=\"NE\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[1],1) + "\">";
+  html += "<label>E</label><input name=\"E\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[2],1) + "\">";
+  html += "<label>SE</label><input name=\"SE\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[3],1) + "\">";
+  html += "</div>";
+  // Row 2: S SW W NW
+  html += "<div>";
+  html += "<label>S</label><input name=\"S\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[4],1) + "\">";
+  html += "<label>SW</label><input name=\"SW\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[5],1) + "\">";
+  html += "<label>W</label><input name=\"W\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[6],1) + "\">";
+  html += "<label>NW</label><input name=\"NW\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[7],1) + "\">";
+  html += "</div>";
+  html += "<input type=\"submit\" class=\"button\" value=\"FIT & SAVE\">";
+  html += "</form>";
+  html += "<h3>Info</h3><p style='font-size:14px;color:#bbb'>Sovitettu malli päivittyy heti ja sitä käytetään suuntakulman korjaukseen `read_compass()`-funktion sisällä.</p>";
+  html += "</div>";
+
+  // === STATUS ===
+  html += "<div class='card'>";
+  html += "<h2>STATUS</h2><div id=\"st\">Loading...</div>";
+  html += "</div>";
+
+  // === Live updater ===
   html += "<script>"
-  "function upd(){"
-  "fetch('/status').then(r=>r.json()).then(j=>{"
-  "const d=["
-  "'Heading (M): '+j.hdg_deg.toFixed(1)+'\u00B0',"
-  "'Pitch: '+j.pitch_deg.toFixed(1)+'\u00B0',"
-  "'Roll: '+j.roll_deg.toFixed(1)+'\u00B0',"
-  "'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,"
-  "'WiFi: '+j.wifi+' ('+j.rssi+' dBm)'];"
-  "document.getElementById('st').textContent=d.join('\\n');"
-  "}).catch(_=>{document.getElementById('st').textContent='Status fetch failed';});}"
-  "setInterval(upd,1000);upd();"
-  "</script>";
+          "function upd(){"
+          "fetch('/status').then(r=>r.json()).then(j=>{"
+          "const d=["
+          "'Heading (M): '+(isNaN(j.hdg_deg)?'NA':j.hdg_deg.toFixed(1))+'\\u00B0',"
+          "'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\\u00B0',"
+          "'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\\u00B0',"
+          "'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,"
+          "'WiFi: '+j.wifi+' ('+j.rssi+' dBm)',"
+          "'WS open: '+j.ws_open"
+          "];"
+          "document.getElementById('st').textContent=d.join('\\n');"
+          "}).catch(_=>{document.getElementById('st').textContent='Status fetch failed';});}"
+          "setInterval(upd,1000);upd();"
+          "</script>";
+
   html += "</body></html>";
   server.send(200, "text/html; charset=utf-8", html);
 }
@@ -577,12 +699,23 @@ void setup() {
   delay(100);
 
   Wire.begin(I2C_SDA, I2C_SCL);
-  delay(100);
+  delay(50);
   Wire.setClock(400000);
-  delay(100);
+  delay(50);
 
   lcd_init_safe();
   delay(100);
+
+  prefs.begin("cmps14", false);                                       // Get saved preferences
+  installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
+  for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
+  fit_harmonic_from_8(headings_deg, dev_at_card_deg);
+  hc.A = prefs.getFloat("hc_A", 0.0f);
+  hc.B = prefs.getFloat("hc_B", 0.0f);
+  hc.C = prefs.getFloat("hc_C", 0.0f);
+  hc.D = prefs.getFloat("hc_D", 0.0f);
+  hc.E = prefs.getFloat("hc_E", 0.0f);
+  prefs.end();
 
   if (cmps14_autocal_on){
     if (start_calibration_autosave()) {                    // Switch on CMPS14 autocalibration with autosave
@@ -636,22 +769,23 @@ void setup() {
     ArduinoOTA.setHostname(SK_SOURCE.c_str());
     ArduinoOTA.setPassword(WIFI_PASS);
     ArduinoOTA.onStart([](){
-      Serial.println("OTA upload starting...");
+      lcd_print_lines("OTA UPDATE", "INIT");
     });
     ArduinoOTA.onEnd([]() {
-      Serial.println("OTA upload complete!");
+      lcd_print_lines("OTA UPDATE", "COMPLETE");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){
-      Serial.printf("Progress: %u%%\r", (unsigned)(progress / (total /100)));
+      char buf[17];
+      snprintf(buf, sizeof(buf), "RUNNING: %u%%\r", (unsigned)(progress / (total /100)));
+      lcd_print_lines("OTA UPDATE", buf);
     });
     ArduinoOTA.onError([] (ota_error_t error) {
-      Serial.printf("Error:[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) Serial.println("Authentication failed.");
-      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin failed.");
-      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect failed.");
-      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive failed.");
-      else if (error == OTA_END_ERROR) Serial.println("End failed.");
-      else Serial.println("Unknown error.");
+      if (error == OTA_AUTH_ERROR) lcd_print_lines("OTA UPDATE", "AUTH FAIL");
+      else if (error == OTA_BEGIN_ERROR) lcd_print_lines("OTA UPDATE", "INIT FAIL");
+      else if (error == OTA_CONNECT_ERROR) lcd_print_lines("OTA UPDATE", "CONNECT FAIL");
+      else if (error == OTA_RECEIVE_ERROR) lcd_print_lines("OTA UPDATE", "RECEIVE FAIL");
+      else if (error == OTA_END_ERROR) lcd_print_lines("OTA UPDATE", "ENDING FAIL");
+      else lcd_print_lines("OTA UPDATE", "ERROR");
     });
     ArduinoOTA.begin();
 
@@ -662,6 +796,8 @@ void setup() {
     server.on("/cal/off", handle_calibrate_off);
     server.on("/store/on", handle_store);
     server.on("/reset/on", handle_reset);
+    server.on("/offset/set", handle_set_offset);
+    server.on("/dev8/set", handle_dev8_set);
     server.begin();
 
     setup_ws_callbacks();                                             // Websocket
