@@ -27,6 +27,7 @@ const uint8_t REG_ROLL          = 0x05;  // signed degrees
 
 // CMPS14 calibration
 static bool cmps14_autocal_on         = false;  // Autocalibration flag
+static bool autocal_next_boot         = false;  // To show chosen autocalibration next boot flag on web UI
 static bool cmps14_cal_on             = false;  // Manual calibration flag
 static bool cmps14_cal_profile_stored = false;  // Calibration profile stored flag
 static bool cmps14_factory_reset      = false;  // Factory reset flag
@@ -38,6 +39,7 @@ const uint8_t CAL_OK_REQUIRED         = 2;      // Wait for 2 consequtive OKs
 // CMPS14 reading parameters
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
 float installation_offset_deg             = 0.0f;                      // Physical installation error of the compass module, configured via web UI
+float dev_deg                             = 0.0f;                      // Deviation at heading_deg calculated by harmonic model
 const unsigned long MIN_TX_INTERVAL_MS    = 150;                       // Max frequency for sending deltas to SignalK
 const float DB_HDG_RAD                    = 0.005f;                    // ~0.29°: deadband threshold for heading
 const float DB_ATT_RAD                    = 0.003f;                    // ~0.17°: pitch/roll deadband threshold
@@ -71,6 +73,7 @@ WebServer server(80);
 float heading_deg     = NAN;
 float pitch_deg       = NAN;
 float roll_deg        = NAN;
+float compass_deg     = NAN;
 
 // Values in radians for SignalK output
 float heading_rad     = NAN;
@@ -244,8 +247,9 @@ bool read_compass(){
   int8_t roll  = (int8_t)Wire.read();
 
   uint16_t ang10 = ((uint16_t)hi << 8) | lo;  // 0..3599 (0.1°)
-  float deg = ((float)ang10) / 10.0f;         // 0..359.9°
+  float deg = ((float)ang10) / 10.0f;               // 0..359.9°
   
+  compass_deg = deg;                          // Tag the raw compass deg for global use
   deg += installation_offset_deg;             // Correct physical installation error if such
   if (deg >= 360.0f) deg -= 360.0f;
   if (deg <    0.0f) deg += 360.0f;
@@ -260,12 +264,12 @@ bool read_compass(){
     if (heading_deg >= 360.0f) heading_deg -= 360.0f;
     if (heading_deg < 0.0f)   heading_deg += 360.0f;
   }
-
-  float dev_deg = deviation_harm_deg(hc, heading_deg);
+  compass_deg = heading_deg;
+  dev_deg = deviation_harm_deg(hc, heading_deg);
   float hdg_corr_deg = heading_deg + dev_deg;
   if (hdg_corr_deg < 0) hdg_corr_deg += 360.0f;
   if (hdg_corr_deg >= 360.0f) hdg_corr_deg -= 360.0f;
-  heading_deg = hdg_corr_deg;
+  heading_deg = hdg_corr_deg;                 // Magnetic heading = compass heading + installation offset + deviation
 
   pitch_deg   = (float)pitch;
   roll_deg    = (float)roll;
@@ -510,15 +514,16 @@ void handle_status(){
   json += "\"mode\":\"" + String(mode) + "\",";
   json += "\"wifi\":\"" + (WiFi.isConnected()? WiFi.localIP().toString() : String("disconnected")) + "\",";
   json += "\"rssi\":" + String(WiFi.isConnected()? WiFi.RSSI(): 0) + ",";
-  json += "\"ws_open\":" + String(ws_open ? "true":"false") + ",";
   json += "\"hdg_deg\":" + String(validf(heading_deg)? heading_deg: NAN) + ",";
+  json += "\"compass_deg\":" + String(validf(compass_deg)? compass_deg: NAN) + ",";
   json += "\"pitch_deg\":" + String(validf(pitch_deg)? pitch_deg: NAN) + ",";
   json += "\"roll_deg\":" + String(validf(roll_deg)? roll_deg: NAN) + ",";
   json += "\"acc\":" + String(acc) + ",";
   json += "\"mag\":" + String(mag) + ",";
-  json += "\"g\":"   + String(gyr) + ",";
   json += "\"sys\":" + String(sys) + ",";
   json += "\"stored\":" + String(cmps14_cal_profile_stored? "true":"false");
+  json += "\"offset\":" + String(installation_offset_deg);
+  json += "\"dev\":" + String(dev_deg);
   json += "}";
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -587,109 +592,172 @@ void handle_dev8_set() {
   handle_root();
 }
 
-// Web UI handler for the HTML page
-void handle_root(){
+void handle_autocal_set() {
+  autocal_next_boot = server.hasArg("en") && server.arg("en") == "1";
+  prefs.begin("cmps14", false);
+  prefs.putBool("autocal_pref", autocal_next_boot);
+  prefs.end();
+  lcd_print_lines("AUTOCAL IN BOOT", autocal_next_boot ? "ENABLED" : "DISABLED");
+  handle_root();
+}
 
-  const char* mode = cmps14_autocal_on ? "AUTO_CAL" : cmps14_cal_on ? "MANUAL_CAL" : "USE";
-  const char* dirs[8] = {"N","NE","E","SE","S","SW","W","NW"};
+// Web UI handler for the HTML page (memory-friendly streaming version instead of large String handling)
+void handle_root() {
 
-  String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
-  html += "<link rel=\"icon\" href=\"data:,\">";
-  html += "<style>";
-  html += "html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}";
-  html += "body { background:#000; color:#fff; }";
-  html += ".button { background-color: #00A300; border: none; color: white; padding: 16px 40px; text-decoration: none; font-size: 30px; margin: 6px; cursor: pointer; border-radius:10px;}";
-  html += ".button2 { background-color: #D10000; }";
-  html += ".card { width:92%; margin:14px auto; padding:14px; background:#0b0b0b; border-radius:12px; box-shadow:0 0 0 1px #222 inset; }";
-  html += "h1 { margin:16px 0 8px 0; } h2 { margin:10px 0; font-size:22px; } h3 { margin:8px 0; font-size:18px; }";
-  html += "label { display:inline-block; min-width:40px; text-align:right; margin-right:8px; }";
-  html += "input[type=number]{ font-size:18px; width:90px; padding:6px 8px; margin:4px; border-radius:8px; border:1px solid #333; background:#111; color:#fff; }";
-  html += "#st { font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; line-height: 1.4; color: #DBDBDB; background-color: #000; padding: 10px; border-radius: 10px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}";
-  html += "</style></head><body><h1>CMPS14 CONFIG</h1>";
+  const char* mode =
+    cmps14_autocal_on ? "AUTO_CAL" :
+    cmps14_cal_on     ? "MANUAL_CAL" : "USE";
 
-  // === CAL / USE controls ===
-  html += "<div class='card'>";
-  html += "<h2>Mode: ";
-  if (strcmp(mode, "AUTO_CAL")==0) html += "AUTO CAL";
-  else if (strcmp(mode, "MANUAL_CAL")==0) html += "MANUAL CAL";
-  else html += "USE";
-  html += "</h2>";
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html; charset=utf-8", "");
 
-  if (strcmp(mode, "AUTO_CAL") == 0 || strcmp(mode, "MANUAL_CAL") == 0){
-    html += "<p><a href=\"/cal/off\"><button class=\"button button2\">STOP</button></a></p>";
+  // Head and CSS
+  server.sendContent_P(R"(
+    <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><style>
+    html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}
+    body { background:#000; color:#fff; }
+    .button { background-color: #00A300; border: none; color: white; padding: 6px 20px; text-decoration: none; font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
+    .button2 { background-color: #D10000; }
+    .card { width:92%; margin:2px auto; padding:4px; background:#0b0b0b; border-radius:6px; box-shadow:0 0 0 1px #222 inset; }
+    h1 { margin:12px 0 8px 0; } h2 { margin:8px 0; font-size: 4vmin; max-font-size: 16px; min-font-size: 10px; } h3 { margin:6px 0; font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; }
+    label { display:inline-block; min-width:40px; text-align:right; margin-right:6px; }
+    input[type=number]{ font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; width:60px; padding:4px 6px; margin:4px; border-radius:6px; border:1px solid #333; background:#111; color:#fff; }
+    #st { font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 8px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
+    </style></head><body>
+    <h2>CMPS14 CONFIG</h2>
+    )");
+
+  // DIV Calibrate, Stop, Reset
+  server.sendContent_P(R"(
+    <div class='card'>)");
+  {
+    char buf[64];
+    const char* nice =
+      strcmp(mode, "AUTO_CAL")==0   ? "AUTO CAL" :
+      strcmp(mode, "MANUAL_CAL")==0 ? "MANUAL CAL" : "USE";
+    snprintf(buf, sizeof(buf), "<p>Mode: %s</p>", nice);
+    server.sendContent(buf);
+  }
+
+  if (strcmp(mode, "AUTO_CAL") == 0 || strcmp(mode, "MANUAL_CAL") == 0) {
+    server.sendContent_P(R"(<p><a href="/cal/off"><button class="button button2">STOP</button></a></p>)");
     if (!cmps14_cal_profile_stored) {
-      html += "<p><a href=\"/store/on\"><button class=\"button\">SAVE</button></a></p>";
+      server.sendContent_P(R"(<p><a href="/store/on"><button class="button">SAVE</button></a></p>)");
     } else {
-      html += "<p><a href=\"/store/on\"><button class=\"button button2\">REPLACE</button></a></p>";
-    }
+      server.sendContent_P(R"(<p><a href="/store/on"><button class="button button2">REPLACE</button></a></p>)");
+      }
   } else {
-    html += "<p><a href=\"/cal/on\"><button class=\"button\">CALIBRATE</button></a></p>";
+    server.sendContent_P(R"(<p><a href="/cal/on"><button class="button">CALIBRATE</button></a></p>)");
+    }
+
+  if (!cmps14_factory_reset){ server.sendContent_P(R"(<p><a href="/reset/on"><button class="button button2">RESET</button></a></p>)");}
+  server.sendContent_P(R"(</div>)");
+
+  // DIV Set installation offset
+  server.sendContent_P(R"(
+    <div class='card'>
+    <form action="/offset/set" method="get">
+    <label>Installation offset</label>
+    <input type="number" name="v" step="0.1" min="-180" max="180" value=")");
+      {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.1f", installation_offset_deg);
+        server.sendContent(buf);
+      }
+  server.sendContent_P(R"("><input type="submit" value="SAVE" class="button"></form></div>)");
+
+  // DIV Set deviation 
+  server.sendContent_P(R"(
+    <div class='card'>
+    <p>Deviations</p>
+    <form action="/dev8/set" method="get"><div>)");
+
+  // Row 1: N NE
+  {
+    char row1[256];
+    snprintf(row1, sizeof(row1),
+      "<label>N</label><input name=\"N\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
+      "<label>NE</label><input name=\"NE\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      dev_at_card_deg[0], dev_at_card_deg[1]);
+    server.sendContent(row1);
+  }
+  server.sendContent_P(R"(</div><div>)");
+
+  // Row 2:  E SE
+  {
+  char row2[256];
+    snprintf(row2, sizeof(row2),
+      "<label>E</label><input name=\"E\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
+      "<label>SE</label><input name=\"SE\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      dev_at_card_deg[2], dev_at_card_deg[3]);
+    server.sendContent(row2);
+  }
+  server.sendContent_P(R"(</div><div>)");
+
+  // Row 3: S SW
+  {
+  char row3[256];
+    snprintf(row3, sizeof(row3),
+      "<label>S</label><input name=\"S\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
+      "<label>SW</label><input name=\"SW\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      dev_at_card_deg[4], dev_at_card_deg[5]);
+    server.sendContent(row3);
+  }
+  server.sendContent_P(R"(</div><div>)");
+
+  // Row 4: W NW
+  {
+    char row4[256];
+    snprintf(row4, sizeof(row4),
+      "<label>W</label><input name=\"W\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
+      "<label>NW</label><input name=\"NW\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      dev_at_card_deg[6], dev_at_card_deg[7]);
+    server.sendContent(row4);
   }
 
-  if (!cmps14_factory_reset){
-    html += "<p><a href=\"/reset/on\"><button class=\"button button2\">RESET</button></a></p>";
-  }
-  html += "</div>";
+  server.sendContent_P(R"(
+    </div>
+    <input type="submit" class="button" value="SAVE"></form></div>)");
 
-  // === INSTALLATION OFFSET ===
-  html += "<div class='card'>";
-  html += "<h2>Installation Offset</h2>";
-  html += "<p>Korjaa fyysisen asennusvirheen asteina (−180…+180). Käytetään ennen eksymäkorjausta.</p>";
-  html += "<form action=\"/offset/set\" method=\"get\">";
-  html += "<label>Offset</label>";
-  html += "<input type=\"number\" name=\"v\" step=\"0.1\" min=\"-180\" max=\"180\" value=\"" + String(installation_offset_deg, 1) + "\">";
-  html += "<input type=\"submit\" value=\"SET\" class=\"button\">";
-  html += "</form>";
-  html += "</div>";
+  // DIV Status
+  server.sendContent_P(R"(<div class='card'><div id="st">Loading...</div></div>)");
 
-  // === 8-point deviation form (harmonic model) ===
-  html += "<div class='card'>";
-  html += "<h2>Deviation (deg) at Cardinal & Intercardinal Points</h2>";
-  html += "<p>Syötä mitatut residuaalit <b>asteina</b> (N, NE, E, SE, S, SW, W, NW). Sovitus laskee harmonisen mallin (A,B,C,D,E).</p>";
-  html += "<form action=\"/dev8/set\" method=\"get\">";
-  // Row 1: N NE E SE
-  html += "<div>";
-  html += "<label>N</label><input name=\"N\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[0],1) + "\">";
-  html += "<label>NE</label><input name=\"NE\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[1],1) + "\">";
-  html += "<label>E</label><input name=\"E\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[2],1) + "\">";
-  html += "<label>SE</label><input name=\"SE\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[3],1) + "\">";
-  html += "</div>";
-  // Row 2: S SW W NW
-  html += "<div>";
-  html += "<label>S</label><input name=\"S\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[4],1) + "\">";
-  html += "<label>SW</label><input name=\"SW\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[5],1) + "\">";
-  html += "<label>W</label><input name=\"W\"  type=\"number\" step=\"0.1\" value=\""  + String(dev_at_card_deg[6],1) + "\">";
-  html += "<label>NW</label><input name=\"NW\" type=\"number\" step=\"0.1\" value=\"" + String(dev_at_card_deg[7],1) + "\">";
-  html += "</div>";
-  html += "<input type=\"submit\" class=\"button\" value=\"FIT & SAVE\">";
-  html += "</form>";
-  html += "<h3>Info</h3><p style='font-size:14px;color:#bbb'>Sovitettu malli päivittyy heti ja sitä käytetään suuntakulman korjaukseen `read_compass()`-funktion sisällä.</p>";
-  html += "</div>";
+  // DIV Autocalibration at boot
+  server.sendContent_P(R"(
+    <div class='card'>
+    <form action="/autocal/set" method="get" style="margin-top:8px;">
+    <label style="min-width:180px;text-align:center;">Enable autocalibration on next boot.</label>
+    <input type="checkbox" name="en" value="1")");
+    { if (autocal_next_boot) server.sendContent_P(R"( checked)"); }
+  server.sendContent_P(R"(><div style="margin-top:10px;"><input type="submit" class="button" value="SAVE"></div></form><p style="font-size:14px;color:#bbb;margin-top:8px;">Current setting: )");
+  server.sendContent(autocal_next_boot ? "ENABLED" : "DISABLED");
+  server.sendContent_P(R"( (takes effect after reboot)</p></div>)");
 
-  // === STATUS ===
-  html += "<div class='card'>";
-  html += "<h2>STATUS</h2><div id=\"st\">Loading...</div>";
-  html += "</div>";
+  // Live JS updater script
+  server.sendContent_P(R"(
+    <script>
+      function upd(){
+        fetch('/status').then(r=>r.json()).then(j=>{
+          const d=[
+            'Heading (C): '+(isNaN(j.compass_deg)?'NA':j.compass_deg.toFixed(1))+'\u00B0',
+            'Offset: '+(isNaN(j.offset)?'NA':j.offset.toFixed(1))+'\u00B0',
+            'Deviation: '+(isNaN(j.dev)?'NA':j.dev.toFixed(1))+'\u00B0',
+            'Heading (M): '+(isNaN(j.hdg_deg)?'NA':j.hdg_deg.toFixed(1))+'\u00B0',
+            'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\u00B0',
+            'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\u00B0',
+            'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
+            'WiFi: '+j.wifi+' ('+j.rssi+' dBm)'
+          ];
+          document.getElementById('st').textContent=d.join('\n');
+        }).catch(_=>{
+          document.getElementById('st').textContent='Status fetch failed';
+        });
+      }
+      setInterval(upd,1000);upd();
+    </script>
+    </body>
+    </html>)");
 
-  // === Live updater ===
-  html += "<script>"
-          "function upd(){"
-          "fetch('/status').then(r=>r.json()).then(j=>{"
-          "const d=["
-          "'Heading (M): '+(isNaN(j.hdg_deg)?'NA':j.hdg_deg.toFixed(1))+'\\u00B0',"
-          "'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\\u00B0',"
-          "'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\\u00B0',"
-          "'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,"
-          "'WiFi: '+j.wifi+' ('+j.rssi+' dBm)',"
-          "'WS open: '+j.ws_open"
-          "];"
-          "document.getElementById('st').textContent=d.join('\\n');"
-          "}).catch(_=>{document.getElementById('st').textContent='Status fetch failed';});}"
-          "setInterval(upd,1000);upd();"
-          "</script>";
-
-  html += "</body></html>";
-  server.send(200, "text/html; charset=utf-8", html);
 }
 
 // ===== S E T U P ===== //
@@ -715,6 +783,8 @@ void setup() {
   hc.C = prefs.getFloat("hc_C", 0.0f);
   hc.D = prefs.getFloat("hc_D", 0.0f);
   hc.E = prefs.getFloat("hc_E", 0.0f);
+  cmps14_autocal_on = prefs.getBool("autocal_pref", false);
+  autocal_next_boot = cmps14_autocal_on;
   prefs.end();
 
   if (cmps14_autocal_on){
@@ -798,6 +868,7 @@ void setup() {
     server.on("/reset/on", handle_reset);
     server.on("/offset/set", handle_set_offset);
     server.on("/dev8/set", handle_dev8_set);
+    server.on("/autocal/set", handle_autocal_set);
     server.begin();
 
     setup_ws_callbacks();                                             // Websocket
