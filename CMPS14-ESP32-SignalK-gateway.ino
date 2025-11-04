@@ -521,9 +521,9 @@ void handle_status(){
   json += "\"acc\":" + String(acc) + ",";
   json += "\"mag\":" + String(mag) + ",";
   json += "\"sys\":" + String(sys) + ",";
+  json += "\"offset\":" + String(validf(installation_offset_deg)? installation_offset_deg: NAN) + ",";
+  json += "\"dev\":" + String(validf(dev_deg)? dev_deg: NAN) + ",";
   json += "\"stored\":" + String(cmps14_cal_profile_stored? "true":"false");
-  json += "\"offset\":" + String(installation_offset_deg);
-  json += "\"dev\":" + String(dev_deg);
   json += "}";
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -746,7 +746,8 @@ void handle_root() {
             'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\u00B0',
             'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\u00B0',
             'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
-            'WiFi: '+j.wifi+' ('+j.rssi+' dBm)'
+            'WiFi: '+j.wifi+' ('+j.rssi+' dBm)',
+            'Calibration saved since boot: '+j.stored
           ];
           document.getElementById('st').textContent=d.join('\n');
         }).catch(_=>{
