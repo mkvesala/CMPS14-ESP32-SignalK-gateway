@@ -26,13 +26,13 @@ const uint8_t REG_PITCH         = 0x04;  // signed degrees
 const uint8_t REG_ROLL          = 0x05;  // signed degrees
 
 // CMPS14 calibration
-static bool cmps14_autocal_on         = false;  // Autocalibration flag
-static bool autocal_next_boot         = false;  // To show chosen autocalibration next boot flag on web UI
-static bool cmps14_cal_on             = false;  // Manual calibration flag
-static bool cmps14_cal_profile_stored = false;  // Calibration profile stored flag
-static bool cmps14_factory_reset      = false;  // Factory reset flag
-static unsigned long last_cal_poll_ms = 0;      // Calibration monitoring counters
-static uint8_t cal_ok_count           = 0;
+bool cmps14_autocal_on                = false;  // Autocalibration flag
+bool autocal_next_boot                = false;  // To show chosen autocalibration next boot flag on web UI
+bool cmps14_cal_on                    = false;  // Manual calibration flag
+bool cmps14_cal_profile_stored        = false;  // Calibration profile stored flag
+bool cmps14_factory_reset             = false;  // Factory reset flag
+unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counters
+uint8_t cal_ok_count                  = 0;
 const unsigned long CAL_POLL_MS       = 500;
 const uint8_t CAL_OK_REQUIRED         = 2;      // Wait for 2 consequtive OKs
 
@@ -40,17 +40,22 @@ const uint8_t CAL_OK_REQUIRED         = 2;      // Wait for 2 consequtive OKs
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
 float installation_offset_deg             = 0.0f;                      // Physical installation error of the compass module, configured via web UI
 float dev_deg                             = 0.0f;                      // Deviation at heading_deg calculated by harmonic model
+float magvar_manual_deg                   = 0.0f;                      // Variation that is set manually from web UI
+bool send_hdg_true                        = true;                      // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
+bool use_manual_magvar                    = true;                      // Use magvar_manual_deg if true
 const unsigned long MIN_TX_INTERVAL_MS    = 150;                       // Max frequency for sending deltas to SignalK
 const float DB_HDG_RAD                    = 0.005f;                    // ~0.29°: deadband threshold for heading
 const float DB_ATT_RAD                    = 0.003f;                    // ~0.17°: pitch/roll deadband threshold
-static unsigned long last_minmax_tx_ms    = 0;
-static float last_sent_pitch_min          = NAN;                       // Min and Max for pitch and roll
-static float last_sent_pitch_max          = NAN;
-static float last_sent_roll_min           = NAN;
-static float last_sent_roll_max           = NAN;
+unsigned long last_minmax_tx_ms           = 0;
+float last_sent_pitch_min                 = NAN;                       // Min and Max for pitch and roll
+float last_sent_pitch_max                 = NAN;
+float last_sent_roll_min                  = NAN;
+float last_sent_roll_max                  = NAN;
 const unsigned long MINMAX_TX_INTERVAL_MS = 1000;                      // Frequency for pitch/roll maximum values sending
 unsigned long last_lcd_ms                 = 0;
 const unsigned long LCD_MS                = 1000;                      // Frequency to print on LCD
+unsigned long last_read_ms                = 0;
+const unsigned long READ_MS               = 50;                        // Frequency to read values from CMPS14
 
 // SH-ESP32 default pins for I2C
 const uint8_t I2C_SDA = 16;
@@ -70,25 +75,29 @@ const unsigned long WS_RETRY_MAX = 20000;
 WebServer server(80);
 
 // Values in degrees for LCD output and webserver
-float heading_deg     = NAN;
-float pitch_deg       = NAN;
-float roll_deg        = NAN;
-float compass_deg     = NAN;
+float heading_deg       = NAN;
+float pitch_deg         = NAN;
+float roll_deg          = NAN;
+float compass_deg       = NAN;
+float heading_true_deg  = NAN;
+float magvar_deg        = NAN;
 
-// Values in radians for SignalK output
-float heading_rad     = NAN;
-float pitch_rad       = NAN;
-float roll_rad        = NAN;
-float pitch_min_rad   = NAN;
-float pitch_max_rad   = NAN;
-float roll_min_rad    = NAN;
-float roll_max_rad    = NAN;
+// Values in radians to communicate with SignalK
+float heading_rad       = NAN;
+float heading_true_rad  = NAN;
+float pitch_rad         = NAN;
+float roll_rad          = NAN;
+float pitch_min_rad     = NAN;
+float pitch_max_rad     = NAN;
+float roll_min_rad      = NAN;
+float roll_max_rad      = NAN;
+float magvar_rad        = NAN; // Value FROM SignalK navigation.magneticVariation
 
 // I2C LCD screen
 std::unique_ptr<LiquidCrystal_I2C> lcd;
 bool lcd_present          = false;
-static char prev_top[17]  = "";
-static char prev_bot[17]  = "";
+char prev_top[17]  = "";
+char prev_bot[17]  = "";
 const uint8_t LCD_ADDR1   = 0x27;             // Scan both addressess in init
 const uint8_t LCD_ADDR2   = 0x3F;
 
@@ -112,22 +121,66 @@ void make_source_from_mac() {
 
 // Websocket
 void setup_ws_callbacks() {
+  
   ws.onEvent([](WebsocketsEvent e, String){
-    if (e == WebsocketsEvent::ConnectionOpened)  { ws_open = true; }
+    if (e == WebsocketsEvent::ConnectionOpened) {
+      ws_open = true;
+      if (!send_hdg_true) return;                             // Do nothing from here if user has switched off sending of headingTrue
+      StaticJsonDocument<256> sub;                            // Subscribe navigation.magneticVariation from SignalK server
+      sub["context"] = "vessels.self";
+      auto subscribe = sub.createNestedArray("subscribe");
+      auto s = subscribe.createNestedObject();
+      s["path"] = "navigation.magneticVariation";
+      s["period"] = 1000;                                     // Request ~1 Hz updates
+
+      char buf[256];
+      size_t n = serializeJson(sub, buf, sizeof(buf));
+      ws.send(buf, n);
+    }
     if (e == WebsocketsEvent::ConnectionClosed)  { ws_open = false; }
     if (e == WebsocketsEvent::GotPing)           { ws.pong(); }
   });
+
+  ws.onMessage([](WebsocketsMessage msg){
+    if (!send_hdg_true) return;                                                   // Do nothing if user has switched headingTrue sending off
+    if (!msg.isText()) return;
+    StaticJsonDocument<768> d;
+    DeserializationError err = deserializeJson(d, msg.data());
+    if (err) return;
+
+    if (d.containsKey("updates")) {                                           // Search updates[].values[].path == navigation.magneticVariation
+      for (JsonObject up : d["updates"].as<JsonArray>()) {
+        if (!up.containsKey("values")) continue;
+        for (JsonObject v : up["values"].as<JsonArray>()) {
+          const char* path = v["path"] | nullptr;
+          if (!path) continue;
+          if (strcmp(path, "navigation.magneticVariation") == 0) {
+            if (v["value"].is<float>() || v["value"].is<double>()) {          // Value should be in rad in SignalK path
+              float mv = v["value"].as<float>();
+              if (validf(mv)) {
+                magvar_rad = mv;
+                use_manual_magvar = false;
+                magvar_deg = magvar_rad * RAD_TO_DEG;
+              } else use_manual_magvar = true;
+            }
+          }
+        }
+      }
+    }
+  });
+
 }
 
 // Send batch of SignalK deltas but only if change exceeds the deadband limits (no unnecessary sending)
 void send_batch_delta_if_needed() {
-  if (LCD_ONLY || !ws_open) return;                                             // execute only if wifi and websocket ok
-  if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return;  // execute only if values are valid
+  
+  if (LCD_ONLY || !ws_open) return;                                                                    // execute only if wifi and websocket ok
+  if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return;                         // execute only if values are valid
 
   static unsigned long last_tx_ms = 0;
   const unsigned long now = millis();
   if (now - last_tx_ms < MIN_TX_INTERVAL_MS) {
-    return;                                                                     // max 10 Hz, timer 100 ms for sending to SignalK
+    return;                                                                                            // Timer for sending to SignalK
   }
 
   static float last_h = NAN, last_p = NAN, last_r = NAN;
@@ -161,6 +214,13 @@ void send_batch_delta_if_needed() {
   if (changed_h) add("navigation.headingMagnetic", last_h);     // SignalK paths and values
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
+  if (changed_h && send_hdg_true) {                             
+    float mv_rad = use_manual_magvar ? (magvar_manual_deg * DEG_TO_RAD) : magvar_rad;
+    auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
+    heading_true_rad = wrap2pi(last_h + mv_rad);
+    heading_true_deg = heading_true_rad * RAD_TO_DEG;
+    add("navigation.headingTrue", heading_true_rad);
+  }
 
   if (values.size() == 0) return;
 
@@ -509,6 +569,7 @@ void handle_status(){
   if (st!=0xFF) { mag=(st)&3; acc=(st>>2)&3; gyr=(st>>4)&3; sys=(st>>6)&3; }
 
   const char* mode = cmps14_autocal_on ? "AUTO_CAL" : cmps14_cal_on ? "MANUAL_CAL" : "USE";
+  float variation = use_manual_magvar ? magvar_manual_deg : magvar_deg;
 
   String json = "{";
   json += "\"mode\":\"" + String(mode) + "\",";
@@ -523,7 +584,11 @@ void handle_status(){
   json += "\"sys\":" + String(sys) + ",";
   json += "\"offset\":" + String(validf(installation_offset_deg)? installation_offset_deg: NAN) + ",";
   json += "\"dev\":" + String(validf(dev_deg)? dev_deg: NAN) + ",";
-  json += "\"stored\":" + String(cmps14_cal_profile_stored? "true":"false");
+  json += ",\"variation\":" + String(validf(variation)? variation : NAN) + ",";
+  json += ",\"heading_true_deg\":" + String(validf(heading_true_deg)? heading_true_deg : NAN) + ",";
+  json += ",\"use__manual_magvar\":" + String(use_manual_magvar ? "YES":"NO")  + ",";
+  json += ",\"send_hdg_true\":" + String(send_hdg_true ? "YES":"NO")  + ",";
+  json += "\"stored\":" + String(cmps14_cal_profile_stored? "YES":"NO");
   json += "}";
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -592,12 +657,48 @@ void handle_dev8_set() {
   handle_root();
 }
 
+// Web UI handler to save the autocal on boot setting
 void handle_autocal_set() {
   autocal_next_boot = server.hasArg("en") && server.arg("en") == "1";
   prefs.begin("cmps14", false);
   prefs.putBool("autocal_pref", autocal_next_boot);
   prefs.end();
   lcd_print_lines("AUTOCAL IN BOOT", autocal_next_boot ? "ENABLED" : "DISABLED");
+  handle_root();
+}
+
+// Web UI handler to set magnetic variation manually to determine headingTrue if value is not available from SignalK navigation.magneticVariation path
+void handle_magvar_set() {
+  
+  if (server.hasArg("v")) {
+    float v = server.arg("v").toFloat();
+    if (!isfinite(v)) v = 0.0f;
+    if (v < -90.0f) v = -90.0f;
+    if (v >  90.0f) v =  90.0f;
+    magvar_manual_deg = v;
+
+    prefs.begin("cmps14", false);
+    prefs.putFloat("magvar_manual_deg", magvar_manual_deg);
+    prefs.end();
+
+    char line2[17];
+    snprintf(line2, sizeof(line2), "SET: %6.1f%c", magvar_manual_deg, 223);
+    lcd_print_lines("MAG VARIATION", line2);
+  }
+  handle_root();
+}
+
+// Web UI handler to set heading mode: headingMagnetic or headingTrue
+void handle_heading_mode() {
+  
+  if (server.hasArg("true")) {
+    int en = server.arg("true").toInt();
+    send_hdg_true = (en == 1);          // if 1 then true, otherwise false
+
+    prefs.begin("cmps14", false);
+    prefs.putBool("send_hdg_true", send_hdg_true);
+    prefs.end();
+  }
   handle_root();
 }
 
@@ -622,7 +723,7 @@ void handle_root() {
     h1 { margin:12px 0 8px 0; } h2 { margin:8px 0; font-size: 4vmin; max-font-size: 16px; min-font-size: 10px; } h3 { margin:6px 0; font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; }
     label { display:inline-block; min-width:40px; text-align:right; margin-right:6px; }
     input[type=number]{ font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; width:60px; padding:4px 6px; margin:4px; border-radius:6px; border:1px solid #333; background:#111; color:#fff; }
-    #st { font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 8px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
+    #st { font-size: 2vmin; max-font-size: 18px; min-font-size: 6px; line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 8px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
     </style></head><body>
     <h2>CMPS14 CONFIG</h2>
     )");
@@ -652,6 +753,17 @@ void handle_root() {
 
   if (!cmps14_factory_reset){ server.sendContent_P(R"(<p><a href="/reset/on"><button class="button button2">RESET</button></a></p>)");}
   server.sendContent_P(R"(</div>)");
+
+  // DIV Autocalibration at boot
+  server.sendContent_P(R"(
+    <div class='card'>
+    <form action="/autocal/set" method="get" style="margin-top:8px;">
+    <label style="min-width:180px;text-align:center;">Enable autocalibration on next boot.</label>
+    <input type="checkbox" name="en" value="1")");
+    { if (autocal_next_boot) server.sendContent_P(R"( checked)"); }
+  server.sendContent_P(R"(><div style="margin-top:10px;"><input type="submit" class="button" value="SAVE"></div></form><p style="font-size:14px;color:#bbb;margin-top:8px;">Current setting: )");
+  server.sendContent(autocal_next_boot ? "ENABLED" : "DISABLED");
+  server.sendContent_P(R"( (takes effect after reboot)</p></div>)");
 
   // DIV Set installation offset
   server.sendContent_P(R"(
@@ -719,19 +831,28 @@ void handle_root() {
     </div>
     <input type="submit" class="button" value="SAVE"></form></div>)");
 
-  // DIV Status
-  server.sendContent_P(R"(<div class='card'><div id="st">Loading...</div></div>)");
-
-  // DIV Autocalibration at boot
+  // DIV Set variation 
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/autocal/set" method="get" style="margin-top:8px;">
-    <label style="min-width:180px;text-align:center;">Enable autocalibration on next boot.</label>
-    <input type="checkbox" name="en" value="1")");
-    { if (autocal_next_boot) server.sendContent_P(R"( checked)"); }
-  server.sendContent_P(R"(><div style="margin-top:10px;"><input type="submit" class="button" value="SAVE"></div></form><p style="font-size:14px;color:#bbb;margin-top:8px;">Current setting: )");
-  server.sendContent(autocal_next_boot ? "ENABLED" : "DISABLED");
-  server.sendContent_P(R"( (takes effect after reboot)</p></div>)");
+    <p>Variation</p>
+    <form action="/magvar/set" method="get"><div>
+    <label>Manual</label>
+    <input type="number" name="v" step="0.1" min="-180" max="180" value="
+    )");
+  server.sendContent(String(magvar_manual_deg, 1));
+  server.sendContent_P(R"(
+    "></div>
+    <input type="submit" class="button" value="SAVE"></form></div>)");
+  server.sendContent_P(R"(
+    <div class='card'>
+    <form action="/heading/mode" method="get" style="margin-top:8px;">
+    <label style="min-width:180px;text-align:center;">Send true heading</label>
+    <input type="checkbox" name="true" value="1")");
+    { if (send_hdg_true) server.sendContent_P(R"( checked)"); }
+    server.sendContent_P(R"(><div style="margin-top:10px;"><input type="submit" class="button" value="SAVE"></div></form></div>)");
+
+  // DIV Status
+  server.sendContent_P(R"(<div class='card'><div id="st">Loading...</div></div>)");
 
   // Live JS updater script
   server.sendContent_P(R"(
@@ -743,10 +864,14 @@ void handle_root() {
             'Offset: '+(isNaN(j.offset)?'NA':j.offset.toFixed(1))+'\u00B0',
             'Deviation: '+(isNaN(j.dev)?'NA':j.dev.toFixed(1))+'\u00B0',
             'Heading (M): '+(isNaN(j.hdg_deg)?'NA':j.hdg_deg.toFixed(1))+'\u00B0',
+            'Variation: '+(isNaN(j.variation)?'NA':j.dev.toFixed(1))+'\u00B0',
+            'Heading (T): '+(isNaN(j.heading_true_deg)?'NA':j.heading_true_deg.toFixed(1))+'\u00B0',
             'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\u00B0',
             'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\u00B0',
             'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
             'WiFi: '+j.wifi+' ('+j.rssi+' dBm)',
+            'Send true heading: '+j.send_hdg_true,
+            'Use manual variation: '+j.use_manual_magvar,
             'Calibration saved since boot: '+j.stored
           ];
           document.getElementById('st').textContent=d.join('\n');
@@ -786,6 +911,8 @@ void setup() {
   hc.E = prefs.getFloat("hc_E", 0.0f);
   cmps14_autocal_on = prefs.getBool("autocal_pref", false);
   autocal_next_boot = cmps14_autocal_on;
+  magvar_manual_deg = prefs.getFloat("magvar_manual_deg", 0.0f);
+  send_hdg_true = prefs.getBool("send_hdg_true", true);
   prefs.end();
 
   if (cmps14_autocal_on){
@@ -870,6 +997,8 @@ void setup() {
     server.on("/offset/set", handle_set_offset);
     server.on("/dev8/set", handle_dev8_set);
     server.on("/autocal/set", handle_autocal_set);
+    server.on("/magvar/set", handle_magvar_set);
+    server.on("/heading/mode", handle_heading_mode);
     server.begin();
 
     setup_ws_callbacks();                                             // Websocket
@@ -904,7 +1033,11 @@ void loop() {
   }
   if (ws_open) expn_retry_ms = WS_RETRY_MS;
 
-  bool success = read_compass();                                      // Read values from CMPS14 on each loop
+  bool success = false;
+  if ((long)(now - last_read_ms) >= READ_MS) {
+    last_read_ms = now;
+    success = read_compass();                                         // Read values from CMPS14 only when timer is due
+  }
 
   if (cmps14_autocal_on) {
     cmps14_monitor_and_store(true);                                   // Monitor and autosave
@@ -917,7 +1050,7 @@ void loop() {
     send_minmax_delta_if_due();
   }
 
-  if (success && (now - last_lcd_ms >= LCD_MS)) {                                  // Execute only on the ticks when LCD timer is due
+  if (success && (now - last_lcd_ms >= LCD_MS)) {                     // Execute only on the ticks when LCD timer is due
     last_lcd_ms = now;
     char buf[17];
     snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
