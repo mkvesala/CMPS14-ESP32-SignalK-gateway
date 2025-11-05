@@ -131,6 +131,8 @@ void setup_ws_callbacks() {
       auto subscribe = sub.createNestedArray("subscribe");
       auto s = subscribe.createNestedObject();
       s["path"] = "navigation.magneticVariation";
+      s["format"] = "delta";
+      s["policy"] = "ideal";
       s["period"] = 1000;                                     // Request ~1 Hz updates
 
       char buf[256];
@@ -144,25 +146,23 @@ void setup_ws_callbacks() {
   ws.onMessage([](WebsocketsMessage msg){
     if (!send_hdg_true) return;                                                   // Do nothing if user has switched headingTrue sending off
     if (!msg.isText()) return;
-    StaticJsonDocument<768> d;
-    DeserializationError err = deserializeJson(d, msg.data());
-    if (err) return;
-
-    if (d.containsKey("updates")) {                                           // Search updates[].values[].path == navigation.magneticVariation
-      for (JsonObject up : d["updates"].as<JsonArray>()) {
-        if (!up.containsKey("values")) continue;
-        for (JsonObject v : up["values"].as<JsonArray>()) {
-          const char* path = v["path"] | nullptr;
-          if (!path) continue;
-          if (strcmp(path, "navigation.magneticVariation") == 0) {
-            if (v["value"].is<float>() || v["value"].is<double>()) {          // Value should be in rad in SignalK path
-              float mv = v["value"].as<float>();
-              if (validf(mv)) {
-                magvar_rad = mv;
-                use_manual_magvar = false;
-                magvar_deg = magvar_rad * RAD_TO_DEG;
-              } else use_manual_magvar = true;
-            }
+    StaticJsonDocument<1024> d;
+    if (deserializeJson(d, msg.data())) return;
+    if (!d.containsKey("updates")) return;
+    for (JsonObject up : d["updates"].as<JsonArray>()) {
+      if (!up.containsKey("values")) continue;
+      for (JsonObject v : up["values"].as<JsonArray>()) {
+        if (!v.containsKey("path")) continue;
+        const char* path = v["path"];
+        if (!path) continue;
+        if (strcmp(path, "navigation.magneticVariation") == 0) {
+          if (v["value"].is<float>() || v["value"].is<double>()) {              // Value should be in rad in SignalK path
+            float mv = v["value"].as<float>();
+            if (validf(mv)) {
+              magvar_rad = mv;
+              use_manual_magvar = false;
+              magvar_deg = magvar_rad * RAD_TO_DEG;
+            } else use_manual_magvar = true;
           }
         }
       }
@@ -198,7 +198,7 @@ void send_batch_delta_if_needed() {
 
   if (!(changed_h || changed_p || changed_r)) return;
 
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   doc["context"] = "vessels.self";
   auto updates = doc.createNestedArray("updates");
   auto up      = updates.createNestedObject();
@@ -224,7 +224,7 @@ void send_batch_delta_if_needed() {
 
   if (values.size() == 0) return;
 
-  char buf[448];
+  char buf[640];
   size_t n = serializeJson(doc, buf, sizeof(buf));
   bool ok = ws.send(buf, n);
   if (!ok) {
@@ -252,7 +252,7 @@ void send_minmax_delta_if_due() {
     return;
   }
 
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   doc["context"] = "vessels.self";
   auto updates = doc.createNestedArray("updates");
   auto up      = updates.createNestedObject();
@@ -270,7 +270,7 @@ void send_minmax_delta_if_due() {
   if (ch_rmin) add("navigation.attitude.roll.min",  roll_min_rad);
   if (ch_rmax) add("navigation.attitude.roll.max",  roll_max_rad);
 
-  char buf[448];
+  char buf[640];
   size_t n = serializeJson(doc, buf, sizeof(buf));
   bool ok = ws.send(buf, n);
   if (!ok){
@@ -324,7 +324,7 @@ bool read_compass(){
     if (heading_deg >= 360.0f) heading_deg -= 360.0f;
     if (heading_deg < 0.0f)   heading_deg += 360.0f;
   }
-  compass_deg = heading_deg;
+ 
   dev_deg = deviation_harm_deg(hc, heading_deg);
   float hdg_corr_deg = heading_deg + dev_deg;
   if (hdg_corr_deg < 0) hdg_corr_deg += 360.0f;
@@ -584,11 +584,11 @@ void handle_status(){
   json += "\"sys\":" + String(sys) + ",";
   json += "\"offset\":" + String(validf(installation_offset_deg)? installation_offset_deg: NAN) + ",";
   json += "\"dev\":" + String(validf(dev_deg)? dev_deg: NAN) + ",";
-  json += ",\"variation\":" + String(validf(variation)? variation : NAN) + ",";
-  json += ",\"heading_true_deg\":" + String(validf(heading_true_deg)? heading_true_deg : NAN) + ",";
-  json += ",\"use__manual_magvar\":" + String(use_manual_magvar ? "YES":"NO")  + ",";
-  json += ",\"send_hdg_true\":" + String(send_hdg_true ? "YES":"NO")  + ",";
-  json += "\"stored\":" + String(cmps14_cal_profile_stored? "YES":"NO");
+  json += "\"variation\":" + String(validf(variation)? variation : NAN) + ",";
+  json += "\"heading_true_deg\":" + String(validf(heading_true_deg)? heading_true_deg : NAN) + ",";
+  json += "\"use_manual_magvar\":" + String(use_manual_magvar ? "true":"false")  + ",";
+  json += "\"send_hdg_true\":" + String(send_hdg_true ? "true":"false")  + ",";
+  json += "\"stored\":" + String(cmps14_cal_profile_stored? "true":"false");
   json += "}";
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -682,7 +682,7 @@ void handle_magvar_set() {
     prefs.end();
 
     char line2[17];
-    snprintf(line2, sizeof(line2), "SET: %6.1f%c", magvar_manual_deg, 223);
+    snprintf(line2, sizeof(line2), "SET: %5.1f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? "E":"W"));
     lcd_print_lines("MAG VARIATION", line2);
   }
   handle_root();
@@ -834,9 +834,8 @@ void handle_root() {
   // DIV Set variation 
   server.sendContent_P(R"(
     <div class='card'>
-    <p>Variation</p>
     <form action="/magvar/set" method="get"><div>
-    <label>Manual</label>
+    <label>Manual variation</label>
     <input type="number" name="v" step="0.1" min="-180" max="180" value="
     )");
   server.sendContent(String(magvar_manual_deg, 1));
@@ -864,14 +863,12 @@ void handle_root() {
             'Offset: '+(isNaN(j.offset)?'NA':j.offset.toFixed(1))+'\u00B0',
             'Deviation: '+(isNaN(j.dev)?'NA':j.dev.toFixed(1))+'\u00B0',
             'Heading (M): '+(isNaN(j.hdg_deg)?'NA':j.hdg_deg.toFixed(1))+'\u00B0',
-            'Variation: '+(isNaN(j.variation)?'NA':j.dev.toFixed(1))+'\u00B0',
+            'Variation: '+(isNaN(j.variation)?'NA':j.variation.toFixed(1))+'\u00B0',
             'Heading (T): '+(isNaN(j.heading_true_deg)?'NA':j.heading_true_deg.toFixed(1))+'\u00B0',
             'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\u00B0',
             'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\u00B0',
             'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
             'WiFi: '+j.wifi+' ('+j.rssi+' dBm)',
-            'Send true heading: '+j.send_hdg_true,
-            'Use manual variation: '+j.use_manual_magvar,
             'Calibration saved since boot: '+j.stored
           ];
           document.getElementById('st').textContent=d.join('\n');
@@ -903,12 +900,21 @@ void setup() {
   prefs.begin("cmps14", false);                                       // Get saved preferences
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
   for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
-  fit_harmonic_from_8(headings_deg, dev_at_card_deg);
-  hc.A = prefs.getFloat("hc_A", 0.0f);
-  hc.B = prefs.getFloat("hc_B", 0.0f);
-  hc.C = prefs.getFloat("hc_C", 0.0f);
-  hc.D = prefs.getFloat("hc_D", 0.0f);
-  hc.E = prefs.getFloat("hc_E", 0.0f);
+  bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
+  if (haveCoeffs) {
+    hc.A = prefs.getFloat("hc_A", 0.0f);
+    hc.B = prefs.getFloat("hc_B", 0.0f);
+    hc.C = prefs.getFloat("hc_C", 0.0f);
+    hc.D = prefs.getFloat("hc_D", 0.0f);
+    hc.E = prefs.getFloat("hc_E", 0.0f);
+  } else {
+    hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg);
+    prefs.putFloat("hc_A", hc.A);
+    prefs.putFloat("hc_B", hc.B);
+    prefs.putFloat("hc_C", hc.C);
+    prefs.putFloat("hc_D", hc.D);
+    prefs.putFloat("hc_E", hc.E);
+  }
   cmps14_autocal_on = prefs.getBool("autocal_pref", false);
   autocal_next_boot = cmps14_autocal_on;
   magvar_manual_deg = prefs.getFloat("magvar_manual_deg", 0.0f);
