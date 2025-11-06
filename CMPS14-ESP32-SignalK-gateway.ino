@@ -587,13 +587,14 @@ void handle_status() {
   uint8_t st = cmps14_read_cal_status();
   uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
   if (st != REG_NACK) {
-    mag =  (st     ) & 0x03;
-    acc =  (st >> 2) & 0x03;
-    gyr =  (st >> 4) & 0x03;
-    sys =  (st >> 6) & 0x03;
+    mag =  (st     ) & REG_MASK;
+    acc =  (st >> 2) & REG_MASK;
+    gyr =  (st >> 4) & REG_MASK;
+    sys =  (st >> 6) & REG_MASK;
   }
  
-  float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
+  // float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
+  float variation_deg = NAN;
 
   char ipChar[16];
 
@@ -607,15 +608,14 @@ void handle_status() {
   doc["mode"]                 = cmps14_autocal_on ? "AUTO_CAL" : (cmps14_cal_on ? "MANUAL_CAL" : "USE");
   doc["wifi"]                 = ipChar;
   doc["rssi"]                 = RSSIc;
-  doc["hdg_deg"]              = validf(heading_deg) ? heading_deg: NAN;
-  doc["compass_deg"]          = validf(compass_deg) ? compass_deg: NAN;
-  doc["pitch_deg"]            = validf(pitch_deg) ? pitch_deg: NAN;
-  doc["roll_deg"]             = validf(roll_deg) ? roll_deg: NAN;
-  doc["offset"]               = validf(installation_offset_deg) ? installation_offset_deg: NAN;
-  doc["dev"]                  = validf(dev_deg) ? dev_deg: NAN;
-  doc["variation"]            = validf(variation_deg) ? variation_deg: NAN;
-  doc["heading_true_deg"]     = validf(heading_true_deg) ? heading_true_deg: NAN;
-
+  doc["hdg_deg"]              = heading_deg;
+  doc["compass_deg"]          = compass_deg;
+  doc["pitch_deg"]            = pitch_deg;
+  doc["roll_deg"]             = roll_deg;
+  doc["offset"]               = installation_offset_deg;
+  doc["dev"]                  = dev_deg;
+  doc["variation"]            = variation_deg;
+  doc["heading_true_deg"]     = heading_true_deg;
   doc["acc"]                  = acc;
   doc["mag"]                  = mag;
   doc["sys"]                  = sys;
@@ -726,17 +726,18 @@ void handle_magvar_set() {
   handle_root();
 }
 
-// Web UI handler to set heading mode: headingMagnetic or headingTrue
+// Web UI handler to set heading mode TRUE or MAGNETIC
 void handle_heading_mode() {
-  
-  if (server.hasArg("true")) {
-    int en = server.arg("true").toInt();
-    send_hdg_true = (en == 1);          // if 1 then true, otherwise false
-
-    prefs.begin("cmps14", false);
-    prefs.putBool("send_hdg_true", send_hdg_true);
-    prefs.end();
+  if (server.hasArg("mode")) {
+    String mode = server.arg("mode");
+    send_hdg_true = (mode == "true");
   }
+
+  prefs.begin("cmps14", false);
+  prefs.putBool("send_hdg_true", send_hdg_true);
+  prefs.end();
+
+  lcd_print_lines("HEADING MODE", send_hdg_true ? "TRUE" : "MAGNETIC");
   handle_root();
 }
 
@@ -883,11 +884,14 @@ void handle_root() {
   // DIV Set heading mode TRUE or MAGNETIC
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/heading/mode" method="get" style="margin-top:8px;">
-    <label>Send true heading</label>
-    <input type="checkbox" name="true" value="1")");
+    <form action="/heading/mode" method="get">
+    <label>Use heading</label><label><input type="radio" name="mode" value="true")");
     { if (send_hdg_true) server.sendContent_P(R"( checked)"); }
-    server.sendContent_P(R"(><input type="submit" class="button" value="SAVE"></form></div>)");
+    server.sendContent_P(R"(>True</label><label>
+    <input type="radio" name="mode" value="mag")");
+    { if (!send_hdg_true) server.sendContent_P(R"( checked)"); }
+    server.sendContent_P(R"(>Magnetic</label>
+    <input type="submit" class="button" value="SAVE"></form></div>)");
 
   // DIV Status
   server.sendContent_P(R"(<div class='card'><div id="st">Loading...</div></div>)");
