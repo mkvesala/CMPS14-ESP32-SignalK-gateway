@@ -24,6 +24,24 @@ const uint8_t REG_ANGLE_16_H    = 0x02;  // 16-bit angle * 10 (hi)
 const uint8_t REG_ANGLE_16_L    = 0x03;  // 16-bit angle * 10 (lo)
 const uint8_t REG_PITCH         = 0x04;  // signed degrees
 const uint8_t REG_ROLL          = 0x05;  // signed degrees
+const uint8_t REG_USEMODE       = 0x80;  // Command use-mode
+const uint8_t REG_CAL_STATUS    = 0x1E;  // Calibration status
+const uint8_t REG_SAVE1         = 0xF0;  // Series of commands to store calibration profile
+const uint8_t REG_SAVE2         = 0xF5;
+const uint8_t REG_SAVE3         = 0xF6;
+const uint8_t REG_CAL1          = 0x98;  // Series of commands to start calibration
+const uint8_t REG_CAL2          = 0x95;
+const uint8_t REG_CAL3          = 0x99;
+const uint8_t REG_RESET1        = 0xE0;  // Series of commands to reset CMPS14
+const uint8_t REG_RESET2        = 0xE5;
+const uint8_t REG_RESET3        = 0xE2; 
+const uint8_t REG_AUTO_ON       = 0x93;  // Autosave on (profile)
+const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off (profile)
+const uint8_t REG_ACK1          = 0x55;  // New firmware ack
+const uint8_t REG_ACK2          = 0x07;  // CMPS12 compliant ack
+const uint8_t REG_NACK          = 0xFF;  // nack
+const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
+const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
 
 // CMPS14 calibration
 bool cmps14_autocal_on                = false;  // Autocalibration flag
@@ -41,6 +59,7 @@ const float HEADING_ALPHA                 = 0.15f;                     // Smooth
 float installation_offset_deg             = 0.0f;                      // Physical installation error of the compass module, configured via web UI
 float dev_deg                             = 0.0f;                      // Deviation at heading_deg calculated by harmonic model
 float magvar_manual_deg                   = 0.0f;                      // Variation that is set manually from web UI
+float magvar_manual_rad                   = 0.0f;                      // Manual variation in rad
 bool send_hdg_true                        = true;                      // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 bool use_manual_magvar                    = true;                      // Use magvar_manual_deg if true
 const unsigned long MIN_TX_INTERVAL_MS    = 150;                       // Max frequency for sending deltas to SignalK
@@ -53,9 +72,9 @@ float last_sent_roll_min                  = NAN;
 float last_sent_roll_max                  = NAN;
 const unsigned long MINMAX_TX_INTERVAL_MS = 1000;                      // Frequency for pitch/roll maximum values sending
 unsigned long last_lcd_ms                 = 0;
-const unsigned long LCD_MS                = 1000;                      // Frequency to print on LCD
+const unsigned long LCD_MS                = 1000;                      // Frequency to print on LCD in loop()
 unsigned long last_read_ms                = 0;
-const unsigned long READ_MS               = 50;                        // Frequency to read values from CMPS14
+const unsigned long READ_MS               = 75;                        // Frequency to read values from CMPS14 in loop()
 
 // SH-ESP32 default pins for I2C
 const uint8_t I2C_SDA = 16;
@@ -91,7 +110,7 @@ float pitch_min_rad     = NAN;
 float pitch_max_rad     = NAN;
 float roll_min_rad      = NAN;
 float roll_max_rad      = NAN;
-float magvar_rad        = NAN; // Value FROM SignalK navigation.magneticVariation
+float magvar_rad        = NAN; // Value FROM SignalK navigation.magneticVariation path via subscribe
 
 // I2C LCD screen
 std::unique_ptr<LiquidCrystal_I2C> lcd;
@@ -156,7 +175,7 @@ void setup_ws_callbacks() {
         const char* path = v["path"];
         if (!path) continue;
         if (strcmp(path, "navigation.magneticVariation") == 0) {
-          if (v["value"].is<float>() || v["value"].is<double>()) {              // Value should be in rad in SignalK path
+          if (v["value"].is<float>() || v["value"].is<double>()) {                // Value should be in rad in SignalK path
             float mv = v["value"].as<float>();
             if (validf(mv)) {
               magvar_rad = mv;
@@ -215,7 +234,7 @@ void send_batch_delta_if_needed() {
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
   if (changed_h && send_hdg_true) {                             
-    float mv_rad = use_manual_magvar ? (magvar_manual_deg * DEG_TO_RAD) : magvar_rad;
+    float mv_rad = use_manual_magvar ? (magvar_manual_rad) : magvar_rad;
     auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
     heading_true_rad = wrap2pi(last_h + mv_rad);
     heading_true_deg = heading_true_rad * RAD_TO_DEG;
@@ -286,7 +305,7 @@ void send_minmax_delta_if_due() {
 }
 
 // Compass deviation harmonic model
-const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and ordinal directions N, NE, E, SE, S, SW, W, NE in deg
+const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
 float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and ordinal directions
 HarmonicCoeffs hc {0,0,0,0,0};
 
@@ -419,7 +438,7 @@ void lcd_print_lines(const char* l1, const char* l2) {
 // Send a command to CMPS14
 bool cmps14_cmd(uint8_t cmd) {
   Wire.beginTransmission(CMPS14_ADDR);
-  Wire.write(0x00);
+  Wire.write(REG_CMD);
   Wire.write(cmd);
   if (Wire.endTransmission() != 0) return false;
   delay(20);  // Delay as recommended on datasheet
@@ -427,16 +446,16 @@ bool cmps14_cmd(uint8_t cmd) {
   Wire.requestFrom(CMPS14_ADDR, (uint8_t)1);
   if (Wire.available() < 1) return false;
   uint8_t b = Wire.read();
-  if (b == 0x55 || b == 0x07) return true;
+  if (b == REG_ACK1 || b == REG_ACK1) return true;
   return false;
 }
 
 // Enable autocalibration with optional autosave
 bool cmps14_enable_background_cal(bool autosave) {
-  if (!cmps14_cmd(0x98)) return false;
-  if (!cmps14_cmd(0x95)) return false;
-  if (!cmps14_cmd(0x99)) return false;
-  const uint8_t cfg = autosave ? 0x93 : 0x83;       // bit7 + Mag + Acc [+ autosave]
+  if (!cmps14_cmd(REG_CAL1)) return false;
+  if (!cmps14_cmd(REG_CAL2)) return false;
+  if (!cmps14_cmd(REG_CAL3)) return false;
+  const uint8_t cfg = autosave ? REG_AUTO_ON : REG_AUTO_OFF;       // bit7 + Mag + Acc [+ autosave]
   if (!cmps14_cmd(cfg)) return false;
   cmps14_factory_reset = false;
   return true;
@@ -445,20 +464,20 @@ bool cmps14_enable_background_cal(bool autosave) {
 // Read calibration status (cmps14_cmd doesn't work here, for some reason... tried that)
 uint8_t cmps14_read_cal_status() {
   Wire.beginTransmission(CMPS14_ADDR);
-  Wire.write(0x1E);
-  if (Wire.endTransmission(false) != 0) return 0xFF;
+  Wire.write(REG_CAL_STATUS);
+  if (Wire.endTransmission(false) != 0) return REG_NACK;
   Wire.requestFrom(CMPS14_ADDR, (uint8_t)1);
-  if (Wire.available() < 1) return 0xFF;
+  if (Wire.available() < 1) return REG_NACK;
   uint8_t b = Wire.read();
   return b;
 }
 
 // Save calibration AND stop calibrating
 bool cmps14_store_profile() {
-  if (!cmps14_cmd(0xF0)) return false;      // Sequence of storing the calibration profile
-  if (!cmps14_cmd(0xF5)) return false;
-  if (!cmps14_cmd(0xF6)) return false;
-  if (!cmps14_cmd(0x80)) return false;      // Use mode
+  if (!cmps14_cmd(REG_SAVE1)) return false;      // Sequence of storing the calibration profile
+  if (!cmps14_cmd(REG_SAVE2)) return false;
+  if (!cmps14_cmd(REG_SAVE3)) return false;
+  if (!cmps14_cmd(REG_USEMODE)) return false;      // Use mode
   cmps14_cal_profile_stored = true;
   cmps14_factory_reset = false;
   return true;
@@ -471,14 +490,14 @@ void cmps14_monitor_and_store(bool save) {
   last_cal_poll_ms = now;
 
   uint8_t st = cmps14_read_cal_status(); 
-  if (st == 0xFF) return;
+  if (st == REG_NACK) return;
 
-  uint8_t mag   = (st     ) & 0x03;
-  uint8_t accel = (st >> 2) & 0x03;
-  uint8_t gyro  = (st >> 4) & 0x03;
-  uint8_t sys   = (st >> 6) & 0x03;
+  uint8_t mag   = (st     ) & REG_MASK;
+  uint8_t accel = (st >> 2) & REG_MASK;
+  uint8_t gyro  = (st >> 4) & REG_MASK;
+  uint8_t sys   = (st >> 6) & REG_MASK;
 
-  static uint8_t prev = 0xFF;
+  static uint8_t prev = REG_NACK;
   if (save && prev != st) prev = st;
 
   if (sys >= 2 && accel == 3 && mag == 3) {
@@ -498,7 +517,7 @@ void cmps14_monitor_and_store(bool save) {
 
 // Start calibration in manual mode (autosave off)
 bool start_calibration_manual() {
-  if (!cmps14_enable_background_cal(false)) return false; // 0x98,0x95,0x99, then 0x83
+  if (!cmps14_enable_background_cal(false)) return false;
   cmps14_cal_on = true;
   cmps14_autocal_on = false;
   cmps14_cal_profile_stored = false;
@@ -507,7 +526,7 @@ bool start_calibration_manual() {
 
 // Start calibration in auto mode (autosave on)
 bool start_calibration_autosave() {
-  if (!cmps14_enable_background_cal(true)) return false; // 0x98,0x95,0x99, then 0x93
+  if (!cmps14_enable_background_cal(true)) return false;
   cmps14_cal_on = false;
   cmps14_autocal_on = true;
   cmps14_cal_profile_stored = false;
@@ -516,7 +535,7 @@ bool start_calibration_autosave() {
 
 // Stop all calibration
 bool stop_calibration() {
-  if (!cmps14_cmd(0x80)) return false;     // use mode
+  if (!cmps14_cmd(REG_USEMODE)) return false;     // use mode
   cmps14_cal_on = false;
   cmps14_autocal_on = false;
   return true;
@@ -549,9 +568,9 @@ void handle_store(){
 
 // Web UI handler for RESET button
 void handle_reset(){
-  if (cmps14_cmd(0xE0) && cmps14_cmd(0xE5) && cmps14_cmd(0xE2)) {
-    delay(600);           // Wait for the sensor to boot
-    cmps14_cmd(0x80);     // Use mode
+  if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET2)) {
+    delay(600);                   // Wait for the sensor to boot
+    cmps14_cmd(REG_USEMODE);      // Use mode
     cmps14_cal_profile_stored = false;
     cmps14_autocal_on = false;
     cmps14_cal_on = false;
@@ -562,45 +581,63 @@ void handle_reset(){
   handle_root(); 
 }
 
-// Web UI handler for STATUS block
-void handle_status(){
+// Web UI handler for status block
+void handle_status() {
+  
   uint8_t st = cmps14_read_cal_status();
-  uint8_t mag=255, acc=255, gyr=255, sys=255;
-  if (st!=0xFF) { mag=(st)&3; acc=(st>>2)&3; gyr=(st>>4)&3; sys=(st>>6)&3; }
+  uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
+  if (st != REG_NACK) {
+    mag =  (st     ) & 0x03;
+    acc =  (st >> 2) & 0x03;
+    gyr =  (st >> 4) & 0x03;
+    sys =  (st >> 6) & 0x03;
+  }
+ 
+  float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
 
-  const char* mode = cmps14_autocal_on ? "AUTO_CAL" : cmps14_cal_on ? "MANUAL_CAL" : "USE";
-  float variation = use_manual_magvar ? magvar_manual_deg : magvar_deg;
+  char ipChar[16];
 
-  String json = "{";
-  json += "\"mode\":\"" + String(mode) + "\",";
-  json += "\"wifi\":\"" + (WiFi.isConnected()? WiFi.localIP().toString() : String("disconnected")) + "\",";
-  json += "\"rssi\":" + String(WiFi.isConnected()? WiFi.RSSI(): 0) + ",";
-  json += "\"hdg_deg\":" + String(validf(heading_deg)? heading_deg: NAN) + ",";
-  json += "\"compass_deg\":" + String(validf(compass_deg)? compass_deg: NAN) + ",";
-  json += "\"pitch_deg\":" + String(validf(pitch_deg)? pitch_deg: NAN) + ",";
-  json += "\"roll_deg\":" + String(validf(roll_deg)? roll_deg: NAN) + ",";
-  json += "\"acc\":" + String(acc) + ",";
-  json += "\"mag\":" + String(mag) + ",";
-  json += "\"sys\":" + String(sys) + ",";
-  json += "\"offset\":" + String(validf(installation_offset_deg)? installation_offset_deg: NAN) + ",";
-  json += "\"dev\":" + String(validf(dev_deg)? dev_deg: NAN) + ",";
-  json += "\"variation\":" + String(validf(variation)? variation : NAN) + ",";
-  json += "\"heading_true_deg\":" + String(validf(heading_true_deg)? heading_true_deg : NAN) + ",";
-  json += "\"use_manual_magvar\":" + String(use_manual_magvar ? "true":"false")  + ",";
-  json += "\"send_hdg_true\":" + String(send_hdg_true ? "true":"false")  + ",";
-  json += "\"stored\":" + String(cmps14_cal_profile_stored? "true":"false");
-  json += "}";
+  if (WiFi.isConnected()) {
+    IPAddress ip = WiFi.localIP();
+    snprintf(ipChar, sizeof(ipChar), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+  } else snprintf(ipChar, sizeof(ipChar), "DISCONNECTED");
+
+  StaticJsonDocument<512> doc;
+
+  doc["mode"]                 = cmps14_autocal_on ? "AUTO_CAL" : (cmps14_cal_on ? "MANUAL_CAL" : "USE");
+  doc["wifi"]                 = ipChar;
+  doc["rssi"]                 = RSSIc;
+  doc["hdg_deg"]              = validf(heading_deg) ? heading_deg: NAN;
+  doc["compass_deg"]          = validf(compass_deg) ? compass_deg: NAN;
+  doc["pitch_deg"]            = validf(pitch_deg) ? pitch_deg: NAN;
+  doc["roll_deg"]             = validf(roll_deg) ? roll_deg: NAN;
+  doc["offset"]               = validf(installation_offset_deg) ? installation_offset_deg: NAN;
+  doc["dev"]                  = validf(dev_deg) ? dev_deg: NAN;
+  doc["variation"]            = validf(variation_deg) ? variation_deg: NAN;
+  doc["heading_true_deg"]     = validf(heading_true_deg) ? heading_true_deg: NAN;
+
+  doc["acc"]                  = acc;
+  doc["mag"]                  = mag;
+  doc["sys"]                  = sys;
+  doc["use_manual_magvar"]    = use_manual_magvar;   
+  doc["send_hdg_true"]        = send_hdg_true;       
+  doc["autocal_next_boot"]    = autocal_next_boot;   
+  doc["stored"]               = cmps14_cal_profile_stored; 
+
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "0");
-  server.send(200, "application/json; charset=utf-8", json);
+
+  char out[512];
+  size_t n = serializeJson(doc, out, sizeof(out));
+  server.send(200, "application/json; charset=utf-8", out);
 }
 
 // Web UI handler for installation offset
 void handle_set_offset() {
   if (server.hasArg("v")) {
     float v = server.arg("v").toFloat();
-    if (isnan(v) || !isfinite(v)) v = 0.0f;
+    if (!validf(v)) v = 0.0f;
     if (v < -180.0f) v = -180.0f;
     if (v >  180.0f) v =  180.0f;
 
@@ -623,7 +660,7 @@ void handle_dev8_set() {
   auto getf = [&](const char* k) -> float {
     if (!server.hasArg(k)) return 0.0f;
     float v = server.arg(k).toFloat();
-    if (isnan(v) || !isfinite(v)) v = 0.0f;
+    if (!validf(v)) v = 0.0f;
     if (v < -90.0f) v = -90.0f;
     if (v >  90.0f) v =  90.0f;
     return v;
@@ -672,10 +709,11 @@ void handle_magvar_set() {
   
   if (server.hasArg("v")) {
     float v = server.arg("v").toFloat();
-    if (!isfinite(v)) v = 0.0f;
+    if (!validf(v)) v = 0.0f;
     if (v < -90.0f) v = -90.0f;
     if (v >  90.0f) v =  90.0f;
     magvar_manual_deg = v;
+    magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
 
     prefs.begin("cmps14", false);
     prefs.putFloat("magvar_manual_deg", magvar_manual_deg);
@@ -741,29 +779,27 @@ void handle_root() {
   }
 
   if (strcmp(mode, "AUTO_CAL") == 0 || strcmp(mode, "MANUAL_CAL") == 0) {
-    server.sendContent_P(R"(<p><a href="/cal/off"><button class="button button2">STOP</button></a></p>)");
+    server.sendContent_P(R"(<p><a href="/cal/off"><button class="button button2">STOP</button></a>)");
     if (!cmps14_cal_profile_stored) {
-      server.sendContent_P(R"(<p><a href="/store/on"><button class="button">SAVE</button></a></p>)");
+      server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
     } else {
-      server.sendContent_P(R"(<p><a href="/store/on"><button class="button button2">REPLACE</button></a></p>)");
+      server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");
       }
   } else {
-    server.sendContent_P(R"(<p><a href="/cal/on"><button class="button">CALIBRATE</button></a></p>)");
+    server.sendContent_P(R"(<p><a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
     }
 
-  if (!cmps14_factory_reset){ server.sendContent_P(R"(<p><a href="/reset/on"><button class="button button2">RESET</button></a></p>)");}
+  if (!cmps14_factory_reset){ server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></p>)");}
   server.sendContent_P(R"(</div>)");
 
   // DIV Autocalibration at boot
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/autocal/set" method="get" style="margin-top:8px;">
-    <label style="min-width:180px;text-align:center;">Enable autocalibration on next boot.</label>
+    <label>Autocalibrate on boot</label>
     <input type="checkbox" name="en" value="1")");
     { if (autocal_next_boot) server.sendContent_P(R"( checked)"); }
-  server.sendContent_P(R"(><div style="margin-top:10px;"><input type="submit" class="button" value="SAVE"></div></form><p style="font-size:14px;color:#bbb;margin-top:8px;">Current setting: )");
-  server.sendContent(autocal_next_boot ? "ENABLED" : "DISABLED");
-  server.sendContent_P(R"( (takes effect after reboot)</p></div>)");
+  server.sendContent_P(R"(><input type="submit" class="button" value="SAVE"></form></div>)");
 
   // DIV Set installation offset
   server.sendContent_P(R"(
@@ -781,7 +817,6 @@ void handle_root() {
   // DIV Set deviation 
   server.sendContent_P(R"(
     <div class='card'>
-    <p>Deviations</p>
     <form action="/dev8/set" method="get"><div>)");
 
   // Row 1: N NE
@@ -829,26 +864,30 @@ void handle_root() {
 
   server.sendContent_P(R"(
     </div>
+    <label>Deviation table</label>
     <input type="submit" class="button" value="SAVE"></form></div>)");
 
   // DIV Set variation 
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/magvar/set" method="get"><div>
+    <form action="/magvar/set" method="get">
     <label>Manual variation</label>
-    <input type="number" name="v" step="0.1" min="-180" max="180" value="
-    )");
-  server.sendContent(String(magvar_manual_deg, 1));
-  server.sendContent_P(R"(
-    "></div>
-    <input type="submit" class="button" value="SAVE"></form></div>)");
+    <input type="number" name="v" step="0.1" min="-180" max="180" value=")");
+    {
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%.1f", magvar_manual_deg);
+      server.sendContent(buf);
+    }
+  server.sendContent_P(R"("><input type="submit" value="SAVE" class="button"></form></div>)");
+
+  // DIV Set heading mode TRUE or MAGNETIC
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/heading/mode" method="get" style="margin-top:8px;">
-    <label style="min-width:180px;text-align:center;">Send true heading</label>
+    <label>Send true heading</label>
     <input type="checkbox" name="true" value="1")");
     { if (send_hdg_true) server.sendContent_P(R"( checked)"); }
-    server.sendContent_P(R"(><div style="margin-top:10px;"><input type="submit" class="button" value="SAVE"></div></form></div>)");
+    server.sendContent_P(R"(><input type="submit" class="button" value="SAVE"></form></div>)");
 
   // DIV Status
   server.sendContent_P(R"(<div class='card'><div id="st">Loading...</div></div>)");
@@ -868,7 +907,10 @@ void handle_root() {
             'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\u00B0',
             'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\u00B0',
             'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
-            'WiFi: '+j.wifi+' ('+j.rssi+' dBm)',
+            'WiFi: '+j.wifi+' ('+j.rssi+')',
+            'Use manual variation: '+j.use_manual_magvar,
+            'Send true heading: '+j.send_hdg_true,
+            'Autocalibrate on boot: '+j.autocal_next_boot,
             'Calibration saved since boot: '+j.stored
           ];
           document.getElementById('st').textContent=d.join('\n');
@@ -934,7 +976,7 @@ void setup() {
       lcd_print_lines("MANUAL MODE", "FAILED");
     }
   } else {
-    if (cmps14_cmd(0x80)) {
+    if (cmps14_cmd(REG_USEMODE)) {
       lcd_print_lines("NO CALIBRATION", "USE MODE");       // Or go to use-mode with no calibration
     } else {
       lcd_print_lines("USE MODE", "FAILED");
@@ -943,6 +985,7 @@ void setup() {
 
   delay(250);
 
+  btStop();
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -951,7 +994,10 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } // Try to connect wifi until timeout
   if (WiFi.status() == WL_CONNECTED) {                                                       // Execute if wifi successfully connected
     make_source_from_mac();
-    lcd_print_lines("WIFI OK", WiFi.localIP().toString().c_str());
+    char ipbuf[16];
+    IPAddress ip = WiFi.localIP();
+    snprintf(ipbuf, sizeof(ipbuf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+    lcd_print_lines("WIFI OK", ipbuf);
     delay(250);
 
     int RSSIi = WiFi.RSSI();                                                                 // Wifi signal quality
@@ -1010,6 +1056,8 @@ void setup() {
     setup_ws_callbacks();                                             // Websocket
   } else {                                                            // No wifi, use only LCD output
     LCD_ONLY = true;
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);                                              // Power off wifi to save power
     lcd_print_lines("LCD ONLY MODE", "NO WIFI");
     delay(250);
   }
