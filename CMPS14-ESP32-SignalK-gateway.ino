@@ -234,7 +234,7 @@ void send_batch_delta_if_needed() {
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
   if (changed_h && send_hdg_true) {                             
-    float mv_rad = use_manual_magvar ? (magvar_manual_rad) : magvar_rad;
+    float mv_rad = use_manual_magvar ? magvar_manual_rad : magvar_rad;
     auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
     heading_true_rad = wrap2pi(last_h + mv_rad);
     heading_true_deg = heading_true_rad * RAD_TO_DEG;
@@ -593,8 +593,7 @@ void handle_status() {
     sys =  (st >> 6) & REG_MASK;
   }
  
-  // float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
-  float variation_deg = NAN;
+  float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
 
   char ipChar[16];
 
@@ -694,9 +693,12 @@ void handle_dev8_set() {
   handle_root();
 }
 
-// Web UI handler to save the autocal on boot setting
+// Web UI handler to set heading mode TRUE or MAGNETIC
 void handle_autocal_set() {
-  autocal_next_boot = server.hasArg("en") && server.arg("en") == "1";
+  if (server.hasArg("autocal")) {
+    String autocal = server.arg("autocal");
+    autocal_next_boot = (autocal == "yes");
+  }
   prefs.begin("cmps14", false);
   prefs.putBool("autocal_pref", autocal_next_boot);
   prefs.end();
@@ -717,6 +719,12 @@ void handle_magvar_set() {
 
     prefs.begin("cmps14", false);
     prefs.putFloat("magvar_manual_deg", magvar_manual_deg);
+    prefs.end();
+    float test = 0.1f;
+    prefs.begin("cmps14", false);
+    test = prefs.getFloat("magvar_manual_deg", 0.0f);
+    Serial.print("put get pref ");
+    Serial.println(test);
     prefs.end();
 
     char line2[17];
@@ -796,11 +804,14 @@ void handle_root() {
   // DIV Autocalibration at boot
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/autocal/set" method="get" style="margin-top:8px;">
-    <label>Autocalibrate on boot</label>
-    <input type="checkbox" name="en" value="1")");
+    <form action="/autocal/set" method="get">
+    <label>Autocalibrate on boot </label><label><input type="radio" name="autocal" value="yes")");
     { if (autocal_next_boot) server.sendContent_P(R"( checked)"); }
-  server.sendContent_P(R"(><input type="submit" class="button" value="SAVE"></form></div>)");
+    server.sendContent_P(R"(>Enabled</label><label>
+    <input type="radio" name="autocal" value="no")");
+    { if (!autocal_next_boot) server.sendContent_P(R"( checked)"); }
+    server.sendContent_P(R"(>Disabled</label>
+    <input type="submit" class="button" value="SAVE"></form></div>)");
 
   // DIV Set installation offset
   server.sendContent_P(R"(
@@ -899,17 +910,20 @@ void handle_root() {
   // Live JS updater script
   server.sendContent_P(R"(
     <script>
+      function fmt1(x) {
+        return (x === null || x === undefined || Number.isNaN(x)) ? 'NA' : x.toFixed(1);
+      }
       function upd(){
         fetch('/status').then(r=>r.json()).then(j=>{
           const d=[
-            'Heading (C): '+(isNaN(j.compass_deg)?'NA':j.compass_deg.toFixed(1))+'\u00B0',
-            'Offset: '+(isNaN(j.offset)?'NA':j.offset.toFixed(1))+'\u00B0',
-            'Deviation: '+(isNaN(j.dev)?'NA':j.dev.toFixed(1))+'\u00B0',
-            'Heading (M): '+(isNaN(j.hdg_deg)?'NA':j.hdg_deg.toFixed(1))+'\u00B0',
-            'Variation: '+(isNaN(j.variation)?'NA':j.variation.toFixed(1))+'\u00B0',
-            'Heading (T): '+(isNaN(j.heading_true_deg)?'NA':j.heading_true_deg.toFixed(1))+'\u00B0',
-            'Pitch: '+(isNaN(j.pitch_deg)?'NA':j.pitch_deg.toFixed(1))+'\u00B0',
-            'Roll: '+(isNaN(j.roll_deg)?'NA':j.roll_deg.toFixed(1))+'\u00B0',
+            'Heading (C): '+fmt1(j.compass_deg)+'\u00B0',
+            'Offset: '+fmt1(j.offset)+'\u00B0',
+            'Deviation: '+fmt1(j.dev)+'\u00B0',
+            'Heading (M): '+fmt1(j.hdg_deg)+'\u00B0',
+            'Variation: '+fmt1(j.variation)+'\u00B0',
+            'Heading (T): '+fmt1(j.heading_true_deg)+'\u00B0',
+            'Pitch: '+fmt1(j.pitch_deg)+'\u00B0',
+            'Roll: '+fmt1(j.roll_deg)+'\u00B0',
             'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
             'WiFi: '+j.wifi+' ('+j.rssi+')',
             'Use manual variation: '+j.use_manual_magvar,
@@ -933,7 +947,9 @@ void handle_root() {
 void setup() {
 
   Serial.begin(115200);
-  delay(100);
+  delay(2000);
+  Serial.println(" ");
+  Serial.println("DEBUG");
 
   Wire.begin(I2C_SDA, I2C_SCL);
   delay(50);
@@ -941,10 +957,13 @@ void setup() {
   delay(50);
 
   lcd_init_safe();
-  delay(100);
+  delay(50);
 
   prefs.begin("cmps14", false);                                       // Get saved preferences
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
+  magvar_manual_deg = prefs.getFloat("magvar_manual_deg", 0.0f);
+  Serial.print("offs ");
+  Serial.println(installation_offset_deg);
   for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
   bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
   if (haveCoeffs) {
@@ -964,6 +983,8 @@ void setup() {
   cmps14_autocal_on = prefs.getBool("autocal_pref", false);
   autocal_next_boot = cmps14_autocal_on;
   magvar_manual_deg = prefs.getFloat("magvar_manual_deg", 0.0f);
+  Serial.print("magvarman ");
+  Serial.println(magvar_manual_deg);
   send_hdg_true = prefs.getBool("send_hdg_true", true);
   prefs.end();
 
