@@ -11,12 +11,12 @@
 
 using namespace websockets;
 
-// Wifi and OTA settings
-const String SK_URL             = String("ws://") + SK_HOST + ":" + String(SK_PORT) + "/signalk/v1/stream" + ((strlen(SK_TOKEN) > 0) ? "?token=" + String(SK_TOKEN) : "");
-String RSSIc                    = "NA";           // Wifi quality
-String SK_SOURCE                = "esp32.cmps14"; // SignalK server source, used also as the OTA hostname
-bool LCD_ONLY                   = false;          // True when no wifi available, using only LCD
-const uint32_t WIFI_TIMEOUT_MS  = 90000;          // Trying wifi connection max 1.5 minutes
+// ESP32 WiFi and OTA settings
+char SK_URL[512];                                 // URL of SignalK server
+char SK_SOURCE[32];                               // ESP32 source name for SignalK, used also as the OTA hostname
+char RSSIc[16];                                   // WiFi signal quality description
+bool LCD_ONLY                   = false;          // True when no WiFi available, using only LCD output
+const uint32_t WIFI_TIMEOUT_MS  = 90000;          // Tryi WiFi connection max 1.5 minutes
 
 // CMPS14 I2C address and registers
 const uint8_t CMPS14_ADDR       = 0x60;  // I2C address of CMPS14
@@ -50,9 +50,9 @@ bool cmps14_cal_on                    = false;  // Manual calibration flag
 bool cmps14_cal_profile_stored        = false;  // Calibration profile stored flag
 bool cmps14_factory_reset             = false;  // Factory reset flag
 unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counters
-uint8_t cal_ok_count                  = 0;
-const unsigned long CAL_POLL_MS       = 500;
-const uint8_t CAL_OK_REQUIRED         = 2;      // Wait for 2 consequtive OKs
+uint8_t cal_ok_count                  = 0;      // Autocalibration save condition counter
+const unsigned long CAL_POLL_MS       = 500;    // Autocalibration save condition timer
+const uint8_t CAL_OK_REQUIRED         = 2;      // Autocalibration save condition threshold
 
 // CMPS14 reading parameters
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
@@ -76,6 +76,25 @@ const unsigned long LCD_MS                = 1000;                      // Freque
 unsigned long last_read_ms                = 0;
 const unsigned long READ_MS               = 75;                        // Frequency to read values from CMPS14 in loop()
 
+// CMPS14 values in degrees for LCD and WebServer
+float heading_deg       = NAN;
+float pitch_deg         = NAN;
+float roll_deg          = NAN;
+float compass_deg       = NAN;
+float heading_true_deg  = NAN;
+float magvar_deg        = NAN;
+
+// CMPS14 values in radians for SignalK server
+float heading_rad       = NAN;
+float heading_true_rad  = NAN;
+float pitch_rad         = NAN;
+float roll_rad          = NAN;
+float pitch_min_rad     = NAN;
+float pitch_max_rad     = NAN;
+float roll_min_rad      = NAN;
+float roll_max_rad      = NAN;
+float magvar_rad        = NAN; // Value FROM SignalK navigation.magneticVariation path via subscribe json
+
 // SH-ESP32 default pins for I2C
 const uint8_t I2C_SDA = 16;
 const uint8_t I2C_SCL = 17;
@@ -93,34 +112,15 @@ const unsigned long WS_RETRY_MAX = 20000;
 // Webserver
 WebServer server(80);
 
-// Values in degrees for LCD output and webserver
-float heading_deg       = NAN;
-float pitch_deg         = NAN;
-float roll_deg          = NAN;
-float compass_deg       = NAN;
-float heading_true_deg  = NAN;
-float magvar_deg        = NAN;
-
-// Values in radians to communicate with SignalK
-float heading_rad       = NAN;
-float heading_true_rad  = NAN;
-float pitch_rad         = NAN;
-float roll_rad          = NAN;
-float pitch_min_rad     = NAN;
-float pitch_max_rad     = NAN;
-float roll_min_rad      = NAN;
-float roll_max_rad      = NAN;
-float magvar_rad        = NAN; // Value FROM SignalK navigation.magneticVariation path via subscribe
-
-// I2C LCD screen
+// I2C LCD 16x2
 std::unique_ptr<LiquidCrystal_I2C> lcd;
 bool lcd_present          = false;
-char prev_top[17]  = "";
-char prev_bot[17]  = "";
-const uint8_t LCD_ADDR1   = 0x27;             // Scan both addressess in init
+char prev_top[17]  = "";                      // Previous value of top line
+char prev_bot[17]  = "";                      // Previous value of bottom line
+const uint8_t LCD_ADDR1   = 0x27;             // Scan both I2C addresses when init LCD
 const uint8_t LCD_ADDR2   = 0x3F;
 
-// Float validity
+// Return float validity
 inline bool validf(float x) { return !isnan(x) && isfinite(x); }
 
 // Return shortest arc on 360° (for instance 359° to 001° is 2° not 358°)
@@ -131,21 +131,42 @@ inline float ang_diff_rad(float a, float b) {
   return d;
 }
 
-// Set SignalK source and OTA hostname (equal) based on MAC address ending
-void make_source_from_mac() {
-  uint8_t m[6]; WiFi.macAddress(m);
-  char tail[7]; snprintf(tail, sizeof(tail), "%02x%02x%02x", m[3], m[4], m[5]);
-  SK_SOURCE = String("esp32.cmps14-") + tail;
+// Create SignalK server URL
+void build_sk_url() {
+  if (strlen(SK_TOKEN) > 0)
+    snprintf(SK_URL, sizeof(SK_URL),
+             "ws://%s:%d/signalk/v1/stream?token=%s",
+             SK_HOST, SK_PORT, SK_TOKEN);
+  else
+    snprintf(SK_URL, sizeof(SK_URL),
+             "ws://%s:%d/signalk/v1/stream",
+             SK_HOST, SK_PORT);
 }
 
-// Websocket
+// Set SignalK source and OTA hostname (equal) based on ESP32 MAC address tail
+void make_source_from_mac() {
+  uint8_t m[6];
+  WiFi.macAddress(m);
+  snprintf(SK_SOURCE, sizeof(SK_SOURCE), "esp32.cmps14-%02x%02x%02x", m[3], m[4], m[5]);
+}
+
+// Description for WiFi signal level
+void classify_rssi(int rssi) {
+  const char* label =
+      (rssi > -55) ? "EXCELLENT" :
+      (rssi < -80) ? "POOR" : "OK";
+  strncpy(RSSIc, label, sizeof(RSSIc) - 1);
+  RSSIc[sizeof(RSSIc) - 1] = '\0';
+}
+
+// Websocket callbacks
 void setup_ws_callbacks() {
   
   ws.onEvent([](WebsocketsEvent e, String){
     if (e == WebsocketsEvent::ConnectionOpened) {
       ws_open = true;
-      if (!send_hdg_true) return;                             // Do nothing from here if user has switched off sending of headingTrue
-      StaticJsonDocument<256> sub;                            // Subscribe navigation.magneticVariation from SignalK server
+      if (!send_hdg_true) return;                             // Do nothing if user has switched off sending of navigation.headingTrue
+      StaticJsonDocument<256> sub;                            // Otherwise, subscribe navigation.magneticVariation path from SignalK server
       sub["context"] = "vessels.self";
       auto subscribe = sub.createNestedArray("subscribe");
       auto s = subscribe.createNestedObject();
@@ -163,7 +184,7 @@ void setup_ws_callbacks() {
   });
 
   ws.onMessage([](WebsocketsMessage msg){
-    if (!send_hdg_true) return;                                                   // Do nothing if user has switched headingTrue sending off
+    if (!send_hdg_true) return;                                // Do nothing if user has switched off sending of navigation.headingTrue and if data is not valid / found
     if (!msg.isText()) return;
     StaticJsonDocument<1024> d;
     if (deserializeJson(d, msg.data())) return;
@@ -175,9 +196,9 @@ void setup_ws_callbacks() {
         const char* path = v["path"];
         if (!path) continue;
         if (strcmp(path, "navigation.magneticVariation") == 0) {
-          if (v["value"].is<float>() || v["value"].is<double>()) {                // Value should be in rad in SignalK path
+          if (v["value"].is<float>() || v["value"].is<double>()) {  
             float mv = v["value"].as<float>();
-            if (validf(mv)) {
+            if (validf(mv)) {                                  // If received valid value, set global variation value to this and stop using manual value
               magvar_rad = mv;
               use_manual_magvar = false;
               magvar_deg = magvar_rad * RAD_TO_DEG;
@@ -193,7 +214,7 @@ void setup_ws_callbacks() {
 // Send batch of SignalK deltas but only if change exceeds the deadband limits (no unnecessary sending)
 void send_batch_delta_if_needed() {
   
-  if (LCD_ONLY || !ws_open) return;                                                                    // execute only if wifi and websocket ok
+  if (LCD_ONLY || !ws_open) return;                                                                    // execute only if WiFi and Websocket ok
   if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return;                         // execute only if values are valid
 
   static unsigned long last_tx_ms = 0;
@@ -215,7 +236,7 @@ void send_batch_delta_if_needed() {
     changed_r = true; last_r = roll_rad;
   }
 
-  if (!(changed_h || changed_p || changed_r)) return;
+  if (!(changed_h || changed_p || changed_r)) return;                                                 // Exit if values have not changed
 
   StaticJsonDocument<512> doc;
   doc["context"] = "vessels.self";
@@ -233,7 +254,7 @@ void send_batch_delta_if_needed() {
   if (changed_h) add("navigation.headingMagnetic", last_h);     // SignalK paths and values
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
-  if (changed_h && send_hdg_true) {                             
+  if (changed_h && send_hdg_true) {                             // Send navigation.headingTrue unless user has not switched this off
     float mv_rad = use_manual_magvar ? magvar_manual_rad : magvar_rad;
     auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
     heading_true_rad = wrap2pi(last_h + mv_rad);
@@ -256,7 +277,7 @@ void send_batch_delta_if_needed() {
 
 // Send pitch and roll maximum values to SignalK if changed and less frequently than "live" values
 void send_minmax_delta_if_due() {
-  if (LCD_ONLY || !ws_open) return;                                                 // execute only if wifi and websocket ok
+  if (LCD_ONLY || !ws_open) return;                                                 // execute only if WiFi and Websocket ok
 
   const unsigned long now = millis();
   if (now - last_minmax_tx_ms < MINMAX_TX_INTERVAL_MS) return;                      // execute only if timer is due
@@ -304,10 +325,10 @@ void send_minmax_delta_if_due() {
   last_minmax_tx_ms = now;
 }
 
-// Compass deviation harmonic model
+// Compass deviation harmonic model from harmonic.h
 const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
-float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and ordinal directions
-HarmonicCoeffs hc {0,0,0,0,0};
+float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and intercardinal directions by user
+HarmonicCoeffs hc {0,0,0,0,0};                                        // Five coeffs to calculate full deviation curve
 
 // Read values from CMPS14 compass and attitude sensor
 bool read_compass(){
@@ -326,10 +347,10 @@ bool read_compass(){
   int8_t roll  = (int8_t)Wire.read();
 
   uint16_t ang10 = ((uint16_t)hi << 8) | lo;  // 0..3599 (0.1°)
-  float deg = ((float)ang10) / 10.0f;               // 0..359.9°
+  float deg = ((float)ang10) / 10.0f;         // 0..359.9°
   
-  compass_deg = deg;                          // Tag the raw compass deg for global use
-  deg += installation_offset_deg;             // Correct physical installation error if such
+  compass_deg = deg;                          // Tag the raw compass deg value for global use
+  deg += installation_offset_deg;             // Correct physical installation error if such defined by user
   if (deg >= 360.0f) deg -= 360.0f;
   if (deg <    0.0f) deg += 360.0f;
 
@@ -348,7 +369,7 @@ bool read_compass(){
   float hdg_corr_deg = heading_deg + dev_deg;
   if (hdg_corr_deg < 0) hdg_corr_deg += 360.0f;
   if (hdg_corr_deg >= 360.0f) hdg_corr_deg -= 360.0f;
-  heading_deg = hdg_corr_deg;                 // Magnetic heading = compass heading + installation offset + deviation
+  heading_deg = hdg_corr_deg;                 // Magnetic heading = compass heading + installation offset + magnetic deviation at compass heading
 
   pitch_deg   = (float)pitch;
   roll_deg    = (float)roll;
@@ -441,7 +462,7 @@ bool cmps14_cmd(uint8_t cmd) {
   Wire.write(REG_CMD);
   Wire.write(cmd);
   if (Wire.endTransmission() != 0) return false;
-  delay(20);  // Delay as recommended on datasheet
+  delay(20);  // Delay of 20 ms as recommended on CMPS14 datasheet
 
   Wire.requestFrom(CMPS14_ADDR, (uint8_t)1);
   if (Wire.available() < 1) return false;
@@ -455,9 +476,9 @@ bool cmps14_enable_background_cal(bool autosave) {
   if (!cmps14_cmd(REG_CAL1)) return false;
   if (!cmps14_cmd(REG_CAL2)) return false;
   if (!cmps14_cmd(REG_CAL3)) return false;
-  const uint8_t cfg = autosave ? REG_AUTO_ON : REG_AUTO_OFF;       // bit7 + Mag + Acc [+ autosave]
+  const uint8_t cfg = autosave ? REG_AUTO_ON : REG_AUTO_OFF;
   if (!cmps14_cmd(cfg)) return false;
-  cmps14_factory_reset = false;
+  cmps14_factory_reset = false;                     // We are not anymore in resetted mode
   return true;
 }
 
@@ -474,16 +495,16 @@ uint8_t cmps14_read_cal_status() {
 
 // Save calibration AND stop calibrating
 bool cmps14_store_profile() {
-  if (!cmps14_cmd(REG_SAVE1)) return false;      // Sequence of storing the calibration profile
+  if (!cmps14_cmd(REG_SAVE1)) return false;      // Sequence of storing the full calibration profile
   if (!cmps14_cmd(REG_SAVE2)) return false;
   if (!cmps14_cmd(REG_SAVE3)) return false;
-  if (!cmps14_cmd(REG_USEMODE)) return false;      // Use mode
+  if (!cmps14_cmd(REG_USEMODE)) return false;    // Switch on use mode which exits calibration
   cmps14_cal_profile_stored = true;
-  cmps14_factory_reset = false;
+  cmps14_factory_reset = false;                  // We are not anymore in resetted status
   return true;
 }
 
-// Monitor and optional store
+// Monitor and optional storing of the calibration profile
 void cmps14_monitor_and_store(bool save) {
   const unsigned long now = millis();
   if (now - last_cal_poll_ms < CAL_POLL_MS) return;
@@ -500,13 +521,13 @@ void cmps14_monitor_and_store(bool save) {
   static uint8_t prev = REG_NACK;
   if (save && prev != st) prev = st;
 
-  if (sys >= 2 && accel == 3 && mag == 3) {
+  if (sys >= 2 && accel == 3 && mag == 3) {       // Require that SYS is 2, ACC is 3 and MAG is 3 - omit GYR as there's a firmware bug
     if (cal_ok_count < 255) cal_ok_count++;
   } else {
     cal_ok_count = 0;
   }
 
-  if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) {
+  if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { // When over threshold, save the calibration profile automatically
     if (cmps14_store_profile()) {
       lcd_print_lines("CALIBRATION", "SAVED");
     } else {
@@ -535,7 +556,7 @@ bool start_calibration_autosave() {
 
 // Stop all calibration
 bool stop_calibration() {
-  if (!cmps14_cmd(REG_USEMODE)) return false;     // use mode
+  if (!cmps14_cmd(REG_USEMODE)) return false; 
   cmps14_cal_on = false;
   cmps14_autocal_on = false;
   return true;
@@ -569,7 +590,7 @@ void handle_store(){
 // Web UI handler for RESET button
 void handle_reset(){
   if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET2)) {
-    delay(600);                   // Wait for the sensor to boot
+    delay(600);                   // Wait 600 ms for the sensor to boot
     cmps14_cmd(REG_USEMODE);      // Use mode
     cmps14_cal_profile_stored = false;
     cmps14_autocal_on = false;
@@ -581,7 +602,7 @@ void handle_reset(){
   handle_root(); 
 }
 
-// Web UI handler for status block
+// Web UI handler for status block, build json with appropriate data
 void handle_status() {
   
   uint8_t st = cmps14_read_cal_status();
@@ -632,7 +653,7 @@ void handle_status() {
   server.send(200, "application/json; charset=utf-8", out);
 }
 
-// Web UI handler for installation offset
+// Web UI handler for installation offset, to correct raw compass heading
 void handle_set_offset() {
   if (server.hasArg("v")) {
     float v = server.arg("v").toFloat();
@@ -654,7 +675,7 @@ void handle_set_offset() {
   handle_root();
 }
 
-// Web UI handler for 8 measured deviation values, to correct headingCompass --> headingMagnetic
+// Web UI handler for 8 measured deviation values, to correct raw compass heading --> navigation.headingMagnetic
 void handle_dev8_set() {
   auto getf = [&](const char* k) -> float {
     if (!server.hasArg(k)) return 0.0f;
@@ -688,12 +709,12 @@ void handle_dev8_set() {
   prefs.putFloat("hc_E", hc.E);
   prefs.end();
 
-  lcd_print_lines("DEVIATION (8)", "FIT & SAVED");
+  lcd_print_lines("DEVIATION TABLE", "SAVED");
 
   handle_root();
 }
 
-// Web UI handler to set heading mode TRUE or MAGNETIC
+// Web UI handler to choose if autocalibration starts on boot
 void handle_autocal_set() {
   if (server.hasArg("autocal")) {
     String autocal = server.arg("autocal");
@@ -702,11 +723,11 @@ void handle_autocal_set() {
   prefs.begin("cmps14", false);
   prefs.putBool("autocal_pref", autocal_next_boot);
   prefs.end();
-  lcd_print_lines("AUTOCAL IN BOOT", autocal_next_boot ? "ENABLED" : "DISABLED");
+  lcd_print_lines("AUTOCAL ON BOOT", autocal_next_boot ? "ENABLED" : "DISABLED");
   handle_root();
 }
 
-// Web UI handler to set magnetic variation manually to determine headingTrue if value is not available from SignalK navigation.magneticVariation path
+// Web UI handler to set magnetic variation manually. Used automatically if SignalK server navigation.magneticVariation is not available
 void handle_magvar_set() {
   
   if (server.hasArg("v")) {
@@ -718,13 +739,7 @@ void handle_magvar_set() {
     magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
 
     prefs.begin("cmps14", false);
-    prefs.putFloat("magvar_manual_deg", magvar_manual_deg);
-    prefs.end();
-    float test = 0.1f;
-    prefs.begin("cmps14", false);
-    test = prefs.getFloat("magvar_manual_deg", 0.0f);
-    Serial.print("put get pref ");
-    Serial.println(test);
+    prefs.putFloat("mv_man_deg", magvar_manual_deg);
     prefs.end();
 
     char line2[17];
@@ -947,9 +962,7 @@ void handle_root() {
 void setup() {
 
   Serial.begin(115200);
-  delay(2000);
-  Serial.println(" ");
-  Serial.println("DEBUG");
+  delay(50);
 
   Wire.begin(I2C_SDA, I2C_SCL);
   delay(50);
@@ -959,11 +972,9 @@ void setup() {
   lcd_init_safe();
   delay(50);
 
-  prefs.begin("cmps14", false);                                       // Get saved preferences
+  prefs.begin("cmps14", false);                                       // Get all permanently saved preferences
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
-  magvar_manual_deg = prefs.getFloat("magvar_manual_deg", 0.0f);
-  Serial.print("offs ");
-  Serial.println(installation_offset_deg);
+  magvar_manual_deg = prefs.getFloat("mv_man_deg", 0.0f);
   for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
   bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
   if (haveCoeffs) {
@@ -982,9 +993,6 @@ void setup() {
   }
   cmps14_autocal_on = prefs.getBool("autocal_pref", false);
   autocal_next_boot = cmps14_autocal_on;
-  magvar_manual_deg = prefs.getFloat("magvar_manual_deg", 0.0f);
-  Serial.print("magvarman ");
-  Serial.println(magvar_manual_deg);
   send_hdg_true = prefs.getBool("send_hdg_true", true);
   prefs.end();
 
@@ -995,7 +1003,7 @@ void setup() {
       lcd_print_lines("AUTOCALIBRATION", "FAILED");
     }
   } else if (cmps14_cal_on){                        
-    if (start_calibration_manual()) {                      // Switch on CMPS15 calibration but no autosave
+    if (start_calibration_manual()) {                      // Switch on CMPS14 calibration but no autosave
       lcd_print_lines("CALIBRATION", "MANUAL MODE");
     } else {
       lcd_print_lines("MANUAL MODE", "FAILED");
@@ -1010,14 +1018,15 @@ void setup() {
 
   delay(250);
 
-  btStop();
+  btStop();                                                // Stop bluetooth to save power
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   lcd_print_lines("WIFI", "CONNECT...");
   unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } // Try to connect wifi until timeout
-  if (WiFi.status() == WL_CONNECTED) {                                                       // Execute if wifi successfully connected
+  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } // Try to connect WiFi until timeout
+  if (WiFi.status() == WL_CONNECTED) {                                                       // Execute if WiFi successfully connected
+    build_sk_url();
     make_source_from_mac();
     char ipbuf[16];
     IPAddress ip = WiFi.localIP();
@@ -1025,23 +1034,12 @@ void setup() {
     lcd_print_lines("WIFI OK", ipbuf);
     delay(250);
 
-    int RSSIi = WiFi.RSSI();                                                                 // Wifi signal quality
-
-    if (RSSIi > -55) {
-      RSSIc = "EXCELLENT";
-    }
-    else if (RSSIi < -80) {
-      RSSIc = "POOR";
-    }
-    else {
-      RSSIc = "OK";
-    }
-
-    lcd_print_lines("SIGNAL LEVEL:", RSSIc.c_str());
+    classify_rssi(WiFi.RSSI());
+    lcd_print_lines("SIGNAL LEVEL:", RSSIc);
     delay(250);
 
     // OTA
-    ArduinoOTA.setHostname(SK_SOURCE.c_str());
+    ArduinoOTA.setHostname(SK_SOURCE);
     ArduinoOTA.setPassword(WIFI_PASS);
     ArduinoOTA.onStart([](){
       lcd_print_lines("OTA UPDATE", "INIT");
@@ -1079,10 +1077,10 @@ void setup() {
     server.begin();
 
     setup_ws_callbacks();                                             // Websocket
-  } else {                                                            // No wifi, use only LCD output
+  } else {                                                            // No WiFi, use only LCD output
     LCD_ONLY = true;
     WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);                                              // Power off wifi to save power
+    WiFi.mode(WIFI_OFF);                                              // Power off WiFi to save power
     lcd_print_lines("LCD ONLY MODE", "NO WIFI");
     delay(250);
   }
@@ -1105,7 +1103,7 @@ void loop() {
   }
 
   static unsigned long expn_retry_ms = WS_RETRY_MS;
-  if (!LCD_ONLY && !ws_open && (long)(now - next_ws_try_ms) >= 0){     // Execute only on ticks when timer is due and only if websocket dropped and if not in LCD only mode
+  if (!LCD_ONLY && !ws_open && (long)(now - next_ws_try_ms) >= 0){     // Execute only on ticks when timer is due and only if Websocket dropped and if not in LCD only mode
     ws.connect(SK_URL);
     next_ws_try_ms = now + expn_retry_ms;
     expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
@@ -1129,7 +1127,7 @@ void loop() {
     send_minmax_delta_if_due();
   }
 
-  if (success && (now - last_lcd_ms >= LCD_MS)) {                     // Execute only on the ticks when LCD timer is due
+  if (success && (now - last_lcd_ms >= LCD_MS)) {                     // Execute only on ticks when LCD timer is due
     last_lcd_ms = now;
     char buf[17];
     snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
