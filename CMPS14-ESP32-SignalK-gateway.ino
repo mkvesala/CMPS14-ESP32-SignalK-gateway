@@ -833,10 +833,10 @@ void handle_root() {
     <div class='card'>
     <form action="/offset/set" method="get">
     <label>Installation offset</label>
-    <input type="number" name="v" step="0.1" min="-180" max="180" value=")");
+    <input type="number" name="v" step="1" min="-180" max="180" value=")");
       {
         char buf[32];
-        snprintf(buf, sizeof(buf), "%.1f", installation_offset_deg);
+        snprintf(buf, sizeof(buf), "%.0f", installation_offset_deg);
         server.sendContent(buf);
       }
   server.sendContent_P(R"("><input type="submit" value="SAVE" class="button"></form></div>)");
@@ -850,8 +850,8 @@ void handle_root() {
   {
     char row1[256];
     snprintf(row1, sizeof(row1),
-      "<label>N</label><input name=\"N\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
-      "<label>NE</label><input name=\"NE\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      "<label>N</label><input name=\"N\"  type=\"number\" step=\"1\" value=\"%.0f\">"
+      "<label>NE</label><input name=\"NE\" type=\"number\" step=\"1\" value=\"%.0f\">",
       dev_at_card_deg[0], dev_at_card_deg[1]);
     server.sendContent(row1);
   }
@@ -861,8 +861,8 @@ void handle_root() {
   {
   char row2[256];
     snprintf(row2, sizeof(row2),
-      "<label>E</label><input name=\"E\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
-      "<label>SE</label><input name=\"SE\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      "<label>E</label><input name=\"E\"  type=\"number\" step=\"1\" value=\"%.0f\">"
+      "<label>SE</label><input name=\"SE\" type=\"number\" step=\"1\" value=\"%.0f\">",
       dev_at_card_deg[2], dev_at_card_deg[3]);
     server.sendContent(row2);
   }
@@ -872,8 +872,8 @@ void handle_root() {
   {
   char row3[256];
     snprintf(row3, sizeof(row3),
-      "<label>S</label><input name=\"S\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
-      "<label>SW</label><input name=\"SW\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      "<label>S</label><input name=\"S\"  type=\"number\" step=\"1\" value=\"%.0f\">"
+      "<label>SW</label><input name=\"SW\" type=\"number\" step=\"1\" value=\"%.0f\">",
       dev_at_card_deg[4], dev_at_card_deg[5]);
     server.sendContent(row3);
   }
@@ -883,8 +883,8 @@ void handle_root() {
   {
     char row4[256];
     snprintf(row4, sizeof(row4),
-      "<label>W</label><input name=\"W\"  type=\"number\" step=\"0.1\" value=\"%.1f\">"
-      "<label>NW</label><input name=\"NW\" type=\"number\" step=\"0.1\" value=\"%.1f\">",
+      "<label>W</label><input name=\"W\"  type=\"number\" step=\"1\" value=\"%.0f\">"
+      "<label>NW</label><input name=\"NW\" type=\"number\" step=\"1\" value=\"%.0f\">",
       dev_at_card_deg[6], dev_at_card_deg[7]);
     server.sendContent(row4);
   }
@@ -899,10 +899,10 @@ void handle_root() {
     <div class='card'>
     <form action="/magvar/set" method="get">
     <label>Manual variation</label>
-    <input type="number" name="v" step="0.1" min="-180" max="180" value=")");
+    <input type="number" name="v" step="1" min="-180" max="180" value=")");
     {
       char buf[32];
-      snprintf(buf, sizeof(buf), "%.1f", magvar_manual_deg);
+      snprintf(buf, sizeof(buf), "%.0f", magvar_manual_deg);
       server.sendContent(buf);
     }
   server.sendContent_P(R"("><input type="submit" value="SAVE" class="button"></form></div>)");
@@ -925,18 +925,21 @@ void handle_root() {
   // Live JS updater script
   server.sendContent_P(R"(
     <script>
+      function fmt0(x) {
+        return (x === null || x === undefined || Number.isNaN(x)) ? 'NA' : x.toFixed(0);
+      }
       function fmt1(x) {
         return (x === null || x === undefined || Number.isNaN(x)) ? 'NA' : x.toFixed(1);
       }
       function upd(){
         fetch('/status').then(r=>r.json()).then(j=>{
           const d=[
-            'Heading (C): '+fmt1(j.compass_deg)+'\u00B0',
-            'Offset: '+fmt1(j.offset)+'\u00B0',
-            'Deviation: '+fmt1(j.dev)+'\u00B0',
-            'Heading (M): '+fmt1(j.hdg_deg)+'\u00B0',
-            'Variation: '+fmt1(j.variation)+'\u00B0',
-            'Heading (T): '+fmt1(j.heading_true_deg)+'\u00B0',
+            'Heading (C): '+fmt0(j.compass_deg)+'\u00B0',
+            'Offset: '+fmt0(j.offset)+'\u00B0',
+            'Deviation: '+fmt0(j.dev)+'\u00B0',
+            'Heading (M): '+fmt0(j.hdg_deg)+'\u00B0',
+            'Variation: '+fmt0(j.variation)+'\u00B0',
+            'Heading (T): '+fmt0(j.heading_true_deg)+'\u00B0',
             'Pitch: '+fmt1(j.pitch_deg)+'\u00B0',
             'Roll: '+fmt1(j.roll_deg)+'\u00B0',
             'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
@@ -996,25 +999,27 @@ void setup() {
   send_hdg_true = prefs.getBool("send_hdg_true", true);
   prefs.end();
 
-  if (cmps14_autocal_on){
-    if (start_calibration_autosave()) {                    // Switch on CMPS14 autocalibration with autosave
-      lcd_print_lines("AUTOCALIBRATION", "ENABLED");
+  if (i2c_device_present(CMPS14_ADDR)){
+    if (cmps14_autocal_on){
+      if (start_calibration_autosave()) {                    // Switch on CMPS14 autocalibration with autosave
+        lcd_print_lines("AUTOCALIBRATION", "ENABLED");
+      } else {
+        lcd_print_lines("AUTOCALIBRATION", "FAILED");
+      }
+    } else if (cmps14_cal_on){                        
+      if (start_calibration_manual()) {                      // Switch on CMPS14 calibration but no autosave
+        lcd_print_lines("CALIBRATION", "MANUAL MODE");
+      } else {
+        lcd_print_lines("MANUAL MODE", "FAILED");
+      }
     } else {
-      lcd_print_lines("AUTOCALIBRATION", "FAILED");
+      if (cmps14_cmd(REG_USEMODE)) {
+        lcd_print_lines("NO CALIBRATION", "USE MODE");       // Or go to use-mode with no calibration
+      } else {
+        lcd_print_lines("USE MODE", "FAILED");
+      }
     }
-  } else if (cmps14_cal_on){                        
-    if (start_calibration_manual()) {                      // Switch on CMPS14 calibration but no autosave
-      lcd_print_lines("CALIBRATION", "MANUAL MODE");
-    } else {
-      lcd_print_lines("MANUAL MODE", "FAILED");
-    }
-  } else {
-    if (cmps14_cmd(REG_USEMODE)) {
-      lcd_print_lines("NO CALIBRATION", "USE MODE");       // Or go to use-mode with no calibration
-    } else {
-      lcd_print_lines("USE MODE", "FAILED");
-    }
-  }
+  } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
 
   delay(250);
 
@@ -1115,23 +1120,25 @@ void loop() {
     last_read_ms = now;
     success = read_compass();                                         // Read values from CMPS14 only when timer is due
   }
-
-  if (cmps14_autocal_on) {
+  
+  if (success && cmps14_autocal_on) {
     cmps14_monitor_and_store(true);                                   // Monitor and autosave
   } else {
     cmps14_monitor_and_store(false);                                  // Monitor but do not save automatically
   }
 
-  if (!LCD_ONLY && success) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
+  if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
     send_batch_delta_if_needed();
     send_minmax_delta_if_due();
   }
 
-  if (success && (now - last_lcd_ms >= LCD_MS)) {                     // Execute only on ticks when LCD timer is due
+  if ((long)(now - last_lcd_ms) >= LCD_MS) {                     // Execute only on ticks when LCD timer is due
     last_lcd_ms = now;
-    char buf[17];
-    snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
-    lcd_print_lines("  HEADING (M):", buf);
+    if (success && validf(heading_deg)) {
+      char buf[17];
+      snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
+      lcd_print_lines("  HEADING (M):", buf);
+    }
   }
-  
+
 } 
