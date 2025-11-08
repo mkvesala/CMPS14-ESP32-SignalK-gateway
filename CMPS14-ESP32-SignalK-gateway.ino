@@ -134,13 +134,9 @@ inline float ang_diff_rad(float a, float b) {
 // Create SignalK server URL
 void build_sk_url() {
   if (strlen(SK_TOKEN) > 0)
-    snprintf(SK_URL, sizeof(SK_URL),
-             "ws://%s:%d/signalk/v1/stream?token=%s",
-             SK_HOST, SK_PORT, SK_TOKEN);
+    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream?token=%s", SK_HOST, SK_PORT, SK_TOKEN);
   else
-    snprintf(SK_URL, sizeof(SK_URL),
-             "ws://%s:%d/signalk/v1/stream",
-             SK_HOST, SK_PORT);
+    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream", SK_HOST, SK_PORT);
 }
 
 // Set SignalK source and OTA hostname (equal) based on ESP32 MAC address tail
@@ -462,12 +458,12 @@ bool cmps14_cmd(uint8_t cmd) {
   Wire.write(REG_CMD);
   Wire.write(cmd);
   if (Wire.endTransmission() != 0) return false;
-  delay(20);  // Delay of 20 ms as recommended on CMPS14 datasheet
+  delay(25);  // Delay of 20 ms recommended on CMPS14 datasheet
 
   Wire.requestFrom(CMPS14_ADDR, (uint8_t)1);
   if (Wire.available() < 1) return false;
   uint8_t b = Wire.read();
-  if (b == REG_ACK1 || b == REG_ACK1) return true;
+  if (b == REG_ACK1 || b == REG_ACK2) return true;
   return false;
 }
 
@@ -589,7 +585,7 @@ void handle_store(){
 
 // Web UI handler for RESET button
 void handle_reset(){
-  if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET2)) {
+  if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET3)) {
     delay(600);                   // Wait 600 ms for the sensor to boot
     cmps14_cmd(REG_USEMODE);      // Use mode
     cmps14_cal_profile_stored = false;
@@ -639,10 +635,16 @@ void handle_status() {
   doc["acc"]                  = acc;
   doc["mag"]                  = mag;
   doc["sys"]                  = sys;
+  doc["hca"]                  = hc.A;
+  doc["hcb"]                  = hc.B;
+  doc["hcc"]                  = hc.C;
+  doc["hcd"]                  = hc.D;
+  doc["hce"]                  = hc.E;
   doc["use_manual_magvar"]    = use_manual_magvar;   
   doc["send_hdg_true"]        = send_hdg_true;       
   doc["autocal_next_boot"]    = autocal_next_boot;   
   doc["stored"]               = cmps14_cal_profile_stored; 
+  doc["factory_reset"]        = cmps14_factory_reset;
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -792,7 +794,7 @@ void handle_root() {
 
   // DIV Calibrate, Stop, Reset
   server.sendContent_P(R"(
-    <div class='card'>)");
+    <div class='card' id='controls'>)");
   {
     char buf[64];
     const char* nice =
@@ -943,10 +945,12 @@ void handle_root() {
             'Pitch: '+fmt1(j.pitch_deg)+'\u00B0',
             'Roll: '+fmt1(j.roll_deg)+'\u00B0',
             'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
+            'A='+fmt1(j.hca)+', B='+fmt1(j.hcb)+', C='+fmt1(j.hcc)+', D='+fmt1(j.hcd)+', E='+fmt1(j.hce),
             'WiFi: '+j.wifi+' ('+j.rssi+')',
             'Use manual variation: '+j.use_manual_magvar,
             'Send true heading: '+j.send_hdg_true,
             'Autocalibrate on boot: '+j.autocal_next_boot,
+            'Factory reset: '+j.factory_reset,
             'Calibration saved since boot: '+j.stored
           ];
           document.getElementById('st').textContent=d.join('\n');
