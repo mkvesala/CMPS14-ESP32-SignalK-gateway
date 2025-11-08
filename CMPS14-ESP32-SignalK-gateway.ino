@@ -326,6 +326,18 @@ const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardina
 float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and intercardinal directions by user
 HarmonicCoeffs hc {0,0,0,0,0};                                        // Five coeffs to calculate full deviation curve
 
+// Debug print deviation table every 10°
+void print_deviation_table_10deg() {
+  Serial.println(F("=== Deviation check (Compass heading vs. Deviation) ==="));
+  Serial.println(F("   KS (deg) : Dev (deg)"));
+  for (int h = 0; h <= 360; h += 10) {
+    float dev = deviation_harm_deg(hc, (float)h); // hc: juuri sovitetut kertoimet
+    // ESP32 tukee Serial.printf, käytetään sitä selkeyden vuoksi
+    Serial.printf("%03d : %+6.2f\n", h, dev);
+  }
+  Serial.println();
+}
+
 // Read values from CMPS14 compass and attitude sensor
 bool read_compass(){
   
@@ -619,7 +631,7 @@ void handle_status() {
     snprintf(ipChar, sizeof(ipChar), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
   } else snprintf(ipChar, sizeof(ipChar), "DISCONNECTED");
 
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<1024> doc;
 
   doc["mode"]                 = cmps14_autocal_on ? "AUTO_CAL" : (cmps14_cal_on ? "MANUAL_CAL" : "USE");
   doc["wifi"]                 = ipChar;
@@ -650,7 +662,7 @@ void handle_status() {
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "0");
 
-  char out[512];
+  char out[1024];
   size_t n = serializeJson(doc, out, sizeof(out));
   server.send(200, "application/json; charset=utf-8", out);
 }
@@ -698,6 +710,8 @@ void handle_dev8_set() {
   dev_at_card_deg[7] = getf("NW");
 
   hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg);
+
+  print_deviation_table_10deg();
 
   // Save preferences permanently
   prefs.begin("cmps14", false);
@@ -778,7 +792,7 @@ void handle_root() {
 
   // Head and CSS
   server.sendContent_P(R"(
-    <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><style>
+    <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><meta http-equiv="refresh" content="60; url=/"><style>
     html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}
     body { background:#000; color:#fff; }
     .button { background-color: #00A300; border: none; color: white; padding: 6px 20px; text-decoration: none; font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
@@ -789,7 +803,7 @@ void handle_root() {
     input[type=number]{ font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; width:60px; padding:4px 6px; margin:4px; border-radius:6px; border:1px solid #333; background:#111; color:#fff; }
     #st { font-size: 2vmin; max-font-size: 18px; min-font-size: 6px; line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 8px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
     </style></head><body>
-    <h2>CMPS14 CONFIG</h2>
+    <h2><a href="/" style="color:white; text-decoration:none;">CMPS14 CONFIG</a></h2>
     )");
 
   // DIV Calibrate, Stop, Reset
