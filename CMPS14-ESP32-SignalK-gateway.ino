@@ -44,15 +44,24 @@ const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending o
 const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
 
 // CMPS14 calibration
-bool cmps14_autocal_on                = false;  // Autocalibration flag
-bool autocal_next_boot                = false;  // To show chosen autocalibration next boot flag on web UI
-bool cmps14_cal_on                    = false;  // Manual calibration flag
 bool cmps14_cal_profile_stored        = false;  // Calibration profile stored flag
 bool cmps14_factory_reset             = false;  // Factory reset flag
 unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counters
 uint8_t cal_ok_count                  = 0;      // Autocalibration save condition counter
 const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
+
+enum CalMode               : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 }; // 3 calibration modes + use mode
+CalMode cal_mode_boot      = CAL_USE;
+CalMode cal_mode_runtime   = CAL_USE; 
+const char* calmode_str(CalMode m){
+  switch(m){
+    case CAL_FULL_AUTO: return "FULL AUTO";
+    case CAL_SEMI_AUTO: return "AUTO";
+    case CAL_MANUAL:    return "MANUAL";
+    default:            return "USE";
+  }
+}    
 
 // CMPS14 reading parameters
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
@@ -513,10 +522,9 @@ void cmps14_monitor_and_store(bool save) {
   const unsigned long now = millis();
   if (now - last_cal_poll_ms < CAL_POLL_MS) return;
   last_cal_poll_ms = now;
-  Serial.println("Polling status...");
   uint8_t st = cmps14_read_cal_status(); 
   if (st == REG_NACK) return;
-  Serial.println("Polling status 2...");
+  Serial.println("monitor and store - status ack");
   uint8_t mag   = (st     ) & REG_MASK;
   uint8_t accel = (st >> 2) & REG_MASK;
   uint8_t gyro  = (st >> 4) & REG_MASK;
@@ -527,45 +535,49 @@ void cmps14_monitor_and_store(bool save) {
   } else {
     cal_ok_count = 0;
   }
-
+ 
   if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { // When over threshold, save the calibration profile automatically
     if (cmps14_store_profile()) {
       lcd_print_lines("CALIBRATION", "SAVED");
+      cal_mode_runtime = CAL_USE;
     } else {
       lcd_print_lines("CALIBRATION", "NOT SAVED");
     }
   }
 }
 
-// Start calibration in manual mode (autosave off)
-bool start_calibration_manual() {
+// Start calibration in manual mode
+bool start_calibration_manual_mode() {
   if (!cmps14_enable_background_cal(false)) return false;
-  cmps14_cal_on = true;
-  cmps14_autocal_on = false;
-  cmps14_cal_profile_stored = false;
+  cal_mode_runtime = CAL_MANUAL;
   return true;
 }
 
-// Start calibration in auto mode (autosave on)
-bool start_calibration_autosave() {
+// Start calibration in full auto mode
+bool start_calibration_fullauto() {
   if (!cmps14_enable_background_cal(true)) return false;
-  cmps14_cal_on = false;
-  cmps14_autocal_on = true;
-  cmps14_cal_profile_stored = false;
+  cal_mode_runtime = CAL_FULL_AUTO;
+  return true;
+}
+
+// Start calibration in semi auto mode
+bool start_calibration_semiauto(){
+  if (!cmps14_enable_background_cal(false)) return false;
+  cal_ok_count = 0;
+  cal_mode_runtime = CAL_SEMI_AUTO;
   return true;
 }
 
 // Stop all calibration
 bool stop_calibration() {
   if (!cmps14_cmd(REG_USEMODE)) return false; 
-  cmps14_cal_on = false;
-  cmps14_autocal_on = false;
+  cal_mode_runtime = CAL_USE;
   return true;
 }
 
 // Web UI handler for CALIBRATE button
 void handle_calibrate_on(){
-  if (start_calibration_manual()) {
+  if (start_calibration_manual_mode()) {
     // ok
   }
   handle_root();
@@ -582,8 +594,7 @@ void handle_calibrate_off(){
 // Web UI handler for SAVE button
 void handle_store(){
   if (cmps14_store_profile()) {
-    cmps14_autocal_on = false;
-    cmps14_cal_on = false;
+    cal_mode_runtime = CAL_USE;
   }
   handle_root();
 }
@@ -593,9 +604,9 @@ void handle_reset(){
   if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET3)) {
     delay(600);                   // Wait 600 ms for the sensor to boot
     cmps14_cmd(REG_USEMODE);      // Use mode
+    cal_mode_runtime = CAL_USE;
+    cal_mode_boot = CAL_USE;
     cmps14_cal_profile_stored = false;
-    cmps14_autocal_on = false;
-    cmps14_cal_on = false;
     cmps14_factory_reset = true;
     pitch_min_rad = pitch_max_rad = roll_min_rad = roll_max_rad = NAN;    // Reset the pitch/roll min and max values
     last_sent_pitch_min = last_sent_pitch_max = last_sent_roll_min = last_sent_roll_max = NAN;
@@ -626,7 +637,8 @@ void handle_status() {
 
   StaticJsonDocument<1024> doc;
 
-  doc["mode"]                 = cmps14_autocal_on ? "AUTO_CAL" : (cmps14_cal_on ? "MANUAL_CAL" : "USE");
+  doc["cal_mode"]             = calmode_str(cal_mode_runtime);
+  doc["cal_mode_boot"]        = calmode_str(cal_mode_boot);
   doc["wifi"]                 = ipChar;
   doc["rssi"]                 = RSSIc;
   doc["hdg_deg"]              = heading_deg;
@@ -646,8 +658,7 @@ void handle_status() {
   doc["hcd"]                  = hc.D;
   doc["hce"]                  = hc.E;
   doc["use_manual_magvar"]    = use_manual_magvar;   
-  doc["send_hdg_true"]        = send_hdg_true;       
-  doc["autocal_next_boot"]    = autocal_next_boot;   
+  doc["send_hdg_true"]        = send_hdg_true;         
   doc["stored"]               = cmps14_cal_profile_stored; 
   doc["factory_reset"]        = cmps14_factory_reset;
 
@@ -723,16 +734,21 @@ void handle_dev8_set() {
   handle_root();
 }
 
-// Web UI handler to choose if autocalibration starts on boot
-void handle_autocal_set() {
-  if (server.hasArg("autocal")) {
-    String autocal = server.arg("autocal");
-    autocal_next_boot = (autocal == "yes");
+// Web UI handler to choose calibration mode on boot
+void handle_calmode_set() {
+  if (server.hasArg("calmode")) {
+    String m = server.arg("calmode");
+    CalMode v = CAL_USE;
+    if (m == "full")         v = CAL_FULL_AUTO;
+    else if (m == "semi")    v = CAL_SEMI_AUTO;
+    else if (m == "manual")  v = CAL_MANUAL;
+    else                     v = CAL_USE;
+    cal_mode_boot = v;
+    prefs.begin("cmps14", false);
+    prefs.putUChar("cal_mode_boot", (uint8_t)v);
+    prefs.end();
+    lcd_print_lines("CAL MODE (BOOT)", calmode_str(v));
   }
-  prefs.begin("cmps14", false);
-  prefs.putBool("autocal_pref", autocal_next_boot);
-  prefs.end();
-  lcd_print_lines("AUTOCAL ON BOOT", autocal_next_boot ? "ENABLED" : "DISABLED");
   handle_root();
 }
 
@@ -752,7 +768,7 @@ void handle_magvar_set() {
     prefs.end();
 
     char line2[17];
-    snprintf(line2, sizeof(line2), "SET: %5.1f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? "E":"W"));
+    snprintf(line2, sizeof(line2), "SET: %5.1f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? 'E':'W'));
     lcd_print_lines("MAG VARIATION", line2);
   }
   handle_root();
@@ -776,16 +792,12 @@ void handle_heading_mode() {
 // Web UI handler for the HTML page (memory-friendly streaming version instead of large String handling)
 void handle_root() {
 
-  const char* mode =
-    cmps14_autocal_on ? "AUTO_CAL" :
-    cmps14_cal_on     ? "MANUAL_CAL" : "USE";
-
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "text/html; charset=utf-8", "");
 
   // Head and CSS
   server.sendContent_P(R"(
-    <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><meta http-equiv="refresh" content="60; url=/"><style>
+    <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><style>
     html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}
     body { background:#000; color:#fff; }
     .button { background-color: #00A300; border: none; color: white; padding: 6px 20px; text-decoration: none; font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
@@ -804,37 +816,37 @@ void handle_root() {
     <div class='card' id='controls'>)");
   {
     char buf[64];
-    const char* nice =
-      strcmp(mode, "AUTO_CAL")==0   ? "AUTO CAL" :
-      strcmp(mode, "MANUAL_CAL")==0 ? "MANUAL CAL" : "USE";
-    snprintf(buf, sizeof(buf), "<p>Mode: %s</p>", nice);
+    snprintf(buf, sizeof(buf), "<p>Mode: %s</p><p>", calmode_str(cal_mode_runtime));
     server.sendContent(buf);
   }
 
-  if (strcmp(mode, "AUTO_CAL") == 0 || strcmp(mode, "MANUAL_CAL") == 0) {
-    server.sendContent_P(R"(<p><a href="/cal/off"><button class="button button2">STOP</button></a>)");
+  if (cal_mode_runtime == CAL_FULL_AUTO) {
+    server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a>)");
+  } else if (cal_mode_runtime == CAL_SEMI_AUTO || cal_mode_runtime == CAL_MANUAL) {
+    server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
     if (!cmps14_cal_profile_stored) {
       server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
     } else {
       server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");
-      }
-  } else {
-    server.sendContent_P(R"(<p><a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
     }
+  } else {
+    server.sendContent_P(R"(<a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
+  }
+  server.sendContent_P(R"(</p></div>)");
 
-  if (!cmps14_factory_reset){ server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></p>)");}
-  server.sendContent_P(R"(</div>)");
-
-  // DIV Autocalibration at boot
+  // DIV Calibration mode on boot
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/autocal/set" method="get">
-    <label>Autocalibrate on boot </label><label><input type="radio" name="autocal" value="yes")");
-    { if (autocal_next_boot) server.sendContent_P(R"( checked)"); }
-    server.sendContent_P(R"(>Enabled</label><label>
-    <input type="radio" name="autocal" value="no")");
-    { if (!autocal_next_boot) server.sendContent_P(R"( checked)"); }
-    server.sendContent_P(R"(>Disabled</label>
+    <form action="/calmode/set" method="get">
+    <label>Calibration mode on boot </label><label><input type="radio" name="calmode" value="full")");
+    { if (cal_mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
+    server.sendContent_P(R"(>Full auto </label><label>
+    <input type="radio" name="calmode" value="semi")");
+    { if (cal_mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
+    server.sendContent_P(R"(>Auto </label><label>
+    <input type="radio" name="calmode" value="use")");
+    { if (cal_mode_boot == CAL_USE) server.sendContent_P(R"( checked)"); }
+    server.sendContent_P(R"(>Manual</label>
     <input type="submit" class="button" value="SAVE"></form></div>)");
 
   // DIV Set installation offset
@@ -951,12 +963,12 @@ void handle_root() {
             'Heading (T): '+fmt0(j.heading_true_deg)+'\u00B0',
             'Pitch: '+fmt1(j.pitch_deg)+'\u00B0',
             'Roll: '+fmt1(j.roll_deg)+'\u00B0',
-            'ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
-            'A='+fmt1(j.hca)+', B='+fmt1(j.hcb)+', C='+fmt1(j.hcc)+', D='+fmt1(j.hcd)+', E='+fmt1(j.hce),
+            'Profile: ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
+            'Coeffs: A='+fmt1(j.hca)+', B='+fmt1(j.hcb)+', C='+fmt1(j.hcc)+', D='+fmt1(j.hcd)+', E='+fmt1(j.hce),
             'WiFi: '+j.wifi+' ('+j.rssi+')',
+            'Calibration mode on boot: '+j.cal_mode_boot,
             'Use manual variation: '+j.use_manual_magvar,
             'Send true heading: '+j.send_hdg_true,
-            'Autocalibrate on boot: '+j.autocal_next_boot,
             'Factory reset: '+j.factory_reset,
             'Calibration saved since boot: '+j.stored
           ];
@@ -989,6 +1001,7 @@ void setup() {
   prefs.begin("cmps14", false);                                       // Get all permanently saved preferences
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
   magvar_manual_deg = prefs.getFloat("mv_man_deg", 0.0f);
+  if (validf(magvar_manual_deg)) magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
   for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
   bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
   if (haveCoeffs) {
@@ -1005,31 +1018,30 @@ void setup() {
     prefs.putFloat("hc_D", hc.D);
     prefs.putFloat("hc_E", hc.E);
   }
-  cmps14_autocal_on = prefs.getBool("autocal_pref", false);
-  autocal_next_boot = cmps14_autocal_on;
   send_hdg_true = prefs.getBool("send_hdg_true", true);
+  cal_mode_boot = (CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE);
   prefs.end();
 
   if (i2c_device_present(CMPS14_ADDR)){
-    if (cmps14_autocal_on){
-      if (start_calibration_autosave()) {                    // Switch on CMPS14 autocalibration with autosave
-        lcd_print_lines("AUTOCALIBRATION", "ENABLED");
-      } else {
-        lcd_print_lines("AUTOCALIBRATION", "FAILED");
-      }
-    } else if (cmps14_cal_on){                        
-      if (start_calibration_manual()) {                      // Switch on CMPS14 calibration but no autosave
-        lcd_print_lines("CALIBRATION", "MANUAL MODE");
-      } else {
-        lcd_print_lines("MANUAL MODE", "FAILED");
-      }
-    } else {
-      if (cmps14_cmd(REG_USEMODE)) {
-        lcd_print_lines("NO CALIBRATION", "USE MODE");       // Or go to use-mode with no calibration
-      } else {
-        lcd_print_lines("USE MODE", "FAILED");
-      }
+    bool started = false;
+    switch (cal_mode_boot){                           // Start calibration or use mode based on preferences, default is use mode, manual never used here
+      case CAL_FULL_AUTO:
+        started = start_calibration_fullauto();
+        break;
+      case CAL_SEMI_AUTO:
+        started = start_calibration_semiauto();
+        break;
+      case CAL_MANUAL:
+        started = start_calibration_manual_mode();
+        break;
+      default:
+        if (cmps14_cmd(REG_USEMODE)){
+          cal_mode_runtime = CAL_USE;
+          started = true;
+        } break;
     }
+    if (!started) lcd_print_lines("CAL MODE", "START FAILED");
+    else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
   } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
 
   delay(250);
@@ -1087,7 +1099,7 @@ void setup() {
     server.on("/reset/on", handle_reset);
     server.on("/offset/set", handle_set_offset);
     server.on("/dev8/set", handle_dev8_set);
-    server.on("/autocal/set", handle_autocal_set);
+    server.on("/calmode/set", handle_calmode_set);
     server.on("/magvar/set", handle_magvar_set);
     server.on("/heading/mode", handle_heading_mode);
     server.begin();
@@ -1132,10 +1144,10 @@ void loop() {
     success = read_compass();                                         // Read values from CMPS14 only when timer is due
   }
   
-  if (success && cmps14_autocal_on) {
-    cmps14_monitor_and_store(true);                                   // Monitor and autosave
+  if (cal_mode_runtime == CAL_SEMI_AUTO) {
+    cmps14_monitor_and_store(true);                                   // Monitor and save automatically when profile is good enough
   } else {
-    cmps14_monitor_and_store(false);                                  // Monitor but do not save automatically
+    cmps14_monitor_and_store(false);                                  // Monitor but do not save automatically, user saves profile from Web UI
   }
 
   if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
@@ -1143,7 +1155,7 @@ void loop() {
     send_minmax_delta_if_due();
   }
 
-  if ((long)(now - last_lcd_ms) >= LCD_MS) {                     // Execute only on ticks when LCD timer is due
+  if ((long)(now - last_lcd_ms) >= LCD_MS) {                          // Execute only on ticks when LCD timer is due
     last_lcd_ms = now;
     if (success && validf(heading_deg)) {
       char buf[17];
