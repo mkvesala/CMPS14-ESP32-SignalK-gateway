@@ -52,7 +52,7 @@ bool cmps14_factory_reset             = false;  // Factory reset flag
 unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counters
 uint8_t cal_ok_count                  = 0;      // Autocalibration save condition counter
 const unsigned long CAL_POLL_MS       = 500;    // Autocalibration save condition timer
-const uint8_t CAL_OK_REQUIRED         = 2;      // Autocalibration save condition threshold
+const uint8_t CAL_OK_REQUIRED         = 1;      // Autocalibration save condition threshold
 
 // CMPS14 reading parameters
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
@@ -74,7 +74,7 @@ const unsigned long MINMAX_TX_INTERVAL_MS = 1000;                      // Freque
 unsigned long last_lcd_ms                 = 0;
 const unsigned long LCD_MS                = 1000;                      // Frequency to print on LCD in loop()
 unsigned long last_read_ms                = 0;
-const unsigned long READ_MS               = 75;                        // Frequency to read values from CMPS14 in loop()
+const unsigned long READ_MS               = 60;                        // Frequency to read values from CMPS14 in loop()
 
 // CMPS14 values in degrees for LCD and WebServer
 float heading_deg       = NAN;
@@ -328,12 +328,11 @@ HarmonicCoeffs hc {0,0,0,0,0};                                        // Five co
 
 // Debug print deviation table every 10°
 void print_deviation_table_10deg() {
-  Serial.println(F("=== Deviation check (Compass heading vs. Deviation) ==="));
-  Serial.println(F("   KS (deg) : Dev (deg)"));
+  Serial.println(F("=== Deviation table every 10 deg ==="));
   for (int h = 0; h <= 360; h += 10) {
     float dev = deviation_harm_deg(hc, (float)h); // hc: juuri sovitetut kertoimet
     // ESP32 tukee Serial.printf, käytetään sitä selkeyden vuoksi
-    Serial.printf("%03d : %+6.2f\n", h, dev);
+    Serial.printf("%03d,%+6.2f\n", h, dev);
   }
   Serial.println();
 }
@@ -355,29 +354,27 @@ bool read_compass(){
   int8_t roll  = (int8_t)Wire.read();
 
   uint16_t ang10 = ((uint16_t)hi << 8) | lo;  // 0..3599 (0.1°)
-  float deg = ((float)ang10) / 10.0f;         // 0..359.9°
+  float raw_deg = ((float)ang10) / 10.0f;         // 0..359.9° - raw value from CMPS14
   
-  compass_deg = deg;                          // Tag the raw compass deg value for global use
-  deg += installation_offset_deg;             // Correct physical installation error if such defined by user
-  if (deg >= 360.0f) deg -= 360.0f;
-  if (deg <    0.0f) deg += 360.0f;
+  raw_deg += installation_offset_deg;         // Correct raw deg with physical installation error if such defined by user
+  if (raw_deg >= 360.0f) raw_deg -= 360.0f;
+  if (raw_deg <    0.0f) raw_deg += 360.0f;
 
-  if (isnan(heading_deg)) {
-    heading_deg = deg;
-  } else {
-    float diff = deg - heading_deg;
+  if (isnan(compass_deg)) {                   // If 1st iteration, set compass deg without any smoothing
+    compass_deg = raw_deg;
+  } else {                                    // Otherwise, let's apply smoothing factor to set compass deg
+    float diff = raw_deg - compass_deg;
     if (diff > 180.0f)  diff -= 360.0f;       // Ensure shortest arc
     if (diff < -180.0f) diff += 360.0f;
-    heading_deg += HEADING_ALPHA * diff;      // Smoothing of heading
-    if (heading_deg >= 360.0f) heading_deg -= 360.0f;
-    if (heading_deg < 0.0f)   heading_deg += 360.0f;
+    compass_deg += HEADING_ALPHA * diff;      // Compass deg = raw deg + offset + smoothing
+    if (compass_deg >= 360.0f) compass_deg -= 360.0f;
+    if (compass_deg < 0.0f)   compass_deg += 360.0f;
   }
  
-  dev_deg = deviation_harm_deg(hc, heading_deg);
-  float hdg_corr_deg = heading_deg + dev_deg;
-  if (hdg_corr_deg < 0) hdg_corr_deg += 360.0f;
-  if (hdg_corr_deg >= 360.0f) hdg_corr_deg -= 360.0f;
-  heading_deg = hdg_corr_deg;                 // Magnetic heading = compass heading + installation offset + magnetic deviation at compass heading
+  dev_deg = deviation_harm_deg(hc, compass_deg);  // Get the deviation deg based on harmonic coeff model for current compass deg
+  heading_deg = compass_deg + dev_deg;            // Magnetic deg = compass deg + deviation
+  if (heading_deg < 0) heading_deg += 360.0f;
+  if (heading_deg >= 360.0f) heading_deg -= 360.0f;
 
   pitch_deg   = (float)pitch;
   roll_deg    = (float)roll;
@@ -487,6 +484,8 @@ bool cmps14_enable_background_cal(bool autosave) {
   const uint8_t cfg = autosave ? REG_AUTO_ON : REG_AUTO_OFF;
   if (!cmps14_cmd(cfg)) return false;
   cmps14_factory_reset = false;                     // We are not anymore in resetted mode
+  Serial.print("Enable bg cal returns true with autosave ");
+  Serial.println(autosave);
   return true;
 }
 
@@ -517,10 +516,10 @@ void cmps14_monitor_and_store(bool save) {
   const unsigned long now = millis();
   if (now - last_cal_poll_ms < CAL_POLL_MS) return;
   last_cal_poll_ms = now;
-
+  Serial.println("Polling status...");
   uint8_t st = cmps14_read_cal_status(); 
   if (st == REG_NACK) return;
-
+  Serial.println("Polling status 2...");
   uint8_t mag   = (st     ) & REG_MASK;
   uint8_t accel = (st >> 2) & REG_MASK;
   uint8_t gyro  = (st >> 4) & REG_MASK;
@@ -538,8 +537,10 @@ void cmps14_monitor_and_store(bool save) {
   if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { // When over threshold, save the calibration profile automatically
     if (cmps14_store_profile()) {
       lcd_print_lines("CALIBRATION", "SAVED");
+      Serial.println("Store profile SAVE happened.");
     } else {
       lcd_print_lines("CALIBRATION", "NOT SAVED");
+      Serial.println("Store profile SAVE not successful.");
     }
   }
 }
@@ -559,6 +560,7 @@ bool start_calibration_autosave() {
   cmps14_cal_on = false;
   cmps14_autocal_on = true;
   cmps14_cal_profile_stored = false;
+  Serial.println("Start cal autosave returns true!");
   return true;
 }
 
@@ -950,8 +952,8 @@ void handle_root() {
       function upd(){
         fetch('/status').then(r=>r.json()).then(j=>{
           const d=[
+            'Installation offset: '+fmt0(j.offset)+'\u00B0',
             'Heading (C): '+fmt0(j.compass_deg)+'\u00B0',
-            'Offset: '+fmt0(j.offset)+'\u00B0',
             'Deviation: '+fmt0(j.dev)+'\u00B0',
             'Heading (M): '+fmt0(j.hdg_deg)+'\u00B0',
             'Variation: '+fmt0(j.variation)+'\u00B0',
@@ -983,7 +985,10 @@ void handle_root() {
 void setup() {
 
   Serial.begin(115200);
-  delay(50);
+  delay(3000);
+  Serial.println(" ");
+  Serial.println("--");
+  Serial.println(" ");
 
   Wire.begin(I2C_SDA, I2C_SCL);
   delay(50);
@@ -1021,6 +1026,7 @@ void setup() {
     if (cmps14_autocal_on){
       if (start_calibration_autosave()) {                    // Switch on CMPS14 autocalibration with autosave
         lcd_print_lines("AUTOCALIBRATION", "ENABLED");
+        Serial.println("Autocal started in setup!");
       } else {
         lcd_print_lines("AUTOCALIBRATION", "FAILED");
       }
@@ -1146,6 +1152,9 @@ void loop() {
   }
 
   if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
+    // char check[128];
+    // snprintf(check, sizeof(check), "O:%03.0f C:%03.0f D:%03.0f M:%03.0f", installation_offset_deg, compass_deg, dev_deg, heading_deg);
+    // Serial.println(check);
     send_batch_delta_if_needed();
     send_minmax_delta_if_due();
   }
