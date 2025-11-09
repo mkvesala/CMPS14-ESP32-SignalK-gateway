@@ -16,7 +16,7 @@ char SK_URL[512];                                 // URL of SignalK server
 char SK_SOURCE[32];                               // ESP32 source name for SignalK, used also as the OTA hostname
 char RSSIc[16];                                   // WiFi signal quality description
 bool LCD_ONLY                   = false;          // True when no WiFi available, using only LCD output
-const uint32_t WIFI_TIMEOUT_MS  = 90000;          // Tryi WiFi connection max 1.5 minutes
+const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Tryi WiFi connection max 1.5 minutes
 
 // CMPS14 I2C address and registers
 const uint8_t CMPS14_ADDR       = 0x60;  // I2C address of CMPS14
@@ -35,8 +35,8 @@ const uint8_t REG_CAL3          = 0x99;
 const uint8_t REG_RESET1        = 0xE0;  // Series of commands to reset CMPS14
 const uint8_t REG_RESET2        = 0xE5;
 const uint8_t REG_RESET3        = 0xE2; 
-const uint8_t REG_AUTO_ON       = 0x93;  // Autosave on (profile)
-const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off (profile)
+const uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
+const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
 const uint8_t REG_ACK1          = 0x55;  // New firmware ack
 const uint8_t REG_ACK2          = 0x07;  // CMPS12 compliant ack
 const uint8_t REG_NACK          = 0xFF;  // nack
@@ -51,8 +51,8 @@ bool cmps14_cal_profile_stored        = false;  // Calibration profile stored fl
 bool cmps14_factory_reset             = false;  // Factory reset flag
 unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counters
 uint8_t cal_ok_count                  = 0;      // Autocalibration save condition counter
-const unsigned long CAL_POLL_MS       = 500;    // Autocalibration save condition timer
-const uint8_t CAL_OK_REQUIRED         = 1;      // Autocalibration save condition threshold
+const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer
+const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 
 // CMPS14 reading parameters
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
@@ -62,7 +62,7 @@ float magvar_manual_deg                   = 0.0f;                      // Variat
 float magvar_manual_rad                   = 0.0f;                      // Manual variation in rad
 bool send_hdg_true                        = true;                      // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 bool use_manual_magvar                    = true;                      // Use magvar_manual_deg if true
-const unsigned long MIN_TX_INTERVAL_MS    = 150;                       // Max frequency for sending deltas to SignalK
+const unsigned long MIN_TX_INTERVAL_MS    = 149;                       // Max frequency for sending deltas to SignalK - prime number
 const float DB_HDG_RAD                    = 0.005f;                    // ~0.29°: deadband threshold for heading
 const float DB_ATT_RAD                    = 0.003f;                    // ~0.17°: pitch/roll deadband threshold
 unsigned long last_minmax_tx_ms           = 0;
@@ -70,11 +70,11 @@ float last_sent_pitch_min                 = NAN;                       // Min an
 float last_sent_pitch_max                 = NAN;
 float last_sent_roll_min                  = NAN;
 float last_sent_roll_max                  = NAN;
-const unsigned long MINMAX_TX_INTERVAL_MS = 1000;                      // Frequency for pitch/roll maximum values sending
+const unsigned long MINMAX_TX_INTERVAL_MS = 997;                       // Frequency for pitch/roll maximum values sending - prime number
 unsigned long last_lcd_ms                 = 0;
-const unsigned long LCD_MS                = 1000;                      // Frequency to print on LCD in loop()
+const unsigned long LCD_MS                = 1009;                      // Frequency to print on LCD in loop() - prime number
 unsigned long last_read_ms                = 0;
-const unsigned long READ_MS               = 60;                        // Frequency to read values from CMPS14 in loop()
+const unsigned long READ_MS               = 67;                        // Frequency to read values from CMPS14 in loop() - prime number
 
 // CMPS14 values in degrees for LCD and WebServer
 float heading_deg       = NAN;
@@ -106,8 +106,8 @@ Preferences prefs;
 WebsocketsClient ws;
 volatile bool ws_open = false;
 unsigned long next_ws_try_ms = 0;
-const unsigned long WS_RETRY_MS = 2000;
-const unsigned long WS_RETRY_MAX = 20000;
+const unsigned long WS_RETRY_MS = 1999;
+const unsigned long WS_RETRY_MAX = 19997;
 
 // Webserver
 WebServer server(80);
@@ -330,8 +330,7 @@ HarmonicCoeffs hc {0,0,0,0,0};                                        // Five co
 void print_deviation_table_10deg() {
   Serial.println(F("=== Deviation table every 10 deg ==="));
   for (int h = 0; h <= 360; h += 10) {
-    float dev = deviation_harm_deg(hc, (float)h); // hc: juuri sovitetut kertoimet
-    // ESP32 tukee Serial.printf, käytetään sitä selkeyden vuoksi
+    float dev = deviation_harm_deg(hc, (float)h); 
     Serial.printf("%03d,%+6.2f\n", h, dev);
   }
   Serial.println();
@@ -484,8 +483,6 @@ bool cmps14_enable_background_cal(bool autosave) {
   const uint8_t cfg = autosave ? REG_AUTO_ON : REG_AUTO_OFF;
   if (!cmps14_cmd(cfg)) return false;
   cmps14_factory_reset = false;                     // We are not anymore in resetted mode
-  Serial.print("Enable bg cal returns true with autosave ");
-  Serial.println(autosave);
   return true;
 }
 
@@ -525,9 +522,6 @@ void cmps14_monitor_and_store(bool save) {
   uint8_t gyro  = (st >> 4) & REG_MASK;
   uint8_t sys   = (st >> 6) & REG_MASK;
 
-  static uint8_t prev = REG_NACK;
-  if (save && prev != st) prev = st;
-
   if (sys >= 2 && accel == 3 && mag == 3) {       // Require that SYS is 2, ACC is 3 and MAG is 3 - omit GYR as there's a firmware bug
     if (cal_ok_count < 255) cal_ok_count++;
   } else {
@@ -537,10 +531,8 @@ void cmps14_monitor_and_store(bool save) {
   if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { // When over threshold, save the calibration profile automatically
     if (cmps14_store_profile()) {
       lcd_print_lines("CALIBRATION", "SAVED");
-      Serial.println("Store profile SAVE happened.");
     } else {
       lcd_print_lines("CALIBRATION", "NOT SAVED");
-      Serial.println("Store profile SAVE not successful.");
     }
   }
 }
@@ -560,7 +552,6 @@ bool start_calibration_autosave() {
   cmps14_cal_on = false;
   cmps14_autocal_on = true;
   cmps14_cal_profile_stored = false;
-  Serial.println("Start cal autosave returns true!");
   return true;
 }
 
@@ -985,10 +976,7 @@ void handle_root() {
 void setup() {
 
   Serial.begin(115200);
-  delay(3000);
-  Serial.println(" ");
-  Serial.println("--");
-  Serial.println(" ");
+  delay(50);
 
   Wire.begin(I2C_SDA, I2C_SCL);
   delay(50);
@@ -1026,7 +1014,6 @@ void setup() {
     if (cmps14_autocal_on){
       if (start_calibration_autosave()) {                    // Switch on CMPS14 autocalibration with autosave
         lcd_print_lines("AUTOCALIBRATION", "ENABLED");
-        Serial.println("Autocal started in setup!");
       } else {
         lcd_print_lines("AUTOCALIBRATION", "FAILED");
       }
@@ -1152,9 +1139,6 @@ void loop() {
   }
 
   if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
-    // char check[128];
-    // snprintf(check, sizeof(check), "O:%03.0f C:%03.0f D:%03.0f M:%03.0f", installation_offset_deg, compass_deg, dev_deg, heading_deg);
-    // Serial.println(check);
     send_batch_delta_if_needed();
     send_minmax_delta_if_due();
   }
