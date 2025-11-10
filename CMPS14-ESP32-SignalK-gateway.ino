@@ -6,6 +6,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <ArduinoOTA.h>
 #include <Preferences.h>
+#include <esp_system.h>
 #include "harmonic.h"
 #include "secrets.h"
 
@@ -16,7 +17,7 @@ char SK_URL[512];                                 // URL of SignalK server
 char SK_SOURCE[32];                               // ESP32 source name for SignalK, used also as the OTA hostname
 char RSSIc[16];                                   // WiFi signal quality description
 bool LCD_ONLY                   = false;          // True when no WiFi available, using only LCD output
-const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Tryi WiFi connection max 1.5 minutes
+const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5 minutes
 
 // CMPS14 I2C address and registers
 const uint8_t CMPS14_ADDR       = 0x60;  // I2C address of CMPS14
@@ -37,9 +38,9 @@ const uint8_t REG_RESET2        = 0xE5;
 const uint8_t REG_RESET3        = 0xE2; 
 const uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
 const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
-const uint8_t REG_ACK1          = 0x55;  // New firmware ack
-const uint8_t REG_ACK2          = 0x07;  // CMPS12 compliant ack
-const uint8_t REG_NACK          = 0xFF;  // nack
+const uint8_t REG_ACK1          = 0x55;  // Ack (new firmware)
+const uint8_t REG_ACK2          = 0x07;  // Ack (CMPS12 compliant)
+const uint8_t REG_NACK          = 0xFF;  // Nack
 const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
 const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
 
@@ -51,7 +52,8 @@ uint8_t cal_ok_count                  = 0;      // Autocalibration save conditio
 const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 
-enum CalMode               : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 }; // 3 calibration modes + use mode
+// Three calibration modes + use mode
+enum CalMode               : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 };
 CalMode cal_mode_boot      = CAL_USE;
 CalMode cal_mode_runtime   = CAL_USE; 
 const char* calmode_str(CalMode m){
@@ -107,6 +109,9 @@ float magvar_rad        = NAN; // Value FROM SignalK navigation.magneticVariatio
 // SH-ESP32 default pins for I2C
 const uint8_t I2C_SDA = 16;
 const uint8_t I2C_SCL = 17;
+
+// SH-ESP32 led pins
+const uint8_t LED_PIN = 2;
 
 // Permanently stored preferences
 Preferences prefs;
@@ -330,9 +335,9 @@ void send_minmax_delta_if_due() {
   last_minmax_tx_ms = now;
 }
 
-// Compass deviation harmonic model from harmonic.h
+// Compass deviation harmonic model for harmonic.h
 const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
-float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and intercardinal directions by user
+float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
 HarmonicCoeffs hc {0,0,0,0,0};                                        // Five coeffs to calculate full deviation curve
 
 // Debug print deviation table every 10°
@@ -362,7 +367,7 @@ bool read_compass(){
   int8_t roll  = (int8_t)Wire.read();
 
   uint16_t ang10 = ((uint16_t)hi << 8) | lo;  // 0..3599 (0.1°)
-  float raw_deg = ((float)ang10) / 10.0f;         // 0..359.9° - raw value from CMPS14
+  float raw_deg = ((float)ang10) / 10.0f;     // 0..359.9° - raw value from CMPS14
   
   raw_deg += installation_offset_deg;         // Correct raw deg with physical installation error if such defined by user
   if (raw_deg >= 360.0f) raw_deg -= 360.0f;
@@ -379,7 +384,7 @@ bool read_compass(){
     if (compass_deg < 0.0f)   compass_deg += 360.0f;
   }
  
-  dev_deg = deviation_harm_deg(hc, compass_deg);  // Get the deviation deg based on harmonic coeff model for current compass deg
+  dev_deg = deviation_harm_deg(hc, compass_deg);  // Get the deviation deg for current compass deg - harmonic model
   heading_deg = compass_deg + dev_deg;            // Magnetic deg = compass deg + deviation
   if (heading_deg < 0) heading_deg += 360.0f;
   if (heading_deg >= 360.0f) heading_deg -= 360.0f;
@@ -469,6 +474,41 @@ void lcd_print_lines(const char* l1, const char* l2) {
   copy16(prev_bot, b);
 }
 
+// LED indicator for calibration mode, blue led at GPIO2
+void led_update_by_cal_mode(){
+  static unsigned long last = 0;
+  static bool state = false;
+  const unsigned long now = millis();
+
+  switch (cal_mode_runtime){
+    case CAL_USE:
+      digitalWrite(LED_PIN, HIGH);                    // blue led on continuously
+      return;
+    case CAL_FULL_AUTO: {
+      const unsigned long toggle_ms = 500;
+      if (now - last >= toggle_ms) {
+        state = !state;
+        digitalWrite(LED_PIN, state ? HIGH : LOW);    // blue led blinks on 1 hz frequency
+        last = now;
+      }
+      break;
+    }
+    case CAL_SEMI_AUTO:
+    case CAL_MANUAL: {
+      const unsigned long toggle_ms = 100;
+      if (now - last >= toggle_ms) {
+        state = !state;
+        digitalWrite(LED_PIN, state ? HIGH : LOW);    // blue led blinks on 5 hz frequency
+        last = now;
+      }
+      break;
+    }
+    default:
+      digitalWrite(LED_PIN, LOW);                     // blue led off
+      break;
+  }
+}
+
 // Send a command to CMPS14
 bool cmps14_cmd(uint8_t cmd) {
   Wire.beginTransmission(CMPS14_ADDR);
@@ -495,7 +535,7 @@ bool cmps14_enable_background_cal(bool autosave) {
   return true;
 }
 
-// Read calibration status (cmps14_cmd doesn't work here, for some reason... tried that)
+// Read calibration status
 uint8_t cmps14_read_cal_status() {
   Wire.beginTransmission(CMPS14_ADDR);
   Wire.write(REG_CAL_STATUS);
@@ -713,11 +753,10 @@ void handle_dev8_set() {
   dev_at_card_deg[6] = getf("W");
   dev_at_card_deg[7] = getf("NW");
 
-  hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg);
+  hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg); // Calculate 5 coeffs
 
-  print_deviation_table_10deg();
+  print_deviation_table_10deg();  // Debug
 
-  // Save preferences permanently
   prefs.begin("cmps14", false);
   for (int i = 0; i < 8; i++) {
     prefs.putFloat((String("dev") + String(i)).c_str(), dev_at_card_deg[i]);
@@ -820,19 +859,17 @@ void handle_root() {
     server.sendContent(buf);
   }
 
-  if (cal_mode_runtime == CAL_FULL_AUTO) {
-    server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a>)");
-  } else if (cal_mode_runtime == CAL_SEMI_AUTO || cal_mode_runtime == CAL_MANUAL) {
+  if (cal_mode_runtime == CAL_SEMI_AUTO || cal_mode_runtime == CAL_MANUAL) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
     if (!cmps14_cal_profile_stored) {
       server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
     } else {
       server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");
     }
-  } else {
+  } else if (cal_mode_runtime == CAL_USE) {
     server.sendContent_P(R"(<a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
   }
-  server.sendContent_P(R"(</p></div>)");
+  server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></p></div>)");
 
   // DIV Calibration mode on boot
   server.sendContent_P(R"(
@@ -984,6 +1021,45 @@ void handle_root() {
 
 }
 
+// Web UI handler for software restart of ESP32
+void handle_restart() {
+  uint32_t ms = 2000;
+  if (server.hasArg("ms")){
+    long v = server.arg("ms").toInt();
+    if (v > 0 && v < 60000) ms = (uint32_t)v;
+  }
+
+  char line2[17];
+  snprintf(line2, sizeof(line2), "IN %5lu ms", (unsigned long)ms);
+  lcd_print_lines("RESTARTING...", line2);
+
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);            // Draw HTML page which refreshes to / in 60 seconds
+  server.send(200, "text/html; charset=utf-8", "");
+  server.sendContent_P(R"(
+    <!DOCTYPE html><html><head>meta charset="utf-8>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="60; url=/">
+    <style>
+      body{background:#000;color:#fff;font-family:Helvetica;text-align:center;margin:18vh 0 0 0}
+      .msg{font-size:5vmin;max-font-size:24px;min-font-size:12px}
+      p{color:#bbb}
+    </style></head><body>
+      <div class="msg">RESTARTING...</div>
+      <p>This page will refresh in 60 seconds</p>
+    </body></html>
+  )");
+
+  delay(200);
+
+  if(ws_open) {
+    ws.close();
+    ws_open = false;
+  }
+
+  delay(ms);
+  ESP.restart();
+}
+
 // ===== S E T U P ===== //
 void setup() {
 
@@ -997,6 +1073,9 @@ void setup() {
 
   lcd_init_safe();
   delay(50);
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW); // blue led off
 
   prefs.begin("cmps14", false);                                       // Get all permanently saved preferences
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
@@ -1102,6 +1181,7 @@ void setup() {
     server.on("/calmode/set", handle_calmode_set);
     server.on("/magvar/set", handle_magvar_set);
     server.on("/heading/mode", handle_heading_mode);
+    server.on("/restart", handle_restart);
     server.begin();
 
     setup_ws_callbacks();                                             // Websocket
@@ -1163,5 +1243,7 @@ void loop() {
       lcd_print_lines("  HEADING (M):", buf);
     }
   }
+
+  led_update_by_cal_mode();
 
 } 
