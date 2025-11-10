@@ -564,7 +564,6 @@ void cmps14_monitor_and_store(bool save) {
   last_cal_poll_ms = now;
   uint8_t st = cmps14_read_cal_status(); 
   if (st == REG_NACK) return;
-  Serial.println("monitor and store - status ack");
   uint8_t mag   = (st     ) & REG_MASK;
   uint8_t accel = (st >> 2) & REG_MASK;
   uint8_t gyro  = (st >> 4) & REG_MASK;
@@ -832,6 +831,10 @@ void handle_heading_mode() {
 void handle_root() {
 
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.sendHeader("Connection", "close");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
   server.send(200, "text/html; charset=utf-8", "");
 
   // Head and CSS
@@ -875,7 +878,7 @@ void handle_root() {
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/calmode/set" method="get">
-    <label>Calibration mode on boot </label><label><input type="radio" name="calmode" value="full")");
+    <label>Mode </label><label><input type="radio" name="calmode" value="full")");
     { if (cal_mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
     server.sendContent_P(R"(>Full auto </label><label>
     <input type="radio" name="calmode" value="semi")");
@@ -989,6 +992,24 @@ void handle_root() {
       function fmt1(x) {
         return (x === null || x === undefined || Number.isNaN(x)) ? 'NA' : x.toFixed(1);
       }
+      function renderControls(j) {
+        const el = document.getElementById('controls');
+        if (!el || !j) return;
+        let html = '';
+        html += `<p>Mode: ${j.cal_mode}</p><p>`;
+        if (j.cal_mode === 'AUTO' || j.cal_mode === 'MANUAL') {
+          html += `<a href="/cal/off"><button class="button button2">STOP</button></a>`;
+          if (j.stored) {
+            html += `<a href="/store/on"><button class="button button2">REPLACE</button></a>`;
+          } else {
+            html += `<a href="/store/on"><button class="button">SAVE</button></a>`;
+          }
+        } else if (j.cal_mode === 'USE') {
+          html += `<a href="/cal/on"><button class="button">CALIBRATE</button></a>`;
+        }
+        html += `<a href="/reset/on"><button class="button button2">RESET</button></a></p>`;
+        el.innerHTML = html;
+      }
       function upd(){
         fetch('/status').then(r=>r.json()).then(j=>{
           const d=[
@@ -998,10 +1019,9 @@ void handle_root() {
             'Heading (M): '+fmt0(j.hdg_deg)+'\u00B0',
             'Variation: '+fmt0(j.variation)+'\u00B0',
             'Heading (T): '+fmt0(j.heading_true_deg)+'\u00B0',
-            'Pitch: '+fmt1(j.pitch_deg)+'\u00B0',
-            'Roll: '+fmt1(j.roll_deg)+'\u00B0',
-            'Profile: ACC='+j.acc+', MAG='+j.mag+', SYS='+j.sys,
-            'Coeffs: A='+fmt1(j.hca)+', B='+fmt1(j.hcb)+', C='+fmt1(j.hcc)+', D='+fmt1(j.hcd)+', E='+fmt1(j.hce),
+            'Pitch: '+fmt1(j.pitch_deg)+'\u00B0'+' Roll: '+fmt1(j.roll_deg)+'\u00B0',
+            'Acc: '+j.acc+', Mag: '+j.mag+', Sys: '+j.sys,
+            'HcA: '+fmt1(j.hca)+', HcB: '+fmt1(j.hcb)+', HcC: '+fmt1(j.hcc)+', HcD: '+fmt1(j.hcd)+', HcE: '+fmt1(j.hce),
             'WiFi: '+j.wifi+' ('+j.rssi+')',
             'Calibration mode on boot: '+j.cal_mode_boot,
             'Use manual variation: '+j.use_manual_magvar,
@@ -1010,46 +1030,63 @@ void handle_root() {
             'Calibration saved since boot: '+j.stored
           ];
           document.getElementById('st').textContent=d.join('\n');
+          renderControls(j);
         }).catch(_=>{
           document.getElementById('st').textContent='Status fetch failed';
         });
       }
       setInterval(upd,1000);upd();
-    </script>
+    </script>)");
+  server.sendContent_P(R"(
+    <div class='card'>
+    <a href="/restart?ms=5000"><button class="button button2">RESTART ESP32</button></a></div>
     </body>
     </html>)");
-
+  server.sendContent("");
 }
 
 // Web UI handler for software restart of ESP32
 void handle_restart() {
-  uint32_t ms = 2000;
+  uint32_t ms = 3000;
   if (server.hasArg("ms")){
     long v = server.arg("ms").toInt();
-    if (v > 0 && v < 60000) ms = (uint32_t)v;
+    if (v > ms && v < 20000) ms = (uint32_t)v;
   }
 
   char line2[17];
   snprintf(line2, sizeof(line2), "IN %5lu ms", (unsigned long)ms);
   lcd_print_lines("RESTARTING...", line2);
 
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);            // Draw HTML page which refreshes to / in 60 seconds
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);            // Draw HTML page which refreshes to / in 30 seconds
+  server.sendHeader("Connection", "close");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
   server.send(200, "text/html; charset=utf-8", "");
   server.sendContent_P(R"(
-    <!DOCTYPE html><html><head>meta charset="utf-8>
+    <!DOCTYPE html><html><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="60; url=/">
+    <meta http-equiv="refresh" content="30; url=/">
     <style>
       body{background:#000;color:#fff;font-family:Helvetica;text-align:center;margin:18vh 0 0 0}
       .msg{font-size:5vmin;max-font-size:24px;min-font-size:12px}
       p{color:#bbb}
-    </style></head><body>
+    </style>
+    <script>
+      setTimeout(function() { location.replace("/"); }, 31000);
+    </script>
+    </head><body>
       <div class="msg">RESTARTING...</div>
-      <p>This page will refresh in 60 seconds</p>
+      <p>Please wait.</p>
+      <p>This page will refresh in 30 seconds.</p>
     </body></html>
   )");
+  server.sendContent("");
 
-  delay(200);
+  delay(300);
+
+  WiFiClient client = server.client();
+  if (client) client.stop();
 
   if(ws_open) {
     ws.close();
@@ -1200,7 +1237,7 @@ void loop() {
 
   const unsigned long now = millis();                                 // Timestamp of this tick              
 
-  if (!LCD_ONLY) {                                                    // Execute on each tick, except in LCD ONLY mode
+  if (!LCD_ONLY) {                                                    // Execute except in LCD ONLY mode
     ArduinoOTA.handle();                                              // OTA
     server.handleClient();                                            // Webserver
     ws.poll();                                                        // Keep websocket alive
