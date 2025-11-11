@@ -1039,9 +1039,126 @@ void handle_root() {
     </script>)");
   server.sendContent_P(R"(
     <div class='card'>
+    <a href="/deviationdetails"><button class="button">SHOW DEVIATION CURVE</button></a></div>
+    </body>
+    </html>)");
+  server.sendContent_P(R"(
+    <div class='card'>
     <a href="/restart?ms=5000"><button class="button button2">RESTART ESP32</button></a></div>
     </body>
     </html>)");
+  server.sendContent("");
+}
+
+// WebUI handler to draw deviation table and deviation curve
+void handle_deviation_details(){
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.sendHeader("Connection", "close");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
+  server.send(200, "text/html; charset=utf-8", "");
+  server.sendContent_P(R"(
+    <!DOCTYPE html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Deviation details</title>
+    <style>
+      body{background:#000;color:#fff;font-family:Helvetica;margin:0 auto;text-align:center}
+      .card{width:92%;margin:8px auto;padding:8px;background:#0b0b0b;border-radius:6px;box-shadow:0 0 0 1px #222 inset}
+      table{margin:8px auto;border-collapse:collapse;color:#ddd}
+      td,th{border:1px solid #333;padding:4px 8px}
+      a{color:#fff}
+    </style>
+    </head><body>
+    <h2><a href="/">CMPS14 CONFIG</a> — Deviation details</h2>
+    <div class="card">
+  )");
+
+  // SVG asetukset
+  const int W=800, H=320;
+  const float xpad=40, ypad=20;
+  const float xmin=0, xmax=360;
+  // y-akseli ±max |dev|. Otetaan 10° marginaali, mutta rajoitetaan minimiin 5°
+  float ymax = 0.0f;
+  for (int d=0; d<=360; ++d){
+    float v = deviation_harm_deg(hc, (float)d);
+    if (fabs(v) > ymax) ymax = fabs(v);
+  }
+  ymax = max(ymax + 1.0f, 5.0f); // varaa vähän tilaa
+
+  auto xmap = [&](float x){ return xpad + (x - xmin) * ( (W-2*xpad) / (xmax-xmin) ); };
+  auto ymap = [&](float y){ return H-ypad - (y + ymax) * ( (H-2*ypad) / (2*ymax) ); };
+
+  // Akselit ja ruudukko
+  char buf[160];
+  server.sendContent_P(R"(<svg width="100%" viewBox="0 0 )");
+  snprintf(buf, sizeof(buf), "%d %d", W, H);
+  server.sendContent(buf);
+  server.sendContent_P(R"(" preserveAspectRatio="xMidYMid meet" style="background:#000">
+    <rect x="0" y="0" width="100%" height="100%" fill="#000"/>
+  )");
+
+  // X-akseli
+  snprintf(buf, sizeof(buf),
+    "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#444\"/>",
+    xmap(xmin), ymap(0), xmap(xmax), ymap(0));
+  server.sendContent(buf);
+
+  // Y-akseli keskellä (0° ja 360° kohdalla merkkejä ei aina tarvita)
+  snprintf(buf, sizeof(buf),
+    "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#444\"/>",
+    xmap(0), ymap(-ymax), xmap(0), ymap(ymax));
+  server.sendContent(buf);
+
+  // Ruudukko ja x-tickit 0, 45, 90, ..., 360
+  for (int k=0;k<=360;k+=45){
+    float X = xmap(k);
+    snprintf(buf,sizeof(buf),
+      "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#222\"/>",
+      X, ymap(-ymax), X, ymap(ymax));
+    server.sendContent(buf);
+    snprintf(buf,sizeof(buf),
+      "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"12\" text-anchor=\"middle\">%03d</text>",
+      X, ymap(-ymax)-4, k);
+    server.sendContent(buf);
+  }
+
+  // Y-tickit -ymax..ymax 1° välein ei kannata; tehdään esim. 1° välein labelit  –5…+5 (riippuen ymaxista)
+  for (int j=(int)ceil(-ymax); j<= (int)floor(ymax); j++){
+    float Y = ymap(j);
+    snprintf(buf,sizeof(buf),
+      "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#222\"/>",
+      xmap(xmin), Y, xmap(xmax), Y);
+    server.sendContent(buf);
+    snprintf(buf,sizeof(buf),
+      "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"12\" text-anchor=\"end\">%+d°</text>",
+      xmap(xmin)-6, Y+4, j);
+    server.sendContent(buf);
+  }
+
+  // Polyline: dev(h) 1° välein
+  server.sendContent_P(R"(<polyline fill="none" stroke="#0af" stroke-width="2" points=")");
+  for (int d=0; d<=360; ++d){
+    float X=xmap((float)d);
+    float Y=ymap(deviation_harm_deg(hc,(float)d));
+    snprintf(buf,sizeof(buf),"%.1f,%.1f ",X,Y);
+    server.sendContent(buf);
+  }
+  server.sendContent_P(R"("/>)");
+
+  server.sendContent_P(R"(</svg></div>)");
+
+  // TAULUKKO 10° välein
+  server.sendContent_P(R"(<div class="card"><h3>Deviation table (every 10°)</h3><table><tr><th>Compass</th><th>Deviation</th></tr>)");
+  for (int d=0; d<=360; d+=10){
+    float v = deviation_harm_deg(hc, (float)d);
+    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.2f\u00B0</td></tr>", d, v);
+    server.sendContent(buf);
+  }
+  server.sendContent_P(R"(</table></div>)");
+
+  server.sendContent_P(R"(<p style="margin:20px;"><a href="/">Back</a></p></body></html>)");
   server.sendContent("");
 }
 
@@ -1219,6 +1336,7 @@ void setup() {
     server.on("/magvar/set", handle_magvar_set);
     server.on("/heading/mode", handle_heading_mode);
     server.on("/restart", handle_restart);
+    server.on("/deviationdetails", handle_deviation_details);
     server.begin();
 
     setup_ws_callbacks();                                             // Websocket
