@@ -111,7 +111,8 @@ const uint8_t I2C_SDA = 16;
 const uint8_t I2C_SCL = 17;
 
 // SH-ESP32 led pins
-const uint8_t LED_PIN = 2;
+const uint8_t LED_PIN_BL = 2;
+const uint8_t LED_PIN_GR = 13;
 
 // Permanently stored preferences
 Preferences prefs;
@@ -482,13 +483,13 @@ void led_update_by_cal_mode(){
 
   switch (cal_mode_runtime){
     case CAL_USE:
-      digitalWrite(LED_PIN, HIGH);                    // blue led on continuously
+      digitalWrite(LED_PIN_BL, HIGH);                    // blue led on continuously
       return;
     case CAL_FULL_AUTO: {
       const unsigned long toggle_ms = 500;
       if (now - last >= toggle_ms) {
         state = !state;
-        digitalWrite(LED_PIN, state ? HIGH : LOW);    // blue led blinks on 1 hz frequency
+        digitalWrite(LED_PIN_BL, state ? HIGH : LOW);    // blue led blinks on 1 hz frequency
         last = now;
       }
       break;
@@ -498,15 +499,50 @@ void led_update_by_cal_mode(){
       const unsigned long toggle_ms = 100;
       if (now - last >= toggle_ms) {
         state = !state;
-        digitalWrite(LED_PIN, state ? HIGH : LOW);    // blue led blinks on 5 hz frequency
+        digitalWrite(LED_PIN_BL, state ? HIGH : LOW);    // blue led blinks on 5 hz frequency
         last = now;
       }
       break;
     }
     default:
-      digitalWrite(LED_PIN, LOW);                     // blue led off
+      digitalWrite(LED_PIN_BL, LOW);                     // blue led off
       break;
   }
+}
+
+// LED indicator for wifi mode, green led at GPIO13
+void led_update_by_conn_status(){
+  static unsigned long last = 0;
+  static bool state = false;
+  const unsigned long now = millis();
+
+  if (LCD_ONLY) {
+    const unsigned long toggle_ms = 1000;
+    if (now - last >= toggle_ms) {
+      state = !state;
+      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);    // green led blinks with 0.5 Hz frequency
+      last = now;
+    }
+    return;
+  }
+
+  if (ws_open) {
+    digitalWrite(LED_PIN_GR, HIGH);                    // green led on continuously
+    return;
+  }
+
+  if (WiFi.isConnected()) {
+    const unsigned long toggle_ms = 100;
+    if (now - last >= toggle_ms) {
+      state = !state;
+      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);    // green led blinks with 5 Hz frequency
+      last = now;
+    }
+    return;
+  }
+
+  digitalWrite(LED_PIN_GR, LOW);                      // green led off
+
 }
 
 // Send a command to CMPS14
@@ -858,7 +894,7 @@ void handle_root() {
     <div class='card' id='controls'>)");
   {
     char buf[64];
-    snprintf(buf, sizeof(buf), "<p>Mode: %s</p><p>", calmode_str(cal_mode_runtime));
+    snprintf(buf, sizeof(buf), "Current mode: %s<p>", calmode_str(cal_mode_runtime));
     server.sendContent(buf);
   }
 
@@ -878,7 +914,7 @@ void handle_root() {
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/calmode/set" method="get">
-    <label>Mode </label><label><input type="radio" name="calmode" value="full")");
+    <label>Boot mode </label><label><input type="radio" name="calmode" value="full")");
     { if (cal_mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
     server.sendContent_P(R"(>Full auto </label><label>
     <input type="radio" name="calmode" value="semi")");
@@ -904,8 +940,7 @@ void handle_root() {
 
   // DIV Set deviation 
   server.sendContent_P(R"(
-    <div class='card'>
-    <form action="/dev8/set" method="get"><div>)");
+    <div class='card'>Measured deviations<form action="/dev8/set" method="get"><div>)");
 
   // Row 1: N NE
   {
@@ -952,14 +987,20 @@ void handle_root() {
 
   server.sendContent_P(R"(
     </div>
-    <label>Deviation table</label>
     <input type="submit" class="button" value="SAVE"></form></div>)");
+
+  // DIV Deviation curve
+  server.sendContent_P(R"(
+    <div class='card'>
+    <a href="/deviationdetails"><button class="button">SHOW DEVIATION CURVE</button></a></div>
+    </body>
+    </html>)");
 
   // DIV Set variation 
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/magvar/set" method="get">
-    <label>Manual variation</label>
+    <label>Manual variation </label>
     <input type="number" name="v" step="1" min="-180" max="180" value=")");
     {
       char buf[32];
@@ -972,7 +1013,7 @@ void handle_root() {
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/heading/mode" method="get">
-    <label>Use heading</label><label><input type="radio" name="mode" value="true")");
+    <label>Heading </label><label><input type="radio" name="mode" value="true")");
     { if (send_hdg_true) server.sendContent_P(R"( checked)"); }
     server.sendContent_P(R"(>True</label><label>
     <input type="radio" name="mode" value="mag")");
@@ -996,7 +1037,7 @@ void handle_root() {
         const el = document.getElementById('controls');
         if (!el || !j) return;
         let html = '';
-        html += `<p>Mode: ${j.cal_mode}</p><p>`;
+        html += `Current mode: ${j.cal_mode}<p>`;
         if (j.cal_mode === 'AUTO' || j.cal_mode === 'MANUAL') {
           html += `<a href="/cal/off"><button class="button button2">STOP</button></a>`;
           if (j.stored) {
@@ -1022,12 +1063,7 @@ void handle_root() {
             'Pitch: '+fmt1(j.pitch_deg)+'\u00B0'+' Roll: '+fmt1(j.roll_deg)+'\u00B0',
             'Acc: '+j.acc+', Mag: '+j.mag+', Sys: '+j.sys,
             'HcA: '+fmt1(j.hca)+', HcB: '+fmt1(j.hcb)+', HcC: '+fmt1(j.hcc)+', HcD: '+fmt1(j.hcd)+', HcE: '+fmt1(j.hce),
-            'WiFi: '+j.wifi+' ('+j.rssi+')',
-            'Calibration mode on boot: '+j.cal_mode_boot,
-            'Use manual variation: '+j.use_manual_magvar,
-            'Send true heading: '+j.send_hdg_true,
-            'Factory reset: '+j.factory_reset,
-            'Calibration saved since boot: '+j.stored
+            'WiFi: '+j.wifi+' ('+j.rssi+')'
           ];
           document.getElementById('st').textContent=d.join('\n');
           renderControls(j);
@@ -1037,11 +1073,6 @@ void handle_root() {
       }
       setInterval(upd,1000);upd();
     </script>)");
-  server.sendContent_P(R"(
-    <div class='card'>
-    <a href="/deviationdetails"><button class="button">SHOW DEVIATION CURVE</button></a></div>
-    </body>
-    </html>)");
   server.sendContent_P(R"(
     <div class='card'>
     <a href="/restart?ms=5000"><button class="button button2">RESTART ESP32</button></a></div>
@@ -1064,19 +1095,19 @@ void handle_deviation_details(){
     <link rel="icon" href="data:,">
     <title>Deviation details</title>
     <style>
-      body{background:#000;color:#fff;font-family:Helvetica;margin:0 auto;text-align:center}
-      .card{width:92%;margin:8px auto;padding:8px;background:#0b0b0b;border-radius:6px;box-shadow:0 0 0 1px #222 inset}
-      table{margin:8px auto;border-collapse:collapse;color:#ddd}
-      td,th{border:1px solid #333;padding:4px 8px}
-      a{color:#fff}
+      body{font-size:3vmin;max-font-size:14px;min-font-size:8px;background:#000;color:#fff;font-family:Helvetica;margin:0 auto;text-align:center}
+      .card{font-size:3vmin;max-font-size:14px;min-font-size:8px;width:92%;margin:8px auto;padding:8px;background:#0b0b0b;border-radius:6px;box-shadow:0 0 0 1px #222 inset}
+      table{font-size:3vmin;max-font-size:14px;min-font-size:8px;margin:8px auto;border-collapse:collapse;color:#ddd}
+      td,th{font-size:3vmin;max-font-size:14px;min-font-size:8px;border:1px solid #333;padding:4px 8px}
+      h2{margin:8px 0; font-size: 4vmin; max-font-size: 16px; min-font-size: 10px;}
+      a{color:#fff;text-decoration:none;}
     </style>
     </head><body>
-    <h2><a href="/">CMPS14 CONFIG</a> — Deviation details</h2>
     <div class="card">
   )");
 
   // SVG asetukset
-  const int W=800, H=320;
+  const int W=800, H=400;
   const float xpad=40, ypad=20;
   const float xmin=0, xmax=360;
   // y-akseli ±max |dev|. Otetaan 10° marginaali, mutta rajoitetaan minimiin 5°
@@ -1153,146 +1184,18 @@ void handle_deviation_details(){
   server.sendContent_P(R"(
     <div class="card">
     <table>
-    <tr><th>Deviation table (every 10°)</th></tr>
-    <tr><th>Compass</th><th>Deviation</th><th>Compass</th><th>Deviation</th></tr>)");
+    <tr><th>Compass</th><th>Deviation</th><th></th><th>Compass</th><th>Deviation</th></tr>)");
   for (int d=10; d<=180; d+=10){
     float v = deviation_harm_deg(hc, (float)d);
     int d2 = d+180;
     float v2 = deviation_harm_deg(hc, (float)d2);
-    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.2f\u00B0</td><td>%03d\u00B0</td><td>%+.2f\u00B0</td></tr>", d, v, d2, v2);
+    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.2f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.2f\u00B0</td></tr>", d, v, d2, v2);
     server.sendContent(buf);
   }
   server.sendContent_P(R"(</table></div>)");
-
-  // server.sendContent_P(R"(<div class="card"><h3>Deviation table (every 10°)</h3><table><tr><th>Compass</th><th>Deviation</th></tr>)");
-  // for (int d=0; d<=360; d+=10){
-  //   float v = deviation_harm_deg(hc, (float)d);
-  //   snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.2f\u00B0</td></tr>", d, v);
-  //   server.sendContent(buf);
-  // }
-  // server.sendContent_P(R"(</table></div>)");
-
-  server.sendContent_P(R"(<p style="margin:20px;"><a href="/">Back</a></p></body></html>)");
+  server.sendContent_P(R"(<p style="margin:20px;"><a href="/">BACK</a></p></body></html>)");
   server.sendContent("");
 }
-
-// WebUI handler to draw deviation table and deviation curve
-// void handle_deviation_details(){
-//   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-//   server.sendHeader("Connection", "close");
-//   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-//   server.sendHeader("Pragma", "no-cache");
-//   server.sendHeader("Expires", "0");
-//   server.send(200, "text/html; charset=utf-8", "");
-//   server.sendContent_P(R"(
-//     <!DOCTYPE html><html><head><meta charset="utf-8">
-//     <meta name="viewport" content="width=device-width, initial-scale=1">
-//     <link rel="icon" href="data:,">
-//     <title>Deviation details</title>
-//     <style>
-//       body{background:#000;color:#fff;font-family:Helvetica;margin:0 auto;text-align:center}
-//       .card{width:92%;margin:8px auto;padding:8px;background:#0b0b0b;border-radius:6px;box-shadow:0 0 0 1px #222 inset}
-//       table{margin:8px auto;border-collapse:collapse;color:#ddd}
-//       td,th{border:1px solid #333;padding:4px 8px}
-//       a{color:#fff}
-//     </style>
-//     </head><body>
-//     <h2><a href="/">CMPS14 CONFIG</a> — Deviation details</h2>
-//     <div class="card">
-//   )");
-
-//   // SVG asetukset
-//   const int H=800, W=320;
-//   const float ypad=40, xpad=20;
-//   const float ymin=0, ymax=360;
-//   // x-akseli ±max |dev|. Otetaan 10° marginaali, mutta rajoitetaan minimiin 5°
-//   float xmax = 0.0f;
-//   for (int d=0; d<=360; ++d){
-//     float v = deviation_harm_deg(hc, (float)d);
-//     if (fabs(v) > xmax) xmax = fabs(v);
-//   }
-//   xmax = max(xmax + 1.0f, 5.0f); // varaa vähän tilaa
-
-//   auto ymap = [&](float y){ return ypad + (y - ymin) * ( (H-2*ypad) / (ymax-ymin) ); };
-//   auto xmap = [&](float x){ return W-xpad - (x + xmax) * ( (W-2*xpad) / (2*xmax) ); };
-
-//   // Akselit ja ruudukko
-//   char buf[160];
-//   server.sendContent_P(R"(<svg width="100%" viewBox="0 0 )");
-//   snprintf(buf, sizeof(buf), "%d %d", W, H);
-//   server.sendContent(buf);
-//   server.sendContent_P(R"(" preserveAspectRatio="xMidYMid meet" style="background:#000">
-//     <rect x="0" y="0" width="100%" height="100%" fill="#000"/>
-//   )");
-
-//   // X-akseli
-//   snprintf(buf, sizeof(buf),
-//     "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#444\"/>",
-//     ymap(ymin), xmap(0), ymap(ymax), xmap(0));
-//   server.sendContent(buf);
-
-//   // Y-akseli keskellä (0° ja 360° kohdalla merkkejä ei aina tarvita)
-//   snprintf(buf, sizeof(buf),
-//     "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#444\"/>",
-//     ymap(0), xmap(-xmax), ymap(0), xmap(xmax));
-//   server.sendContent(buf);
-
-//   // Ruudukko ja x-tickit 0, 45, 90, ..., 360
-//   for (int k=0;k<=360;k+=45){
-//     float Y = ymap(k);
-//     snprintf(buf,sizeof(buf),
-//       "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#222\"/>",
-//       Y, xmap(-xmax), Y, xmap(xmax));
-//     server.sendContent(buf);
-//     snprintf(buf,sizeof(buf),
-//       "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"12\" text-anchor=\"middle\">%03d</text>",
-//       Y, xmap(-xmax)-4, k);
-//     server.sendContent(buf);
-//   }
-
-//   // Y-tickit -ymax..ymax 1° välein ei kannata; tehdään esim. 1° välein labelit  –5…+5 (riippuen ymaxista)
-//   for (int j=(int)ceil(-xmax); j<= (int)floor(xmax); j++){
-//     float X = xmap(j);
-//     snprintf(buf,sizeof(buf),
-//       "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#222\"/>",
-//       ymap(ymin), X, ymap(ymax), X);
-//     server.sendContent(buf);
-//     snprintf(buf,sizeof(buf),
-//       "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"12\" text-anchor=\"end\">%+d°</text>",
-//       ymap(ymin)-6, X+4, j);
-//     server.sendContent(buf);
-//   }
-
-//   // Polyline: dev(h) 1° välein
-//   server.sendContent_P(R"(<polyline fill="none" stroke="#0af" stroke-width="2" points=")");
-//   for (int d=0; d<=360; ++d){
-//     float Y=ymap((float)d);
-//     float X=xmap(deviation_harm_deg(hc,(float)d));
-//     snprintf(buf,sizeof(buf),"%.1f,%.1f ",X,Y);
-//     server.sendContent(buf);
-//   }
-//   server.sendContent_P(R"("/>)");
-
-//   server.sendContent_P(R"(</svg></div>)");
-
-//   // TAULUKKO 10° välein
-//   server.sendContent_P(R"(
-//     <div class="card">
-//     <table>
-//     <tr><th>Deviation table (every 10°)</th></tr>
-//     <tr><th>Compass</th><th>Deviation</th><th>Compass</th><th>Deviation</th></tr>)");
-//   for (int d=10; d<=180; d+=10){
-//     float v = deviation_harm_deg(hc, (float)d);
-//     int d2 = d+180;
-//     float v2 = deviation_harm_deg(hc, (float)d2)
-//     snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.2f\u00B0</td><td>%03d\u00B0</td><td>%+.2f\u00B0</td></tr>", d, v, d2, v2);
-//     server.sendContent(buf);
-//   }
-//   server.sendContent_P(R"(</table></div>)");
-
-//   server.sendContent_P(R"(<p style="margin:20px;"><a href="/">Back</a></p></body></html>)");
-//   server.sendContent("");
-// }
 
 // Web UI handler for software restart of ESP32
 void handle_restart() {
@@ -1360,8 +1263,10 @@ void setup() {
   lcd_init_safe();
   delay(50);
 
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW); // blue led off
+  pinMode(LED_PIN_BL, OUTPUT);
+  pinMode(LED_PIN_GR, OUTPUT);
+  digitalWrite(LED_PIN_BL, LOW); // blue led off
+  digitalWrite(LED_PIN_GR, LOW); // green led off
 
   prefs.begin("cmps14", false);                                       // Get all permanently saved preferences
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
@@ -1532,5 +1437,6 @@ void loop() {
   }
 
   led_update_by_cal_mode();
+  led_update_by_conn_status();
 
 } 
