@@ -51,6 +51,8 @@ unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counte
 uint8_t cal_ok_count                  = 0;      // Autocalibration save condition counter
 const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
+unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
+unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
 
 // Three calibration modes + use mode
 enum CalMode               : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 };
@@ -632,6 +634,7 @@ bool start_calibration_manual_mode() {
 bool start_calibration_fullauto() {
   if (!cmps14_enable_background_cal(true)) return false;
   cal_mode_runtime = CAL_FULL_AUTO;
+  full_auto_start_ms = millis();
   return true;
 }
 
@@ -810,7 +813,8 @@ void handle_dev8_set() {
 
 // Web UI handler to choose calibration mode on boot
 void handle_calmode_set() {
-  if (server.hasArg("calmode")) {
+  if (server.hasArg("calmode") && server.hasArg("fastop")) {
+    
     String m = server.arg("calmode");
     CalMode v = CAL_USE;
     if (m == "full")         v = CAL_FULL_AUTO;
@@ -818,10 +822,17 @@ void handle_calmode_set() {
     else if (m == "manual")  v = CAL_MANUAL;
     else                     v = CAL_USE;
     cal_mode_boot = v;
+   
+    long to = server.arg("fastop").toInt();
+    if (to <= 0) to = 0;
+    if (to > 60) to = 60;
+    full_auto_stop_ms = 60 * 1000 * to;
+
     prefs.begin("cmps14", false);
     prefs.putUChar("cal_mode_boot", (uint8_t)v);
+    prefs.putULong("fastop", (uint32_t)full_auto_stop_ms);
     prefs.end();
-    lcd_print_lines("CAL MODE (BOOT)", calmode_str(v));
+    lcd_print_lines("BOOT MODE", calmode_str(v));
   }
   handle_root();
 }
@@ -915,15 +926,23 @@ void handle_root() {
     <div class='card'>
     <form action="/calmode/set" method="get">
     <label>Boot mode </label><label><input type="radio" name="calmode" value="full")");
-    { if (cal_mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
-    server.sendContent_P(R"(>Full auto </label><label>
+  { if (cal_mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
+  server.sendContent_P(R"(>Full auto </label><label>
     <input type="radio" name="calmode" value="semi")");
-    { if (cal_mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
-    server.sendContent_P(R"(>Auto </label><label>
+  { if (cal_mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
+  server.sendContent_P(R"(>Auto </label><label>
     <input type="radio" name="calmode" value="use")");
-    { if (cal_mode_boot == CAL_USE) server.sendContent_P(R"( checked)"); }
-    server.sendContent_P(R"(>Manual</label>
-    <input type="submit" class="button" value="SAVE"></form></div>)");
+  { if (cal_mode_boot == CAL_USE) server.sendContent_P(R"( checked)"); }
+  server.sendContent_P(R"(>Use/Manual</label><br>
+    <label>Full auto will stop in </label>
+    <input type="number" name="fastop" step="1" min="0" max="60" value=")");
+      {
+        char buf[32];
+        float to = (float)(full_auto_stop_ms/1000/60);
+        snprintf(buf, sizeof(buf), "%.0f", to);
+        server.sendContent(buf);
+      }
+  server.sendContent_P(R"("><label> mins or 0 (never)<input type="submit" class="button" value="SAVE"></form></div>)");
 
   // DIV Set installation offset
   server.sendContent_P(R"(
@@ -1189,7 +1208,7 @@ void handle_deviation_details(){
     float v = deviation_harm_deg(hc, (float)d);
     int d2 = d+180;
     float v2 = deviation_harm_deg(hc, (float)d2);
-    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.2f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.2f\u00B0</td></tr>", d, v, d2, v2);
+    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.1f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.1f\u00B0</td></tr>", d, v, d2, v2);
     server.sendContent(buf);
   }
   server.sendContent_P(R"(</table></div>)");
@@ -1290,6 +1309,7 @@ void setup() {
   }
   send_hdg_true = prefs.getBool("send_hdg_true", true);
   cal_mode_boot = (CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE);
+  full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
   prefs.end();
 
   if (i2c_device_present(CMPS14_ADDR)){
@@ -1420,6 +1440,13 @@ void loop() {
     cmps14_monitor_and_store(true);                                   // Monitor and save automatically when profile is good enough
   } else {
     cmps14_monitor_and_store(false);                                  // Monitor but do not save automatically, user saves profile from Web UI
+  }
+
+  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) {
+    if (now - full_auto_start_ms > full_auto_stop_ms) {
+      stop_calibration();
+      lcd_print_lines("FULL AUTO", "TIMEOUT");
+    }
   }
 
   if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
