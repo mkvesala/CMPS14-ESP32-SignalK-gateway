@@ -133,9 +133,9 @@ WebServer server(80);
 // I2C LCD 16x2
 std::unique_ptr<LiquidCrystal_I2C> lcd;
 bool lcd_present          = false;
-char prev_top[17]  = "";                      // Previous value of top line
-char prev_bot[17]  = "";                      // Previous value of bottom line
-const uint8_t LCD_ADDR1   = 0x27;             // Scan both I2C addresses when init LCD
+char prev_top[17]         = "";                      // Previous value of top line
+char prev_bot[17]         = "";                      // Previous value of bottom line
+const uint8_t LCD_ADDR1   = 0x27;                    // Scan both I2C addresses when init LCD
 const uint8_t LCD_ADDR2   = 0x3F;
 
 // Return float validity
@@ -173,7 +173,7 @@ void classify_rssi(int rssi) {
   RSSIc[sizeof(RSSIc) - 1] = '\0';
 }
 
-// Formatter milliseconds to hh:mm:ss
+// Milliseconds to hh:mm:ss
 const char* ms_to_hms_str(unsigned long ms) {
   static char buf[12];
   unsigned long total_secs = ms / 1000;
@@ -354,16 +354,6 @@ void send_minmax_delta_if_due() {
 const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
 float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
 HarmonicCoeffs hc {0,0,0,0,0};                                        // Five coeffs to calculate full deviation curve
-
-// Debug print deviation table every 10°
-void print_deviation_table_10deg() {
-  Serial.println(F("=== Deviation table every 10 deg ==="));
-  for (int h = 0; h <= 360; h += 10) {
-    float dev = deviation_harm_deg(hc, (float)h); 
-    Serial.printf("%03d,%+6.2f\n", h, dev);
-  }
-  Serial.println();
-}
 
 // Read values from CMPS14 compass and attitude sensor
 bool read_compass(){
@@ -807,8 +797,6 @@ void handle_dev8_set() {
 
   hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg); // Calculate 5 coeffs
 
-  print_deviation_table_10deg();  // Debug
-
   prefs.begin("cmps14", false);
   for (int i = 0; i < 8; i++) {
     prefs.putFloat((String("dev") + String(i)).c_str(), dev_at_card_deg[i]);
@@ -1036,9 +1024,7 @@ void handle_root() {
   // DIV Deviation curve
   server.sendContent_P(R"(
     <div class='card'>
-    <a href="/deviationdetails"><button class="button">SHOW DEVIATION CURVE</button></a></div>
-    </body>
-    </html>)");
+    <a href="/deviationdetails"><button class="button">SHOW DEVIATION CURVE</button></a></div>)");
 
   // DIV Set variation 
   server.sendContent_P(R"(
@@ -1158,22 +1144,21 @@ void handle_deviation_details(){
     <div class="card">
   )");
 
-  // SVG asetukset
+  // SVG settings
   const int W=800, H=400;
   const float xpad=40, ypad=20;
   const float xmin=0, xmax=360;
-  // y-akseli ±max |dev|. Otetaan 10° marginaali, mutta rajoitetaan minimiin 5°
   float ymax = 0.0f;
   for (int d=0; d<=360; ++d){
     float v = deviation_harm_deg(hc, (float)d);
     if (fabs(v) > ymax) ymax = fabs(v);
   }
-  ymax = max(ymax + 1.0f, 5.0f); // varaa vähän tilaa
+  ymax = max(ymax + 1.0f, 5.0f); 
 
   auto xmap = [&](float x){ return xpad + (x - xmin) * ( (W-2*xpad) / (xmax-xmin) ); };
   auto ymap = [&](float y){ return H-ypad - (y + ymax) * ( (H-2*ypad) / (2*ymax) ); };
 
-  // Akselit ja ruudukko
+  // Grid
   char buf[160];
   server.sendContent_P(R"(<svg width="100%" viewBox="0 0 )");
   snprintf(buf, sizeof(buf), "%d %d", W, H);
@@ -1182,19 +1167,19 @@ void handle_deviation_details(){
     <rect x="0" y="0" width="100%" height="100%" fill="#000"/>
   )");
 
-  // X-akseli
+  // X-axis
   snprintf(buf, sizeof(buf),
     "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#444\"/>",
     xmap(xmin), ymap(0), xmap(xmax), ymap(0));
   server.sendContent(buf);
 
-  // Y-akseli keskellä (0° ja 360° kohdalla merkkejä ei aina tarvita)
+  // Y-axis
   snprintf(buf, sizeof(buf),
     "<line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" stroke=\"#444\"/>",
     xmap(0), ymap(-ymax), xmap(0), ymap(ymax));
   server.sendContent(buf);
 
-  // Ruudukko ja x-tickit 0, 45, 90, ..., 360
+  // Grid
   for (int k=0;k<=360;k+=45){
     float X = xmap(k);
     snprintf(buf,sizeof(buf),
@@ -1207,7 +1192,7 @@ void handle_deviation_details(){
     server.sendContent(buf);
   }
 
-  // Y-tickit -ymax..ymax 1° välein ei kannata; tehdään esim. 1° välein labelit  –5…+5 (riippuen ymaxista)
+  // Y-axis values
   for (int j=(int)ceil(-ymax); j<= (int)floor(ymax); j++){
     float Y = ymap(j);
     snprintf(buf,sizeof(buf),
@@ -1220,7 +1205,7 @@ void handle_deviation_details(){
     server.sendContent(buf);
   }
 
-  // Polyline: dev(h) 1° välein
+  // Polyline
   server.sendContent_P(R"(<polyline fill="none" stroke="#0af" stroke-width="2" points=")");
   for (int d=0; d<=360; ++d){
     float X=xmap((float)d);
@@ -1232,7 +1217,7 @@ void handle_deviation_details(){
 
   server.sendContent_P(R"(</svg></div>)");
 
-  // TAULUKKO 10° välein
+  // Deviation table every 10°
   server.sendContent_P(R"(
     <div class="card">
     <table>
@@ -1475,7 +1460,7 @@ void loop() {
     cmps14_monitor_and_store(false);                                  // Monitor but do not save automatically, user saves profile from Web UI
   }
 
-  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) {
+  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) {   // Monitor FULL AUTO mode timeout
     unsigned long left = full_auto_stop_ms - (now - full_auto_start_ms);
     if (left <= 0) {
       stop_calibration();
@@ -1498,7 +1483,7 @@ void loop() {
     }
   }
 
-  led_update_by_cal_mode();
-  led_update_by_conn_status();
+  led_update_by_cal_mode();                                            // blue led
+  led_update_by_conn_status();                                         // green led
 
 } 
