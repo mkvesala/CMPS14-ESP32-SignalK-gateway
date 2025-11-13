@@ -53,6 +53,7 @@ const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save conditio
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
 unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
+unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
 
 // Three calibration modes + use mode
 enum CalMode               : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 };
@@ -170,6 +171,17 @@ void classify_rssi(int rssi) {
       (rssi < -80) ? "POOR" : "OK";
   strncpy(RSSIc, label, sizeof(RSSIc) - 1);
   RSSIc[sizeof(RSSIc) - 1] = '\0';
+}
+
+// Formatter milliseconds to hh:mm:ss
+const char* ms_to_hms_str(unsigned long ms) {
+  static char buf[12];
+  unsigned long total_secs = ms / 1000;
+  unsigned int h = total_secs / 3600;
+  unsigned int m = (total_secs % 3600) / 60;
+  unsigned int s = (total_secs % 60);
+  snprintf(buf, sizeof(buf), "%02u:%02u:%02u", h, m, s);
+  return buf;
 }
 
 // Websocket callbacks
@@ -634,6 +646,7 @@ bool start_calibration_manual_mode() {
 bool start_calibration_fullauto() {
   if (!cmps14_enable_background_cal(true)) return false;
   cal_mode_runtime = CAL_FULL_AUTO;
+  full_auto_left_ms = 0;
   full_auto_start_ms = millis();
   return true;
 }
@@ -706,18 +719,19 @@ void handle_status() {
  
   float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
 
-  char ipChar[16];
+  char ip_char[16];
 
   if (WiFi.isConnected()) {
     IPAddress ip = WiFi.localIP();
-    snprintf(ipChar, sizeof(ipChar), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-  } else snprintf(ipChar, sizeof(ipChar), "DISCONNECTED");
+    snprintf(ip_char, sizeof(ip_char), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+  } else snprintf(ip_char, sizeof(ip_char), "DISCONNECTED");
 
   StaticJsonDocument<1024> doc;
 
   doc["cal_mode"]             = calmode_str(cal_mode_runtime);
   doc["cal_mode_boot"]        = calmode_str(cal_mode_boot);
-  doc["wifi"]                 = ipChar;
+  doc["fa_left"]              = ms_to_hms_str(full_auto_left_ms);
+  doc["wifi"]                 = ip_char;
   doc["rssi"]                 = RSSIc;
   doc["hdg_deg"]              = heading_deg;
   doc["compass_deg"]          = compass_deg;
@@ -823,14 +837,18 @@ void handle_calmode_set() {
     else                     v = CAL_USE;
     cal_mode_boot = v;
    
-    long to = server.arg("fastop").toInt();
-    if (to <= 0) to = 0;
-    if (to > 60) to = 60;
-    full_auto_stop_ms = 60 * 1000 * to;
+    if (!(cal_mode_runtime == CAL_FULL_AUTO)) {
+      long to = server.arg("fastop").toInt();
+      if (to <= 0) to = 0;
+      if (to > 60) to = 60;
+      full_auto_stop_ms = 60 * 1000 * to;
+      prefs.begin("cmps14", false);
+      prefs.putULong("fastop", (uint32_t)full_auto_stop_ms);
+      prefs.end();
+    }
 
     prefs.begin("cmps14", false);
     prefs.putUChar("cal_mode_boot", (uint8_t)v);
-    prefs.putULong("fastop", (uint32_t)full_auto_stop_ms);
     prefs.end();
     lcd_print_lines("BOOT MODE", calmode_str(v));
   }
@@ -891,6 +909,7 @@ void handle_root() {
     body { background:#000; color:#fff; }
     .button { background-color: #00A300; border: none; color: white; padding: 6px 20px; text-decoration: none; font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
     .button2 { background-color: #D10000; }
+    .button:disabled, .button2:disabled { opacity:0.5; cursor:not-allowed; }
     .card { width:92%; margin:2px auto; padding:4px; background:#0b0b0b; border-radius:6px; box-shadow:0 0 0 1px #222 inset; }
     h1 { margin:12px 0 8px 0; } h2 { margin:8px 0; font-size: 4vmin; max-font-size: 16px; min-font-size: 10px; } h3 { margin:6px 0; font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; }
     label { display:inline-block; min-width:40px; text-align:right; margin-right:6px; }
@@ -903,9 +922,13 @@ void handle_root() {
   // DIV Calibrate, Stop, Reset
   server.sendContent_P(R"(
     <div class='card' id='controls'>)");
-  {
+  if (cal_mode_runtime == CAL_FULL_AUTO) {
+    char buf[128];
+    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calmode_str(cal_mode_runtime), ms_to_hms_str(full_auto_left_ms));
+    server.sendContent(buf);
+  } else {
     char buf[64];
-    snprintf(buf, sizeof(buf), "Current mode: %s<p>", calmode_str(cal_mode_runtime));
+    snprintf(buf, sizeof(buf), "Current mode: %s<br>", calmode_str(cal_mode_runtime));
     server.sendContent(buf);
   }
 
@@ -918,8 +941,10 @@ void handle_root() {
     }
   } else if (cal_mode_runtime == CAL_USE) {
     server.sendContent_P(R"(<a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
+  } else if (cal_mode_runtime == CAL_FULL_AUTO) {
+    server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
   }
-  server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></p></div>)");
+  server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></div>)");
 
   // DIV Calibration mode on boot
   server.sendContent_P(R"(
@@ -934,7 +959,7 @@ void handle_root() {
     <input type="radio" name="calmode" value="use")");
   { if (cal_mode_boot == CAL_USE) server.sendContent_P(R"( checked)"); }
   server.sendContent_P(R"(>Use/Manual</label><br>
-    <label>Full auto will stop in </label>
+    <label>Full auto stops in </label>
     <input type="number" name="fastop" step="1" min="0" max="60" value=")");
       {
         char buf[32];
@@ -942,7 +967,7 @@ void handle_root() {
         snprintf(buf, sizeof(buf), "%.0f", to);
         server.sendContent(buf);
       }
-  server.sendContent_P(R"("><label> mins or 0 (never)<input type="submit" class="button" value="SAVE"></form></div>)");
+  server.sendContent_P(R"("> mins (0 never)<br><input type="submit" id="calmodebtn" class="button" value="SAVE"></form></div>)");
 
   // DIV Set installation offset
   server.sendContent_P(R"(
@@ -1056,7 +1081,11 @@ void handle_root() {
         const el = document.getElementById('controls');
         if (!el || !j) return;
         let html = '';
-        html += `Current mode: ${j.cal_mode}<p>`;
+        if (j.cal_mode === 'FULL AUTO') {
+          html += `Current mode: ${j.cal_mode} (${j.fa_left})<br>`;
+        } else {
+          html += `Current mode: ${j.cal_mode}<br>`;
+        }
         if (j.cal_mode === 'AUTO' || j.cal_mode === 'MANUAL') {
           html += `<a href="/cal/off"><button class="button button2">STOP</button></a>`;
           if (j.stored) {
@@ -1066,8 +1095,10 @@ void handle_root() {
           }
         } else if (j.cal_mode === 'USE') {
           html += `<a href="/cal/on"><button class="button">CALIBRATE</button></a>`;
+        } else if (j.cal_mode === 'FULL AUTO') {
+          html += `<a href="/cal/off"><button class="button button2">STOP</button></a>`;
         }
-        html += `<a href="/reset/on"><button class="button button2">RESET</button></a></p>`;
+        html += `<a href="/reset/on"><button class="button button2">RESET</button></a>`;
         el.innerHTML = html;
       }
       function upd(){
@@ -1086,6 +1117,8 @@ void handle_root() {
           ];
           document.getElementById('st').textContent=d.join('\n');
           renderControls(j);
+          const btn = document.getElementById('calmodebtn');
+          btn.disabled = (j.cal_mode === 'FULL AUTO');
         }).catch(_=>{
           document.getElementById('st').textContent='Status fetch failed';
         });
@@ -1208,7 +1241,7 @@ void handle_deviation_details(){
     float v = deviation_harm_deg(hc, (float)d);
     int d2 = d+180;
     float v2 = deviation_harm_deg(hc, (float)d2);
-    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.1f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.1f\u00B0</td></tr>", d, v, d2, v2);
+    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.0f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.0f\u00B0</td></tr>", d, v, d2, v2);
     server.sendContent(buf);
   }
   server.sendContent_P(R"(</table></div>)");
@@ -1443,10 +1476,12 @@ void loop() {
   }
 
   if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) {
-    if (now - full_auto_start_ms > full_auto_stop_ms) {
+    unsigned long left = full_auto_stop_ms - (now - full_auto_start_ms);
+    if (left <= 0) {
       stop_calibration();
       lcd_print_lines("FULL AUTO", "TIMEOUT");
     }
+    full_auto_left_ms = left;
   }
 
   if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
