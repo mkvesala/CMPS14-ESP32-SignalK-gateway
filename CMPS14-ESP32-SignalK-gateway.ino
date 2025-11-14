@@ -1352,7 +1352,7 @@ void setup() {
     else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
   } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
 
-  delay(250);
+  delay(1000);
 
   btStop();                                                // Stop bluetooth to save power
   WiFi.mode(WIFI_STA);
@@ -1368,11 +1368,11 @@ void setup() {
     IPAddress ip = WiFi.localIP();
     snprintf(ipbuf, sizeof(ipbuf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
     lcd_print_lines("WIFI OK", ipbuf);
-    delay(250);
+    delay(1000);
 
     classify_rssi(WiFi.RSSI());
     lcd_print_lines("SIGNAL LEVEL:", RSSIc);
-    delay(250);
+    delay(1000);
 
     // OTA
     ArduinoOTA.setHostname(SK_SOURCE);
@@ -1420,7 +1420,7 @@ void setup() {
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);                                              // Power off WiFi to save power
     lcd_print_lines("LCD ONLY MODE", "NO WIFI");
-    delay(250);
+    delay(1000);
   }
 
 }
@@ -1453,6 +1453,11 @@ void loop() {
     last_read_ms = now;
     success = read_compass();                                         // Read values from CMPS14 only when timer is due
   }
+
+  if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
+    send_batch_delta_if_needed();
+    send_minmax_delta_if_due();
+  }
   
   if (cal_mode_runtime == CAL_SEMI_AUTO) {
     cmps14_monitor_and_store(true);                                   // Monitor and save automatically when profile is good enough
@@ -1469,14 +1474,14 @@ void loop() {
     full_auto_left_ms = left;
   }
 
-  if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
-    send_batch_delta_if_needed();
-    send_minmax_delta_if_due();
-  }
-
   if ((long)(now - last_lcd_ms) >= LCD_MS) {                          // Execute only on ticks when LCD timer is due
     last_lcd_ms = now;
-    if (success && validf(heading_deg)) {
+    if (!LCD_ONLY && send_hdg_true && validf(heading_true_deg)) {
+      char buf[17];
+      snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
+      lcd_print_lines("  HEADING (T):", buf);
+    }
+    else if (validf(heading_deg)) {
       char buf[17];
       snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
       lcd_print_lines("  HEADING (M):", buf);
