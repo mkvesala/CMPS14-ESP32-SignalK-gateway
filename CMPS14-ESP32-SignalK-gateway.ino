@@ -86,6 +86,7 @@ float last_sent_roll_min                  = NAN;
 float last_sent_roll_max                  = NAN;
 const unsigned long MINMAX_TX_INTERVAL_MS = 997;                       // Frequency for pitch/roll maximum values sending - prime number
 unsigned long last_lcd_ms                 = 0;
+unsigned long lcd_hold_ms                 = 0;
 const unsigned long LCD_MS                = 1009;                      // Frequency to print on LCD in loop() - prime number
 unsigned long last_read_ms                = 0;
 const unsigned long READ_MS               = 67;                        // Frequency to read values from CMPS14 in loop() - prime number
@@ -477,6 +478,12 @@ void lcd_print_lines(const char* l1, const char* l2) {
 
   copy16(prev_top, t);
   copy16(prev_bot, b);
+
+}
+
+void lcd_show_info(const char* l1, const char* l2){
+  lcd_print_lines(l1, l2);
+  lcd_hold_ms = millis() + LCD_MS;
 }
 
 // LED indicator for calibration mode, blue led at GPIO2
@@ -617,10 +624,10 @@ void cmps14_monitor_and_store(bool save) {
  
   if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { // When over threshold, save the calibration profile automatically
     if (cmps14_store_profile()) {
-      lcd_print_lines("CALIBRATION", "SAVED");
+      lcd_show_info("CALIBRATION", "SAVED");
       cal_mode_runtime = CAL_USE;
     } else {
-      lcd_print_lines("CALIBRATION", "NOT SAVED");
+      lcd_show_info("CALIBRATION", "NOT SAVED");
     }
   }
 }
@@ -770,7 +777,7 @@ void handle_set_offset() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SET: %6.1f%c", installation_offset_deg, 223);
-    lcd_print_lines("INSTALL OFFSET", line2);
+    lcd_show_info("INSTALL OFFSET", line2);
   }
   handle_root();
 }
@@ -808,7 +815,7 @@ void handle_dev8_set() {
   prefs.putFloat("hc_E", hc.E);
   prefs.end();
 
-  lcd_print_lines("DEVIATION TABLE", "SAVED");
+  lcd_show_info("DEVIATION TABLE", "SAVED");
 
   handle_root();
 }
@@ -838,7 +845,7 @@ void handle_calmode_set() {
     prefs.begin("cmps14", false);
     prefs.putUChar("cal_mode_boot", (uint8_t)v);
     prefs.end();
-    lcd_print_lines("BOOT MODE", calmode_str(v));
+    lcd_show_info("BOOT MODE", calmode_str(v));
   }
   handle_root();
 }
@@ -860,7 +867,7 @@ void handle_magvar_set() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SET: %5.1f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? 'E':'W'));
-    lcd_print_lines("MAG VARIATION", line2);
+    lcd_show_info("MAG VARIATION", line2);
   }
   handle_root();
 }
@@ -876,7 +883,7 @@ void handle_heading_mode() {
   prefs.putBool("send_hdg_true", send_hdg_true);
   prefs.end();
 
-  lcd_print_lines("HEADING MODE", send_hdg_true ? "TRUE" : "MAGNETIC");
+  lcd_show_info("HEADING MODE", send_hdg_true ? "TRUE" : "MAGNETIC");
   handle_root();
 }
 
@@ -1244,7 +1251,7 @@ void handle_restart() {
 
   char line2[17];
   snprintf(line2, sizeof(line2), "IN %5lu ms", (unsigned long)ms);
-  lcd_print_lines("RESTARTING...", line2);
+  lcd_show_info("RESTARTING...", line2);
 
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);            // Draw HTML page which refreshes to / in 30 seconds
   server.sendHeader("Connection", "close");
@@ -1469,22 +1476,24 @@ void loop() {
     unsigned long left = full_auto_stop_ms - (now - full_auto_start_ms);
     if (left <= 0) {
       stop_calibration();
-      lcd_print_lines("FULL AUTO", "TIMEOUT");
+      lcd_show_info("FULL AUTO", "TIMEOUT");
     }
     full_auto_left_ms = left;
   }
 
   if ((long)(now - last_lcd_ms) >= LCD_MS) {                          // Execute only on ticks when LCD timer is due
     last_lcd_ms = now;
-    if (!LCD_ONLY && send_hdg_true && validf(heading_true_deg)) {
-      char buf[17];
-      snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
-      lcd_print_lines("  HEADING (T):", buf);
-    }
-    else if (validf(heading_deg)) {
-      char buf[17];
-      snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
-      lcd_print_lines("  HEADING (M):", buf);
+    if (now >= lcd_hold_ms) {
+      if (!LCD_ONLY && send_hdg_true && validf(heading_true_deg)) {
+        char buf[17];
+        snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
+        lcd_print_lines("  HEADING (T):", buf);
+      }
+      else if (validf(heading_deg)) {
+        char buf[17];
+        snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
+        lcd_print_lines("  HEADING (M):", buf);
+      }
     }
   }
 
