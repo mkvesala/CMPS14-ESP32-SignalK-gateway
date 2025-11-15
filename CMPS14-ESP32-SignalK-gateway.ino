@@ -17,7 +17,7 @@ char SK_URL[512];                                 // URL of SignalK server
 char SK_SOURCE[32];                               // ESP32 source name for SignalK, used also as the OTA hostname
 char RSSIc[16];                                   // WiFi signal quality description
 bool LCD_ONLY                   = false;          // True when no WiFi available, using only LCD output
-const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5 minutes
+const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5 minutes - prime number, to be exact
 
 // CMPS14 I2C address and registers
 const uint8_t CMPS14_ADDR       = 0x60;  // I2C address of CMPS14
@@ -49,22 +49,22 @@ bool cmps14_cal_profile_stored        = false;  // Calibration profile stored fl
 bool cmps14_factory_reset             = false;  // Factory reset flag
 unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counters
 uint8_t cal_ok_count                  = 0;      // Autocalibration save condition counter
-const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer
+const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer - prime number
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
 unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
 unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
 
 // Three calibration modes + use mode
-enum CalMode               : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 };
-CalMode cal_mode_boot      = CAL_USE;
-CalMode cal_mode_runtime   = CAL_USE; 
+enum CalMode                          : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 };
+CalMode cal_mode_boot                 = CAL_USE;
+CalMode cal_mode_runtime              = CAL_USE; 
 const char* calmode_str(CalMode m){
   switch(m){
-    case CAL_FULL_AUTO: return "FULL AUTO";
-    case CAL_SEMI_AUTO: return "AUTO";
-    case CAL_MANUAL:    return "MANUAL";
-    default:            return "USE";
+    case CAL_FULL_AUTO:               return "FULL AUTO";
+    case CAL_SEMI_AUTO:               return "AUTO";
+    case CAL_MANUAL:                  return "MANUAL";
+    default:                          return "USE";
   }
 }    
 
@@ -77,13 +77,8 @@ float magvar_manual_rad                   = 0.0f;                      // Manual
 bool send_hdg_true                        = true;                      // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 bool use_manual_magvar                    = true;                      // Use magvar_manual_deg if true
 const unsigned long MIN_TX_INTERVAL_MS    = 149;                       // Max frequency for sending deltas to SignalK - prime number
-const float DB_HDG_RAD                    = 0.005f;                    // ~0.29°: deadband threshold for heading
-const float DB_ATT_RAD                    = 0.003f;                    // ~0.17°: pitch/roll deadband threshold
-unsigned long last_minmax_tx_ms           = 0;
-float last_sent_pitch_min                 = NAN;                       // Min and Max for pitch and roll
-float last_sent_pitch_max                 = NAN;
-float last_sent_roll_min                  = NAN;
-float last_sent_roll_max                  = NAN;
+const float DB_HDG_RAD                    = 0.00436f;                  // 0.25°: deadband threshold for heading
+const float DB_ATT_RAD                    = 0.00436f;                  // 0.25°: pitch/roll deadband threshold
 const unsigned long MINMAX_TX_INTERVAL_MS = 997;                       // Frequency for pitch/roll maximum values sending - prime number
 unsigned long last_lcd_ms                 = 0;
 unsigned long lcd_hold_ms                 = 0;
@@ -245,9 +240,7 @@ void send_batch_delta_if_needed() {
 
   static unsigned long last_tx_ms = 0;
   const unsigned long now = millis();
-  if (now - last_tx_ms < MIN_TX_INTERVAL_MS) {
-    return;                                                                                            // Timer for sending to SignalK
-  }
+  if (now - last_tx_ms < MIN_TX_INTERVAL_MS) return;                                                   // Timer for sending to SignalK
 
   static float last_h = NAN, last_p = NAN, last_r = NAN;
   bool changed_h = false, changed_p = false, changed_r = false;
@@ -303,20 +296,21 @@ void send_batch_delta_if_needed() {
 
 // Send pitch and roll maximum values to SignalK if changed and less frequently than "live" values
 void send_minmax_delta_if_due() {
+  
   if (LCD_ONLY || !ws_open) return;                                                 // execute only if WiFi and Websocket ok
 
+  static unsigned long last_minmax_tx_ms = 0;
   const unsigned long now = millis();
   if (now - last_minmax_tx_ms < MINMAX_TX_INTERVAL_MS) return;                      // execute only if timer is due
+
+  static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
 
   bool ch_pmin = (validf(pitch_min_rad) && pitch_min_rad != last_sent_pitch_min);
   bool ch_pmax = (validf(pitch_max_rad) && pitch_max_rad != last_sent_pitch_max);
   bool ch_rmin = (validf(roll_min_rad)  && roll_min_rad  != last_sent_roll_min);
   bool ch_rmax = (validf(roll_max_rad)  && roll_max_rad  != last_sent_roll_max);
 
-  if (!(ch_pmin || ch_pmax || ch_rmin || ch_rmax)) {                                // execute only if values have been changed
-    last_minmax_tx_ms = now;
-    return;
-  }
+  if (!(ch_pmin || ch_pmax || ch_rmin || ch_rmax)) return;                          // execute only if values have been changed
 
   StaticJsonDocument<512> doc;
   doc["context"] = "vessels.self";
@@ -336,6 +330,8 @@ void send_minmax_delta_if_due() {
   if (ch_rmin) add("navigation.attitude.roll.min",  roll_min_rad);
   if (ch_rmax) add("navigation.attitude.roll.max",  roll_max_rad);
 
+  if (values.size() == 0) return;
+
   char buf[640];
   size_t n = serializeJson(doc, buf, sizeof(buf));
   bool ok = ws.send(buf, n);
@@ -348,6 +344,7 @@ void send_minmax_delta_if_due() {
   if (ch_pmax) last_sent_pitch_max = pitch_max_rad;
   if (ch_rmin) last_sent_roll_min  = roll_min_rad;
   if (ch_rmax) last_sent_roll_max  = roll_max_rad;
+  
   last_minmax_tx_ms = now;
 }
 
@@ -696,8 +693,6 @@ void handle_reset(){
     cal_mode_boot = CAL_USE;
     cmps14_cal_profile_stored = false;
     cmps14_factory_reset = true;
-    pitch_min_rad = pitch_max_rad = roll_min_rad = roll_max_rad = NAN;    // Reset the pitch/roll min and max values
-    last_sent_pitch_min = last_sent_pitch_max = last_sent_roll_min = last_sent_roll_max = NAN;
   }
   handle_root(); 
 }
@@ -1374,11 +1369,9 @@ void setup() {
     char ipbuf[16];
     IPAddress ip = WiFi.localIP();
     snprintf(ipbuf, sizeof(ipbuf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-    lcd_print_lines("WIFI OK", ipbuf);
-    delay(1000);
 
     classify_rssi(WiFi.RSSI());
-    lcd_print_lines("SIGNAL LEVEL:", RSSIc);
+    lcd_print_lines(ipbuf, RSSIc);
     delay(1000);
 
     // OTA
@@ -1455,16 +1448,13 @@ void loop() {
   }
   if (ws_open) expn_retry_ms = WS_RETRY_MS;
 
-  bool success = false;
   if ((long)(now - last_read_ms) >= READ_MS) {
     last_read_ms = now;
-    success = read_compass();                                         // Read values from CMPS14 only when timer is due
+    bool success = read_compass();                                    // Read values from CMPS14 only when timer is due
   }
 
-  if (success && !LCD_ONLY) {                                         // If not in LCD ONLY mode and if read was successful, send values to SignalK paths
-    send_batch_delta_if_needed();
-    send_minmax_delta_if_due();
-  }
+  send_batch_delta_if_needed();                                       // And send values to SignalK server
+  send_minmax_delta_if_due();
   
   if (cal_mode_runtime == CAL_SEMI_AUTO) {
     cmps14_monitor_and_store(true);                                   // Monitor and save automatically when profile is good enough
