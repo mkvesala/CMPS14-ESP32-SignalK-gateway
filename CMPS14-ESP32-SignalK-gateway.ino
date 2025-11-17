@@ -47,8 +47,6 @@ const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration 
 // CMPS14 calibration
 bool cmps14_cal_profile_stored        = false;  // Calibration profile stored flag
 bool cmps14_factory_reset             = false;  // Factory reset flag
-unsigned long last_cal_poll_ms        = 0;      // Calibration monitoring counters
-uint8_t cal_ok_count                  = 0;      // Autocalibration save condition counter
 const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer - prime number
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
@@ -69,21 +67,19 @@ const char* calmode_str(CalMode m){
 }    
 
 // CMPS14 reading parameters
-const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
 float installation_offset_deg             = 0.0f;                      // Physical installation error of the compass module, configured via web UI
 float dev_deg                             = 0.0f;                      // Deviation at heading_deg calculated by harmonic model
 float magvar_manual_deg                   = 0.0f;                      // Variation that is set manually from web UI
 float magvar_manual_rad                   = 0.0f;                      // Manual variation in rad
 bool send_hdg_true                        = true;                      // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 bool use_manual_magvar                    = true;                      // Use magvar_manual_deg if true
+unsigned long lcd_hold_ms                 = 0;
+const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
 const unsigned long MIN_TX_INTERVAL_MS    = 149;                       // Max frequency for sending deltas to SignalK - prime number
 const float DB_HDG_RAD                    = 0.00436f;                  // 0.25°: deadband threshold for heading
 const float DB_ATT_RAD                    = 0.00436f;                  // 0.25°: pitch/roll deadband threshold
 const unsigned long MINMAX_TX_INTERVAL_MS = 997;                       // Frequency for pitch/roll maximum values sending - prime number
-unsigned long last_lcd_ms                 = 0;
-unsigned long lcd_hold_ms                 = 0;
 const unsigned long LCD_MS                = 1009;                      // Frequency to print on LCD in loop() - prime number
-unsigned long last_read_ms                = 0;
 const unsigned long READ_MS               = 67;                        // Frequency to read values from CMPS14 in loop() - prime number
 
 // CMPS14 values in degrees for LCD and WebServer
@@ -119,7 +115,6 @@ Preferences prefs;
 // Websocket
 WebsocketsClient ws;
 volatile bool ws_open = false;
-unsigned long next_ws_try_ms = 0;
 const unsigned long WS_RETRY_MS = 1999;
 const unsigned long WS_RETRY_MAX = 19997;
 
@@ -559,7 +554,7 @@ bool cmps14_cmd(uint8_t cmd) {
   Wire.write(REG_CMD);
   Wire.write(cmd);
   if (Wire.endTransmission() != 0) return false;
-  delay(25);  // Delay of 20 ms recommended on CMPS14 datasheet
+  delay(23);  // Delay of 20 ms recommended on CMPS14 datasheet
 
   Wire.requestFrom(CMPS14_ADDR, (uint8_t)1);
   if (Wire.available() < 1) return false;
@@ -603,6 +598,8 @@ bool cmps14_store_profile() {
 
 // Monitor and optional storing of the calibration profile
 void cmps14_monitor_and_store(bool save) {
+  static unsigned long last_cal_poll_ms = 0;
+  static uint8_t cal_ok_count = 0;
   const unsigned long now = millis();
   if (now - last_cal_poll_ms < CAL_POLL_MS) return;
   last_cal_poll_ms = now;
@@ -613,7 +610,7 @@ void cmps14_monitor_and_store(bool save) {
   uint8_t gyro  = (st >> 4) & REG_MASK;
   uint8_t sys   = (st >> 6) & REG_MASK;
 
-  if (sys >= 2 && accel == 3 && mag == 3) {       // Require that SYS is 2, ACC is 3 and MAG is 3 - omit GYR as there's a firmware bug
+  if (sys == 3 && accel == 3 && mag == 3) {       // Require that SYS is 3, ACC is 3 and MAG is 3 - omit GYR as there's a firmware bug
     if (cal_ok_count < 255) cal_ok_count++;
   } else {
     cal_ok_count = 0;
@@ -626,6 +623,7 @@ void cmps14_monitor_and_store(bool save) {
     } else {
       lcd_show_info("CALIBRATION", "NOT SAVED");
     }
+    cal_ok_count = 0;
   }
 }
 
@@ -648,7 +646,6 @@ bool start_calibration_fullauto() {
 // Start calibration in semi auto mode
 bool start_calibration_semiauto(){
   if (!cmps14_enable_background_cal(false)) return false;
-  cal_ok_count = 0;
   cal_mode_runtime = CAL_SEMI_AUTO;
   return true;
 }
@@ -687,7 +684,7 @@ void handle_store(){
 // Web UI handler for RESET button
 void handle_reset(){
   if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET3)) {
-    delay(600);                   // Wait 600 ms for the sensor to boot
+    delay(601);                   // Wait for the sensor to boot
     cmps14_cmd(REG_USEMODE);      // Use mode
     cal_mode_runtime = CAL_USE;
     cal_mode_boot = CAL_USE;
@@ -970,7 +967,7 @@ void handle_root() {
         snprintf(buf, sizeof(buf), "%.0f", installation_offset_deg);
         server.sendContent(buf);
       }
-  server.sendContent_P(R"("><input type="submit" value="SAVE" class="button"></form></div>)");
+  server.sendContent_P(R"(">&deg; <input type="submit" value="SAVE" class="button"></form></div>)");
 
   // DIV Set deviation 
   server.sendContent_P(R"(
@@ -980,8 +977,8 @@ void handle_root() {
   {
     char row1[256];
     snprintf(row1, sizeof(row1),
-      "<label>N</label><input name=\"N\"  type=\"number\" step=\"1\" value=\"%.0f\">"
-      "<label>NE</label><input name=\"NE\" type=\"number\" step=\"1\" value=\"%.0f\">",
+      "<label>N</label><input name=\"N\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+      "<label>NE</label><input name=\"NE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
       dev_at_card_deg[0], dev_at_card_deg[1]);
     server.sendContent(row1);
   }
@@ -991,8 +988,8 @@ void handle_root() {
   {
   char row2[256];
     snprintf(row2, sizeof(row2),
-      "<label>E</label><input name=\"E\"  type=\"number\" step=\"1\" value=\"%.0f\">"
-      "<label>SE</label><input name=\"SE\" type=\"number\" step=\"1\" value=\"%.0f\">",
+      "<label>E</label><input name=\"E\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+      "<label>SE</label><input name=\"SE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
       dev_at_card_deg[2], dev_at_card_deg[3]);
     server.sendContent(row2);
   }
@@ -1002,8 +999,8 @@ void handle_root() {
   {
   char row3[256];
     snprintf(row3, sizeof(row3),
-      "<label>S</label><input name=\"S\"  type=\"number\" step=\"1\" value=\"%.0f\">"
-      "<label>SW</label><input name=\"SW\" type=\"number\" step=\"1\" value=\"%.0f\">",
+      "<label>S</label><input name=\"S\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+      "<label>SW</label><input name=\"SW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
       dev_at_card_deg[4], dev_at_card_deg[5]);
     server.sendContent(row3);
   }
@@ -1013,8 +1010,8 @@ void handle_root() {
   {
     char row4[256];
     snprintf(row4, sizeof(row4),
-      "<label>W</label><input name=\"W\"  type=\"number\" step=\"1\" value=\"%.0f\">"
-      "<label>NW</label><input name=\"NW\" type=\"number\" step=\"1\" value=\"%.0f\">",
+      "<label>W</label><input name=\"W\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+      "<label>NW</label><input name=\"NW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
       dev_at_card_deg[6], dev_at_card_deg[7]);
     server.sendContent(row4);
   }
@@ -1039,7 +1036,7 @@ void handle_root() {
       snprintf(buf, sizeof(buf), "%.0f", magvar_manual_deg);
       server.sendContent(buf);
     }
-  server.sendContent_P(R"("><input type="submit" value="SAVE" class="button"></form></div>)");
+  server.sendContent_P(R"(">&deg; <input type="submit" value="SAVE" class="button"></form></div>)");
 
   // DIV Set heading mode TRUE or MAGNETIC
   server.sendContent_P(R"(
@@ -1111,11 +1108,11 @@ void handle_root() {
           document.getElementById('st').textContent='Status fetch failed';
         });
       }
-      setInterval(upd,1000);upd();
+      setInterval(upd,1013);upd();
     </script>)");
   server.sendContent_P(R"(
     <div class='card'>
-    <a href="/restart?ms=5000"><button class="button button2">RESTART ESP32</button></a></div>
+    <a href="/restart?ms=5003"><button class="button button2">RESTART ESP32</button></a></div>
     </body>
     </html>)");
   server.sendContent("");
@@ -1238,10 +1235,10 @@ void handle_deviation_details(){
 
 // Web UI handler for software restart of ESP32
 void handle_restart() {
-  uint32_t ms = 3000;
+  uint32_t ms = 2999;
   if (server.hasArg("ms")){
     long v = server.arg("ms").toInt();
-    if (v > ms && v < 20000) ms = (uint32_t)v;
+    if (v >= ms && v < 20000) ms = (uint32_t)v;
   }
 
   char line2[17];
@@ -1292,15 +1289,15 @@ void handle_restart() {
 void setup() {
 
   Serial.begin(115200);
-  delay(50);
+  delay(47);
 
   Wire.begin(I2C_SDA, I2C_SCL);
-  delay(50);
+  delay(47);
   Wire.setClock(400000);
-  delay(50);
+  delay(47);
 
   lcd_init_safe();
-  delay(50);
+  delay(47);
 
   pinMode(LED_PIN_BL, OUTPUT);
   pinMode(LED_PIN_GR, OUTPUT);
@@ -1354,7 +1351,7 @@ void setup() {
     else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
   } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
 
-  delay(1000);
+  delay(1009);
 
   btStop();                                                // Stop bluetooth to save power
   WiFi.mode(WIFI_STA);
@@ -1372,21 +1369,27 @@ void setup() {
 
     classify_rssi(WiFi.RSSI());
     lcd_print_lines(ipbuf, RSSIc);
-    delay(1000);
+    delay(1009);
 
     // OTA
     ArduinoOTA.setHostname(SK_SOURCE);
     ArduinoOTA.setPassword(WIFI_PASS);
     ArduinoOTA.onStart([](){
-      lcd_print_lines("OTA UPDATE", "INIT");
+      lcd_print_lines("OTA UPDATE", "STARTED");
     });
     ArduinoOTA.onEnd([]() {
       lcd_print_lines("OTA UPDATE", "COMPLETE");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){
-      char buf[17];
-      snprintf(buf, sizeof(buf), "RUNNING: %u%%\r", (unsigned)(progress / (total /100)));
-      lcd_print_lines("OTA UPDATE", buf);
+      static uint8_t last_step = 255;
+      uint8_t pct = (progress * 100) / total;       // integer divisions here, not floats
+      uint8_t step = pct / 10;
+      if (step !=last_step) {
+        last_step = step;
+        char buf[17];
+        snprintf(buf, sizeof(buf), "RUN: %3u%%", step * 10);
+        lcd_print_lines("OTA UPDATE", buf);
+      }
     });
     ArduinoOTA.onError([] (ota_error_t error) {
       if (error == OTA_AUTH_ERROR) lcd_print_lines("OTA UPDATE", "AUTH FAIL");
@@ -1420,7 +1423,7 @@ void setup() {
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);                                              // Power off WiFi to save power
     lcd_print_lines("LCD ONLY MODE", "NO WIFI");
-    delay(1000);
+    delay(1009);
   }
 
 }
@@ -1429,6 +1432,9 @@ void setup() {
 void loop() {
 
   const unsigned long now = millis();                                 // Timestamp of this tick              
+  static unsigned long last_read_ms = 0;                              
+  static unsigned long last_lcd_ms = 0;
+  static unsigned long next_ws_try_ms = 0;
 
   if (!LCD_ONLY) {                                                    // Execute except in LCD ONLY mode
     ArduinoOTA.handle();                                              // OTA
@@ -1474,7 +1480,7 @@ void loop() {
   if ((long)(now - last_lcd_ms) >= LCD_MS) {                          // Execute only on ticks when LCD timer is due
     last_lcd_ms = now;
     if (now >= lcd_hold_ms) {
-      if (!LCD_ONLY && send_hdg_true && validf(heading_true_deg)) {
+      if (!LCD_ONLY && ws_open && send_hdg_true && validf(heading_true_deg)) {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
         lcd_print_lines("  HEADING (T):", buf);
