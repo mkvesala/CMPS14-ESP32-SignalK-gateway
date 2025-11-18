@@ -20,10 +20,11 @@ void setup() {
 
   pinMode(LED_PIN_BL, OUTPUT);
   pinMode(LED_PIN_GR, OUTPUT);
-  digitalWrite(LED_PIN_BL, LOW); // blue led off
-  digitalWrite(LED_PIN_GR, LOW); // green led off
+  digitalWrite(LED_PIN_BL, LOW);
+  digitalWrite(LED_PIN_GR, LOW);
 
-  prefs.begin("cmps14", false);                                       // Get all permanently saved preferences
+  // Get all permanently saved preferences
+  prefs.begin("cmps14", false);  
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
   magvar_manual_deg = prefs.getFloat("mv_man_deg", 0.0f);
   if (validf(magvar_manual_deg)) magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
@@ -48,9 +49,10 @@ void setup() {
   full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
   prefs.end();
 
+  // Start calibration or use-mode based on preferences, default is use-mode, manual never used at boot
   if (i2c_device_present(CMPS14_ADDR)){
     bool started = false;
-    switch (cal_mode_boot){                           // Start calibration or use mode based on preferences, default is use mode, manual never used here
+    switch (cal_mode_boot){                           
       case CAL_FULL_AUTO:
         started = start_calibration_fullauto();
         break;
@@ -61,26 +63,33 @@ void setup() {
         started = start_calibration_manual_mode();
         break;
       default:
-        if (stop_calibration()){
-          started = true;
-        } break;
+        started = stop_calibration();
+        break;
     }
     if (!started) lcd_print_lines("CAL MODE", "START FAILED");
     else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
   } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
-
   delay(1009);
 
-  btStop();                                                // Stop bluetooth to save power
+  // Stop bluetooth to save power
+  btStop(); 
+
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   lcd_print_lines("WIFI", "CONNECT...");
   unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } // Try to connect WiFi until timeout
-  if (WiFi.status() == WL_CONNECTED) {                                                       // Execute if WiFi successfully connected
+
+  // Try to connect WiFi until timeout
+  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } 
+
+  // Execute if WiFi successfully connected
+  if (WiFi.status() == WL_CONNECTED) {  
+    
     build_sk_url();
+    
     make_source_from_mac();
+    
     char ipbuf[16];
     IPAddress ip = WiFi.localIP();
     snprintf(ipbuf, sizeof(ipbuf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
@@ -100,7 +109,7 @@ void setup() {
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){
       static uint8_t last_step = 255;
-      uint8_t pct = (progress * 100) / total;       // integer divisions here, not floats
+      uint8_t pct = (progress * 100) / total;  // integer divisions here, no floats
       uint8_t step = pct / 10;
       if (step !=last_step) {
         last_step = step;
@@ -119,7 +128,7 @@ void setup() {
     });
     ArduinoOTA.begin();
 
-    // Set up the Webserver to call the handlers
+    // Set up webserver to call the handlers
     server.on("/", handle_root);
     server.on("/status", handle_status);
     server.on("/cal/on", handle_calibrate_on);
@@ -135,11 +144,14 @@ void setup() {
     server.on("/deviationdetails", handle_deviation_details);
     server.begin();
 
-    setup_ws_callbacks();                                             // Websocket
-  } else {                                                            // No WiFi, use only LCD output
+    // Websocket
+    setup_ws_callbacks();  
+
+  // No WiFi connection, use only LCD output and power off WiFi 
+  } else {  
     LCD_ONLY = true;
     WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);                                              // Power off WiFi to save power
+    WiFi.mode(WIFI_OFF); 
     lcd_print_lines("LCD ONLY MODE", "NO WIFI");
     delay(1009);
   }
@@ -149,23 +161,23 @@ void setup() {
 // ===== L O O P ===== //
 void loop() {
 
-  const unsigned long now = millis();                                 // Timestamp of this tick              
+  const unsigned long now = millis();              
   static unsigned long last_read_ms = 0;                              
   static unsigned long last_lcd_ms = 0;
   static unsigned long next_ws_try_ms = 0;
 
-  if (!LCD_ONLY) {                                                    // Execute except in LCD ONLY mode
-    ArduinoOTA.handle();                                              // OTA
-    server.handleClient();                                            // Webserver
-    ws.poll();                                                        // Keep websocket alive
-    if (WiFi.status() != WL_CONNECTED && ws_open) {                   // Kill ghost websocket
+  if (!LCD_ONLY) { 
+    ArduinoOTA.handle();                                           // OTA
+    server.handleClient();                                         // Webserver
+    ws.poll();                                                     // Keep websocket alive
+    if (WiFi.status() != WL_CONNECTED && ws_open) {                // Kill ghost websocket
       ws.close();
       ws_open = false;
     }
   }
 
   static unsigned long expn_retry_ms = WS_RETRY_MS;
-  if (!LCD_ONLY && !ws_open && (long)(now - next_ws_try_ms) >= 0){     // Execute only on ticks when timer is due and only if Websocket dropped and if not in LCD only mode
+  if (!LCD_ONLY && !ws_open && (long)(now - next_ws_try_ms) >= 0){  // Execute only on ticks when timer is due, only if Websocket dropped and only if not in LCD mode
     ws.connect(SK_URL);
     next_ws_try_ms = now + expn_retry_ms;
     expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
@@ -174,19 +186,19 @@ void loop() {
 
   if ((long)(now - last_read_ms) >= READ_MS) {
     last_read_ms = now;
-    bool success = read_compass();                                    // Read values from CMPS14 only when timer is due
+    read_compass();                                                 // Read values from CMPS14 only when timer is due
   }
 
-  send_batch_delta_if_needed();                                       // And send values to SignalK server
+  send_batch_delta_if_needed();                                     // And send values to SignalK server
   send_minmax_delta_if_due();
   
   if (cal_mode_runtime == CAL_SEMI_AUTO) {
-    cmps14_monitor_and_store(true);                                   // Monitor and save automatically when profile is good enough
+    cmps14_monitor_and_store(true);                                 // Monitor and save automatically when profile is good enough
   } else {
-    cmps14_monitor_and_store(false);                                  // Monitor but do not save automatically, user saves profile from Web UI
+    cmps14_monitor_and_store(false);                                // Monitor but do not save automatically, user saves profile from Web UI
   }
 
-  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) {   // Monitor FULL AUTO mode timeout
+  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) { // Monitor FULL AUTO mode timeout
     long left = full_auto_stop_ms - (now - full_auto_start_ms);
     if (left <= 0) {
       stop_calibration();
@@ -196,7 +208,7 @@ void loop() {
     full_auto_left_ms = left;
   }
 
-  if ((long)(now - last_lcd_ms) >= LCD_MS) {                          // Execute only on ticks when LCD timer is due
+  if ((long)(now - last_lcd_ms) >= LCD_MS) {                        // Execute only on ticks when LCD timer is due
     last_lcd_ms = now;
     if (now >= lcd_hold_ms) {
       if (!LCD_ONLY && ws_open && send_hdg_true && validf(heading_true_deg)) {
@@ -214,7 +226,7 @@ void loop() {
     }
   }
 
-  led_update_by_cal_mode();                                            // blue led
-  led_update_by_conn_status();                                         // green led
+  led_update_by_cal_mode();                                         // blue led
+  led_update_by_conn_status();                                      // green led
 
 } 
