@@ -187,10 +187,11 @@ void loop() {
   }
 
   if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) {   // Monitor FULL AUTO mode timeout
-    unsigned long left = full_auto_stop_ms - (now - full_auto_start_ms);
+    long left = full_auto_stop_ms - (now - full_auto_start_ms);
     if (left <= 0) {
       stop_calibration();
       lcd_show_info("FULL AUTO", "TIMEOUT");
+      left = 0;
     }
     full_auto_left_ms = left;
   }
@@ -207,6 +208,8 @@ void loop() {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
         lcd_print_lines("  HEADING (M):", buf);
+        heading_true_deg = NAN;
+        heading_true_rad = NAN;
       }
     }
   }

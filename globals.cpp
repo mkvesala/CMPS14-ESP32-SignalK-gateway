@@ -36,12 +36,12 @@ bool send_hdg_true                        = true;                      // By def
 bool use_manual_magvar                    = true;                      // Use magvar_manual_deg if true
 unsigned long lcd_hold_ms                 = 0;
 const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
-const unsigned long MIN_TX_INTERVAL_MS    = 149;                       // Max frequency for sending deltas to SignalK - prime number
+const unsigned long MIN_TX_INTERVAL_MS    = 101;                       // Max frequency for sending deltas to SignalK - prime number
 const float DB_HDG_RAD                    = 0.00436f;                  // 0.25°: deadband threshold for heading
 const float DB_ATT_RAD                    = 0.00436f;                  // 0.25°: pitch/roll deadband threshold
 const unsigned long MINMAX_TX_INTERVAL_MS = 997;                       // Frequency for pitch/roll maximum values sending - prime number
 const unsigned long LCD_MS                = 1009;                      // Frequency to print on LCD in loop() - prime number
-const unsigned long READ_MS               = 67;                        // Frequency to read values from CMPS14 in loop() - prime number
+const unsigned long READ_MS               = 47;                        // Frequency to read values from CMPS14 in loop() - prime number
 const uint8_t CMPS14_ADDR                 = 0x60;                      // I2C address of CMPS14
 
 // CMPS14 values in degrees for LCD and WebServer

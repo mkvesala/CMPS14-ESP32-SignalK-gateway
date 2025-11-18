@@ -1,4 +1,5 @@
 #include "cmps14.h"
+#include "display.h"
 
 // CMPS14 I2C address and registers
 static const uint8_t REG_ANGLE_16_H    = 0x02;  // 16-bit angle * 10 (hi)
@@ -184,10 +185,10 @@ void cmps14_monitor_and_store(bool save) {
  
   if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { // When over threshold, save the calibration profile automatically
     if (cmps14_store_profile()) {
-      // lcd_show_info("CALIBRATION", "SAVED");
+      lcd_show_info("CALIBRATION", "SAVED");
       cal_mode_runtime = CAL_USE;
     } else {
-      // lcd_show_info("CALIBRATION", "NOT SAVED");
+      lcd_show_info("CALIBRATION", "NOT SAVED");
     }
     cal_ok_count = 0;
   }
