@@ -1,6 +1,7 @@
 #pragma once
 
 #include "globals.h"
+#include "display.h"
 
 bool read_compass();
 

@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "harmonic.h"
 
 // Solve A..E with least squares method from 8 datapoints

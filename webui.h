@@ -2,6 +2,8 @@
 
 #include "globals.h"
 #include "cmps14.h"
+#include "signalk.h"
+#include "display.h"
 
 void handle_status();
 void handle_set_offset();

@@ -1,6 +1,4 @@
 #include "webui.h"
-#include "signalk.h"
-#include "display.h"
 
 // Web UI handler for CALIBRATE button
 void handle_calibrate_on(){
