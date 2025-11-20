@@ -23,7 +23,7 @@ Led indicators for calibration mode and connection status (two leds).
 
 1. Need to get a reliable low-cost digital compass that can be connected to SignalK server of my vessel
 2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. Refresh my C++ skills as I have not done coding since 2005
+3. Refresh my C/C++ skills as I have not done coding since 2005
 
 ## Features
 
@@ -279,9 +279,13 @@ Developed and tested using:
 
 Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
 
+ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-server-beginners-guide/).
+
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT Plus 5. ChatGPT was used in the project mainly to discuss ideas and to provide source code skeleton based on those ideas as well as for debugging assistance. Some mathematical functions and other functions beyond my skills were also provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is purely coincidential from my side.
+Developed by Matti Vesala in collaboration with ChatGPT Plus 5. ChatGPT was used in the project mainly as a sparring partner with whom to discuss ideas. ChatGPT was also my personal trainer in C/C++ and provided me with source code skeletons based chosen ideas. ChatGPT also assisted me in debugging. Some mathematical stuff and other functions beyond my skills were also provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
+
+The code is not object oriented. I might change that. Or maybe I wont. [SensESP](https://signalk.org/SensESP/) does the stuff and I will implement the next project on on that.
 
 
 
