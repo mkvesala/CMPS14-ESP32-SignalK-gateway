@@ -1,0 +1,33 @@
+<svg width="320" height="80" viewBox="0 0 320 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect x="0" y="0" width="320" height="80" fill="#000000"/>
+
+  <!-- Compass circle -->
+  <circle cx="40" cy="40" r="26" fill="none" stroke="#00D0FF" stroke-width="2"/>
+  <!-- Cardinals -->
+  <line x1="40" y1="14" x2="40" y2="8" stroke="#00D0FF" stroke-width="2"/>
+  <line x1="40" y1="66" x2="40" y2="72" stroke="#00D0FF" stroke-width="2"/>
+  <line x1="14" y1="40" x2="8"  y2="40" stroke="#00D0FF" stroke-width="2"/>
+  <line x1="66" y1="40" x2="72" y2="40" stroke="#00D0FF" stroke-width="2"/>
+
+  <!-- Pointer -->
+  <polygon points="40,18 45,40 40,62 35,40" fill="#FF5555" stroke="#FFFFFF" stroke-width="1"/>
+
+  <!-- "ESP32" chip kinda box -->
+  <rect x="110" y="20" width="60" height="40" rx="4" ry="4" fill="#111111" stroke="#00D0FF" stroke-width="1.5"/>
+  <text x="140" y="40" fill="#00D0FF" font-size="12" font-family="Helvetica" text-anchor="middle" dominant-baseline="central">
+    ESP32
+  </text>
+
+  <!-- Signal K wave to the right -->
+  <path d="M200 25 Q215 15 230 25 T260 25" fill="none" stroke="#00D0FF" stroke-width="2"/>
+  <path d="M200 45 Q215 35 230 45 T260 45" fill="none" stroke="#00D0FF" stroke-width="2"/>
+  <text x="230" y="65" fill="#FFFFFF" font-size="10" font-family="Helvetica" text-anchor="middle">
+    SignalK
+  </text>
+
+  <!-- Header -->
+  <text x="100" y="16" fill="#FFFFFF" font-size="14" font-family="Helvetica" >
+    CMPS14-ESP32-SignalK Gateway
+  </text>
+</svg>

@@ -1,5 +1,5 @@
 secrets.h
-secrets.frida.h
+secrets.f*.h
 *.bak
 *.tmp
 .DS_Store
