@@ -28,9 +28,12 @@ Led indicators for calibration mode and connection status (two leds).
 ### Deviation
 
 1. Takes 8 user-measured deviations (N, NE, E, SE, S, SW, W, NW) as input from web UI
-2. Fits 5-parameter sinusoidal model: `dev(hdg) = A + Bsin(hdg) + Ccos(hdg) + Dsin(2hdg) + Ecos(2hdg)`
-3. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 Preferences
-4. Full deviation curve and deviation table available on web UI
+2. Fits 5-parameter sinusoidal model:
+   ```
+   dev(hdg) = A + Bsin(hdg) + Ccos(hdg) + Dsin(2hdg) + Ecos(2hdg)
+   ```
+4. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 Preferences
+5. Full deviation curve and deviation table available on web UI
    - Deviation curve as SVG graph
    - Deviation table with 10° steps
 
@@ -45,21 +48,21 @@ Led indicators for calibration mode and connection status (two leds).
 
 **Note that when the SignalK connection is open, the magnetic heading will always be sent to SignalK *navigation.headingMagnetic* path regardless of the active heading mode (true/magnetic). It is a standard practise to compute true heading on server side using SignalK [Derived Data](https://github.com/SignalK/signalk-derived-data) plugin or similar, or on other clients such as [OpenCPN](https://opencpn.org) using [WMM](https://www.ncei.noaa.gov/products/world-magnetic-model).**
 
-### SignalK output
+### SignalK communication
 
 Connects to:
 ```
 ws://<server>:<port>/signalk/v1/stream?token=<optional>
 ```
 
-Sends on maximum ~10 Hz frequency, in radians, with a deadband of 0.25°:
+**Sends** on maximum ~10 Hz frequency, in radians, with a deadband of 0.25°:
 
 1. *navigation.headingMagnetic*
 2. *navigation.attitude.pitch*
 3. *navigation.attitude.roll*
 4. (optionally) *navigation.headingTrue*
 
-Sends on maximum ~1 Hz frequency, in radians, only if changed:
+**Sends** on maximum ~1 Hz frequency, in radians, only if changed:
 
 1. *navigation.attitude.pitch.max*
 2. *navigation.attitude.pitch.min*
@@ -67,6 +70,10 @@ Sends on maximum ~1 Hz frequency, in radians, only if changed:
 4. *navigation.attitude.roll.min*
 
 The min and max values reset to zero in ESP32 restart and they are *not* persistently stored in ESP32 Preferences.
+
+**Receives** on ~1 Hz frequency, in radians:
+
+1. *navigation.magneticVariation* (if available at SignalK)
 
 ### Calibration modes
 
@@ -95,7 +102,10 @@ Webserver provides simple HTML/JS user interface for user to configure:
    - Negative offset corrects the heading *towards* port side, meaning that the compass mounting is tilted on starboard
    - Effective immediately
 4. Measured deviations (degrees) at 8 cardinal and intercardinal directions
-   - Assumes the user to measure deviations with normal HDG (C) | Dev | HDG (M) | Var | HDG (T) routine at each direction
+   - Assumes the user to measure deviations with normal routine of
+     ```
+     HDG (C) | Dev | HDG (M) | Var | HDG (T)
+     ```
    - Effective immediately
 5. Manual magnetic variation (degrees)
    - Positive value is E, negative value is W
@@ -125,16 +135,33 @@ Additionally the user may:
    - JS generated block that updates at ~1 Hz cycles
    - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch, roll, 3 calibration status indicators, 5 coeffs of harmonic model, IP address and wifi signal level description
 
+### Webserver endpoints
+
+```
+Path                  Description               Parameters
+----                  -----------               ----------
+/                     Main UI                   none
+/cal/on               Start calibration         none
+/cal/off              Stop calibration          none
+/store/on             Save calibration profile  none
+/reset/on             Reset CMPS14              none
+/calmode/set          Save calibration mode     ?calmode=<full|semi|use>&fastop=<0-60>
+/offset/set           Installation offset       ?v=<-180-180>
+/dev8/set             Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>
+/deviationdetails     Deviation curve and table none
+/magvar/set           Manual variation          ?v=<-180-180>
+/heading/mode         Heading mode              ?mode=<true|mag>
+/status               Status block              none
+/restart              Restart ESP32             ?ms=5003
+```
+
 ### LCD 16x2
 
-Shows:
-
-1. Heading (true or magnetic) at ~1 Hz refresh
-2. Messages of `setup()` on boot
-3. Info messages on the way, related to calibration status, user interaction on web UI, OTA updates etc.
+1. Shows heading (true or magnetic) at ~1 Hz refresh
+2. Shows messages of `setup()` on boot
+3. Shows info messages on the way, related to calibration status, user interaction on web UI, OTA updates etc.
   - Info messages are visible for ~1 second before refreshed and replaced by heading again
-
-To avoid unnecessary blinking the LCD will refresh only if the content to be shown is different from what's already on the display.
+4. To avoid unnecessary blinking the LCD will refresh only if the content to be shown is different from what's already on the display.
 
 ### Two led indicators
 
@@ -186,17 +213,19 @@ To avoid unnecessary blinking the LCD will refresh only if the content to be sho
 
 1. Arduino IDE 2.x or similar
 2. ESP32 board package
-3. Libraries used:
-   - Arduino.h
-   - Wire.h
-   - WiFi.h
-   - WebServer.h
-   - ArduinoWebsockets.h
-   - ArduinoJson.h
-   - LiquidCrystal_I2C.h
-   - Preferences.h
-   - esp_system.h
-   - ArduinoOTA.h
+3. Libraries:
+   ```
+   Arduino.h
+   Wire.h
+   WiFi.h
+   WebServer.h
+   ArduinoWebsockets.h
+   ArduinoJson.h
+   LiquidCrystal_I2C.h
+   Preferences.h
+   esp_system.h
+   ArduinoOTA.h
+   ```
 
 ## Installation
 
@@ -217,9 +246,20 @@ To avoid unnecessary blinking the LCD will refresh only if the content to be sho
 6. Compile and upload
 8. Open browser --> navigate to ESP32 ip-address for configuration page
 
+Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
+## Credits
 
+Developed using:
 
+- SH-ESP32 board
+- ESP32 platform on Arduino IDE 2.3.6
+- CMPS14 documentation
+- SignalK specification
+
+Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
+
+Developed by Matti Vesala in collaboration with GhatGPT Plus 5.
 
 
 
