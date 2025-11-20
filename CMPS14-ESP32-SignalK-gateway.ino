@@ -3,6 +3,7 @@
 #include "display.h"
 #include "signalk.h"
 #include "webui.h"
+#include "OTA.h"
 
 // ===== S E T U P ===== //
 void setup() {
@@ -23,57 +24,17 @@ void setup() {
   digitalWrite(LED_PIN_BL, LOW);
   digitalWrite(LED_PIN_GR, LOW);
 
-  // Get all permanently saved preferences
-  prefs.begin("cmps14", false);  
-  installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
-  magvar_manual_deg = prefs.getFloat("mv_man_deg", 0.0f);
-  if (validf(magvar_manual_deg)) magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
-  for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
-  bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
-  if (haveCoeffs) {
-    hc.A = prefs.getFloat("hc_A", 0.0f);
-    hc.B = prefs.getFloat("hc_B", 0.0f);
-    hc.C = prefs.getFloat("hc_C", 0.0f);
-    hc.D = prefs.getFloat("hc_D", 0.0f);
-    hc.E = prefs.getFloat("hc_E", 0.0f);
-  } else {
-    hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg);
-    prefs.putFloat("hc_A", hc.A);
-    prefs.putFloat("hc_B", hc.B);
-    prefs.putFloat("hc_C", hc.C);
-    prefs.putFloat("hc_D", hc.D);
-    prefs.putFloat("hc_E", hc.E);
-  }
-  send_hdg_true = prefs.getBool("send_hdg_true", true);
-  cal_mode_boot = (CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE);
-  full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
-  prefs.end();
+  // Get saved configuration from ESP32 preferences
+  get_config_from_prefs();
 
-  // Start calibration or use-mode based on preferences, default is use-mode, manual never used at boot
-  if (i2c_device_present(CMPS14_ADDR)){
-    bool started = false;
-    switch (cal_mode_boot){                           
-      case CAL_FULL_AUTO:
-        started = start_calibration_fullauto();
-        break;
-      case CAL_SEMI_AUTO:
-        started = start_calibration_semiauto();
-        break;
-      case CAL_MANUAL:
-        started = start_calibration_manual_mode();
-        break;
-      default:
-        started = stop_calibration();
-        break;
-    }
-    if (!started) lcd_print_lines("CAL MODE", "START FAILED");
-    else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
-  } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
+  // Init CMPS14 with appropriate calibration mode or use-mode
+  cmps14_init_with_cal_mode();
   delay(1009);
 
   // Stop bluetooth to save power
   btStop(); 
 
+  // Init WiFi
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -86,66 +47,23 @@ void setup() {
   // Execute if WiFi successfully connected
   if (WiFi.status() == WL_CONNECTED) {  
     
+    // URL, source, IP address and RSSI stuff
     build_sk_url();
+    build_sk_source();
+    update_ipaddr_cstr();
+    update_rssi_cstr();
     
-    make_source_from_mac();
-    
-    char ipbuf[16];
-    IPAddress ip = WiFi.localIP();
-    snprintf(ipbuf, sizeof(ipbuf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-
-    classify_rssi(WiFi.RSSI());
-    lcd_print_lines(ipbuf, RSSIc);
+    lcd_print_lines(IPc, RSSIc);
     delay(1009);
 
     // OTA
-    ArduinoOTA.setHostname(SK_SOURCE);
-    ArduinoOTA.setPassword(WIFI_PASS);
-    ArduinoOTA.onStart([](){
-      lcd_print_lines("OTA UPDATE", "STARTED");
-    });
-    ArduinoOTA.onEnd([]() {
-      lcd_print_lines("OTA UPDATE", "COMPLETE");
-    });
-    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){
-      static uint8_t last_step = 255;
-      uint8_t pct = (progress * 100) / total;  // integer divisions here, no floats
-      uint8_t step = pct / 10;
-      if (step !=last_step) {
-        last_step = step;
-        char buf[17];
-        snprintf(buf, sizeof(buf), "RUN: %3u%%", step * 10);
-        lcd_print_lines("OTA UPDATE", buf);
-      }
-    });
-    ArduinoOTA.onError([] (ota_error_t error) {
-      if (error == OTA_AUTH_ERROR) lcd_print_lines("OTA UPDATE", "AUTH FAIL");
-      else if (error == OTA_BEGIN_ERROR) lcd_print_lines("OTA UPDATE", "INIT FAIL");
-      else if (error == OTA_CONNECT_ERROR) lcd_print_lines("OTA UPDATE", "CONNECT FAIL");
-      else if (error == OTA_RECEIVE_ERROR) lcd_print_lines("OTA UPDATE", "RECEIVE FAIL");
-      else if (error == OTA_END_ERROR) lcd_print_lines("OTA UPDATE", "ENDING FAIL");
-      else lcd_print_lines("OTA UPDATE", "ERROR");
-    });
-    ArduinoOTA.begin();
+    init_OTA();
 
-    // Set up webserver to call the handlers
-    server.on("/", handle_root);
-    server.on("/status", handle_status);
-    server.on("/cal/on", handle_calibrate_on);
-    server.on("/cal/off", handle_calibrate_off);
-    server.on("/store/on", handle_store);
-    server.on("/reset/on", handle_reset);
-    server.on("/offset/set", handle_set_offset);
-    server.on("/dev8/set", handle_dev8_set);
-    server.on("/calmode/set", handle_calmode_set);
-    server.on("/magvar/set", handle_magvar_set);
-    server.on("/heading/mode", handle_heading_mode);
-    server.on("/restart", handle_restart);
-    server.on("/deviationdetails", handle_deviation_details);
-    server.begin();
+    // Webserver
+    setup_webserver_callbacks();
 
     // Websocket
-    setup_ws_callbacks();  
+    setup_websocket_callbacks();  
 
   // No WiFi connection, use only LCD output and power off WiFi 
   } else {  
@@ -189,8 +107,8 @@ void loop() {
     read_compass();                                                 // Read values from CMPS14 only when timer is due
   }
 
-  send_batch_delta_if_needed();                                     // And send values to SignalK server
-  send_minmax_delta_if_due();
+  send_hdg_pitch_roll_delta();                                     // And send values to SignalK server
+  send_pitch_roll_minmax_delta();
   
   if (cal_mode_runtime == CAL_SEMI_AUTO) {
     cmps14_monitor_and_store(true);                                 // Monitor and save automatically when profile is good enough

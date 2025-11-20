@@ -1,5 +1,23 @@
 #include "webui.h"
 
+// Set up webserver to call the handlers
+void setup_webserver_callbacks() {
+  server.on("/", handle_root);
+  server.on("/status", handle_status);
+  server.on("/cal/on", handle_calibrate_on);
+  server.on("/cal/off", handle_calibrate_off);
+  server.on("/store/on", handle_store);
+  server.on("/reset/on", handle_reset);
+  server.on("/offset/set", handle_set_offset);
+  server.on("/dev8/set", handle_dev8_set);
+  server.on("/calmode/set", handle_calmode_set);
+  server.on("/magvar/set", handle_magvar_set);
+  server.on("/heading/mode", handle_heading_mode);
+  server.on("/restart", handle_restart);
+  server.on("/deviationdetails", handle_deviation_details);
+  server.begin();
+}
+
 // Web UI handler for CALIBRATE button
 void handle_calibrate_on(){
   if (start_calibration_manual_mode()) {
@@ -48,19 +66,17 @@ void handle_status() {
 
   float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
 
-  char ip_char[16];
-
   if (WiFi.isConnected()) {
-    IPAddress ip = WiFi.localIP();
-    snprintf(ip_char, sizeof(ip_char), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-  } else snprintf(ip_char, sizeof(ip_char), "DISCONNECTED");
+    update_ipaddr_cstr();
+    update_rssi_cstr();
+  } 
 
   StaticJsonDocument<1024> doc;
 
   doc["cal_mode"]             = calmode_str(cal_mode_runtime);
   doc["cal_mode_boot"]        = calmode_str(cal_mode_boot);
   doc["fa_left"]              = ms_to_hms_str(full_auto_left_ms);
-  doc["wifi"]                 = ip_char;
+  doc["wifi"]                 = IPc;
   doc["rssi"]                 = RSSIc;
   doc["hdg_deg"]              = heading_deg;
   doc["compass_deg"]          = compass_deg;

@@ -62,7 +62,7 @@ void led_update_by_cal_mode(){
       digitalWrite(LED_PIN_BL, HIGH);                    // blue led on continuously
       return;
     case CAL_FULL_AUTO: {
-      const unsigned long toggle_ms = 500;
+      const unsigned long toggle_ms = 503;
       if (now - last >= toggle_ms) {
         state = !state;
         digitalWrite(LED_PIN_BL, state ? HIGH : LOW);    // blue led blinks on 1 hz frequency
@@ -72,7 +72,7 @@ void led_update_by_cal_mode(){
     }
     case CAL_SEMI_AUTO:
     case CAL_MANUAL: {
-      const unsigned long toggle_ms = 100;
+      const unsigned long toggle_ms = 101;
       if (now - last >= toggle_ms) {
         state = !state;
         digitalWrite(LED_PIN_BL, state ? HIGH : LOW);    // blue led blinks on 5 hz frequency
@@ -93,7 +93,7 @@ void led_update_by_conn_status(){
   const unsigned long now = millis();
 
   if (LCD_ONLY) {
-    const unsigned long toggle_ms = 1000;
+    const unsigned long toggle_ms = 997;
     if (now - last >= toggle_ms) {
       state = !state;
       digitalWrite(LED_PIN_GR, state ? HIGH : LOW);    // green led blinks with 0.5 Hz frequency
@@ -108,7 +108,7 @@ void led_update_by_conn_status(){
   }
 
   if (WiFi.isConnected()) {
-    const unsigned long toggle_ms = 100;
+    const unsigned long toggle_ms = 97;
     if (now - last >= toggle_ms) {
       state = !state;
       digitalWrite(LED_PIN_GR, state ? HIGH : LOW);    // green led blinks with 5 Hz frequency

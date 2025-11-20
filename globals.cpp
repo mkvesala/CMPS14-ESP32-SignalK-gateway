@@ -4,6 +4,7 @@
 char SK_URL[512];                                 // URL of SignalK server
 char SK_SOURCE[32];                               // ESP32 source name for SignalK, used also as the OTA hostname
 char RSSIc[16];                                   // WiFi signal quality description
+char IPc[16];                                     // IP address
 bool LCD_ONLY                   = false;          // True when no WiFi available, using only LCD output
 const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5 minutes - prime number, to be exact
 
@@ -100,4 +101,48 @@ HarmonicCoeffs hc {0,0,0,0,0};                                        // Five co
 bool i2c_device_present(uint8_t addr) {
   Wire.beginTransmission(addr);
   return (Wire.endTransmission() == 0);
+}
+
+// Get all permanently saved preferences
+void get_config_from_prefs() {
+  prefs.begin("cmps14", false);  
+  installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
+  magvar_manual_deg = prefs.getFloat("mv_man_deg", 0.0f);
+  if (validf(magvar_manual_deg)) magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
+  for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
+  bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
+  if (haveCoeffs) {
+    hc.A = prefs.getFloat("hc_A", 0.0f);
+    hc.B = prefs.getFloat("hc_B", 0.0f);
+    hc.C = prefs.getFloat("hc_C", 0.0f);
+    hc.D = prefs.getFloat("hc_D", 0.0f);
+    hc.E = prefs.getFloat("hc_E", 0.0f);
+  } else {
+    hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg);
+    prefs.putFloat("hc_A", hc.A);
+    prefs.putFloat("hc_B", hc.B);
+    prefs.putFloat("hc_C", hc.C);
+    prefs.putFloat("hc_D", hc.D);
+    prefs.putFloat("hc_E", hc.E);
+  }
+  send_hdg_true = prefs.getBool("send_hdg_true", true);
+  cal_mode_boot = (CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE);
+  full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
+  prefs.end();
+}
+
+// Description for WiFi signal level
+void update_rssi_cstr() {
+  int rssi = WiFi.RSSI();
+  const char* label =
+      (rssi > -55) ? "EXCELLENT" :
+      (rssi < -80) ? "POOR" : "OK";
+  strncpy(RSSIc, label, sizeof(RSSIc) - 1);
+  RSSIc[sizeof(RSSIc) - 1] = '\0';
+}
+
+// Update IP address cstring
+void update_ipaddr_cstr() {
+  IPAddress ip = WiFi.localIP();
+  snprintf(IPc, sizeof(IPc), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 }

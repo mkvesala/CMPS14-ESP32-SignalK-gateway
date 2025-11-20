@@ -18,3 +18,4 @@ void handle_calibrate_on();
 void handle_calibrate_off();
 void handle_store();
 void handle_reset();
+void setup_webserver_callbacks();

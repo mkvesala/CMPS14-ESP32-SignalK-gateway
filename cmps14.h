@@ -17,3 +17,5 @@ bool start_calibration_manual_mode();
 bool start_calibration_fullauto();
 bool start_calibration_semiauto();
 bool stop_calibration();
+
+void cmps14_init_with_cal_mode();

@@ -9,23 +9,14 @@ void build_sk_url() {
 }
 
 // Set SignalK source and OTA hostname (equal) based on ESP32 MAC address tail
-void make_source_from_mac() {
+void build_sk_source() {
   uint8_t m[6];
   WiFi.macAddress(m);
   snprintf(SK_SOURCE, sizeof(SK_SOURCE), "esp32.cmps14-%02x%02x%02x", m[3], m[4], m[5]);
 }
 
-// Description for WiFi signal level
-void classify_rssi(int rssi) {
-  const char* label =
-      (rssi > -55) ? "EXCELLENT" :
-      (rssi < -80) ? "POOR" : "OK";
-  strncpy(RSSIc, label, sizeof(RSSIc) - 1);
-  RSSIc[sizeof(RSSIc) - 1] = '\0';
-}
-
 // Websocket callbacks
-void setup_ws_callbacks() {
+void setup_websocket_callbacks() {
   
   ws.onEvent([](WebsocketsEvent e, String){
     if (e == WebsocketsEvent::ConnectionOpened) {
@@ -77,7 +68,7 @@ void setup_ws_callbacks() {
 }
 
 // Send batch of SignalK deltas but only if change exceeds the deadband limits (no unnecessary sending)
-void send_batch_delta_if_needed() {
+void send_hdg_pitch_roll_delta() {
   
   if (LCD_ONLY || !ws_open) return;                                                                    // execute only if WiFi and Websocket ok
   if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return;                         // execute only if values are valid
@@ -139,7 +130,7 @@ void send_batch_delta_if_needed() {
 }
 
 // Send pitch and roll maximum values to SignalK if changed and less frequently than "live" values
-void send_minmax_delta_if_due() {
+void send_pitch_roll_minmax_delta() {
   
   if (LCD_ONLY || !ws_open) return;                                                 // execute only if WiFi and Websocket ok
 

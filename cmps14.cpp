@@ -234,3 +234,26 @@ bool stop_calibration() {
   cal_mode_runtime = CAL_USE;
   return true;
 }
+
+// Start calibration or use-mode based on preferences, default is use-mode, manual never used at boot
+void cmps14_init_with_cal_mode() {
+  if (i2c_device_present(CMPS14_ADDR)){
+    bool started = false;
+    switch (cal_mode_boot){                           
+      case CAL_FULL_AUTO:
+        started = start_calibration_fullauto();
+        break;
+      case CAL_SEMI_AUTO:
+        started = start_calibration_semiauto();
+        break;
+      case CAL_MANUAL:
+        started = start_calibration_manual_mode();
+        break;
+      default:
+        started = stop_calibration();
+        break;
+    }
+    if (!started) lcd_print_lines("CAL MODE", "START FAILED");
+    else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
+  } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
+}

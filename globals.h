@@ -18,6 +18,7 @@ using namespace websockets;
 extern char SK_URL[512];                  // URL of SignalK server
 extern char SK_SOURCE[32];                // ESP32 source name for SignalK, used also as the OTA hostname
 extern char RSSIc[16];                    // WiFi signal quality description
+extern char IPc[16];                      // IP address cstring
 extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
 extern const uint32_t WIFI_TIMEOUT_MS;    // Try WiFi connection max 
 
@@ -129,3 +130,12 @@ inline const char* ms_to_hms_str(unsigned long ms) {
 
 // Scan I2C address
 bool i2c_device_present(uint8_t addr);
+
+// Get saved configuration from ESP32 preferences
+void get_config_from_prefs();
+
+// Update RSSI description
+void update_rssi_cstr();
+
+// Update IP Address cstring
+void update_ipaddr_cstr();
