@@ -14,20 +14,22 @@
   <polygon points="40,18 45,40 40,62 35,40" fill="#FF5555" stroke="#FFFFFF" stroke-width="1"/>
 
   <!-- "ESP32" chip kinda box -->
-  <rect x="110" y="20" width="60" height="40" rx="4" ry="4" fill="#111111" stroke="#00D0FF" stroke-width="1.5"/>
-  <text x="140" y="40" fill="#00D0FF" font-size="12" font-family="Helvetica" text-anchor="middle" dominant-baseline="central">
+  <rect x="90" y="20" width="60" height="40" rx="4" ry="4" fill="#111111" stroke="#00D0FF" stroke-width="1.5"/>
+  <text x="120" y="40" fill="#00D0FF" font-size="12" font-family="Helvetica" text-anchor="middle" dominant-baseline="central">
     ESP32
   </text>
 
   <!-- Signal K wave to the right -->
-  <path d="M200 25 Q215 15 230 25 T260 25" fill="none" stroke="#00D0FF" stroke-width="2"/>
-  <path d="M200 45 Q215 35 230 45 T260 45" fill="none" stroke="#00D0FF" stroke-width="2"/>
-  <text x="230" y="65" fill="#FFFFFF" font-size="10" font-family="Helvetica" text-anchor="middle">
+  <path d="M170 30 Q185 20 200 30 T230 30" fill="none" stroke="#00D0FF" stroke-width="2"/>
+  <path d="M170 50 Q185 40 200 50 T230 50" fill="none" stroke="#00D0FF" stroke-width="2"/>
+  
+
+  <ellipse cx="280" cy="25" rx="30" ry="8" stroke="#00D0FF" stroke-width="2"/>
+  <line x1="250" y1="25" x2="250" y2="55" stroke="#00D0FF" stroke-width="2"/>
+  <line x1="310" y1="25" x2="310" y2="55" stroke="#00D0FF" stroke-width="2"/>
+  <text x="260" y="47" fill="#00D0FF" font-size="12" font-family="Helvetica" text-anchor="left">
     SignalK
   </text>
+  <path d="M 250 55 C 250 68, 310 68, 310 55" fill="none" stroke="#00D0FF" stroke-width="2"/> 
 
-  <!-- Header -->
-  <text x="100" y="16" fill="#FFFFFF" font-size="14" font-family="Helvetica" >
-    CMPS14-ESP32-SignalK Gateway
-  </text>
 </svg>
