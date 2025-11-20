@@ -23,7 +23,7 @@ Led indicators for calibration mode and connection status (two leds).
 
 1. Need to get a reliable low-cost digital compass that can be connected to SignalK server of my vessel
 2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. Refresh my C/C++ skills as I have not done coding since 2005
+3. Refresh my vague C/C++ skills as I have not delivered any code since 2005 (and before that was mostly Java and Smallworld Magik)
 
 ## Features
 
@@ -203,6 +203,7 @@ Path                  Description               Parameters
 - webui.h    | webui.cpp                 // webserver to provide HTML/JS UI and handlers
 - display.h  | display.cpp               // LCD 16x2 and led indicators
 - harmonic.h | harmonic.cpp              // harmonic model to compute deviation
+- OTA.h      | OTA.cpp                   // OTA updates
 ```
 
 ## Hardware used
@@ -285,7 +286,7 @@ No paid partnerships.
 
 Developed by Matti Vesala in collaboration with ChatGPT Plus 5. ChatGPT was used in the project mainly as a sparring partner with whom to discuss ideas. ChatGPT was also my personal trainer in C/C++ and provided me with source code skeletons based chosen ideas. ChatGPT also assisted me in debugging. Some mathematical stuff and other functions beyond my skills were also provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
 
-The code is not object oriented. I might change that. Or maybe I wont. [SensESP](https://signalk.org/SensESP/) does the stuff and I will implement the next project on on that.
+The code is not object oriented. I might change that. Or maybe I wont. [SensESP](https://signalk.org/SensESP/) does the stuff and I will most likely implement the next project on SensESP and PlatformIO.
 
 
 
