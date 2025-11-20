@@ -218,7 +218,7 @@ Path                  Description               Parameters
 7. Sparkfun bi-directional [logic level converter](https://www.sparkfun.com/sparkfun-logic-level-converter-bi-directional.html)
    - SH-ESP32 runs 3.3 V internally
    - CMPS14 accepts both 3.3 V and 5 V
-   - LCD accpets both 3.3 V and 5 V but is brighter with 5 V
+   - LCD accepts both 3.3 V and 5 V but is brighter with 5 V
    - Soldered logic level converter onto the board and used 5 V both for CMPS14 and LCD
 8. Joy-IT step-down [voltage converter](https://joy-it.net/en/products/SBC-Buck04-5V)
    - SH-ESP32 accepts 8 - 32 V, this is step-down to 5 V for CMPS14 and LCD
@@ -269,18 +269,19 @@ Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-elec
 
 ## Credits
 
-Developed using:
+Developed and tested using:
 
 - SH-ESP32 board
 - ESP32 platform on Arduino IDE 2.3.6
 - CMPS14 documentation
 - SignalK specification
+- OpenCPN and [KIP](https://github.com/mxtommy/Kip) for visualization
 
 Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
 
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT Plus 5.
+Developed by Matti Vesala in collaboration with ChatGPT Plus 5. ChatGPT was used in the project mainly to discuss ideas and to provide source code skeleton based on those ideas as well as for debugging assistance. Some mathematical functions and other functions beyond my skills were also provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is purely coincidential from my side.
 
 
 
