@@ -42,10 +42,10 @@ void setup() {
   unsigned long t0 = millis();
 
   // Try to connect WiFi until timeout
-  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } 
+  while (!WiFi.isConnected() && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } 
 
   // Execute if WiFi successfully connected
-  if (WiFi.status() == WL_CONNECTED) {  
+  if (WiFi.isConnected()) {  
     
     // URL, source, IP address and RSSI stuff
     build_sk_url();
@@ -88,7 +88,7 @@ void loop() {
     ArduinoOTA.handle();                                           // OTA
     server.handleClient();                                         // Webserver
     ws.poll();                                                     // Keep websocket alive
-    if (WiFi.status() != WL_CONNECTED && ws_open) {                // Kill ghost websocket
+    if (!WiFi.isConnected() && ws_open) {                          // Kill ghost websocket
       ws.close();
       ws_open = false;
     }
