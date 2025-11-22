@@ -63,12 +63,20 @@ bool read_compass(){
   if (heading_deg < 0) heading_deg += 360.0f;
   if (heading_deg >= 360.0f) heading_deg -= 360.0f;
 
+   float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg; // Get magnetic variation
+  // auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
+  // heading_true_rad = wrap2pi(heading_rad + mv_rad);
+  heading_true_deg = heading_deg + mv_deg;                            // True deg = magnetic deg + variation
+  if (heading_true_deg < 0) heading_true_deg += 360.0f;
+  if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
+
   pitch_deg   = (float)pitch;
   roll_deg    = (float)roll;
 
-  heading_rad = heading_deg * DEG_TO_RAD;
-  pitch_rad   = pitch_deg * DEG_TO_RAD;
-  roll_rad    = roll_deg * DEG_TO_RAD;
+  heading_rad      = heading_deg * DEG_TO_RAD;
+  heading_true_rad = heading_true_deg * DEG_TO_RAD;
+  pitch_rad        = pitch_deg * DEG_TO_RAD;
+  roll_rad         = roll_deg * DEG_TO_RAD;
 
   if (isnan(pitch_max_rad)) {                 // Update the new maximum values
     pitch_max_rad = pitch_rad;

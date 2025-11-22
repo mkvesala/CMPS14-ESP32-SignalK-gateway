@@ -109,10 +109,10 @@ void send_hdg_pitch_roll_delta() {
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
   if (changed_h && send_hdg_true) {                             // Send navigation.headingTrue unless user has not switched this off
-    float mv_rad = use_manual_magvar ? magvar_manual_rad : magvar_rad;
-    auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
-    heading_true_rad = wrap2pi(last_h + mv_rad);
-    heading_true_deg = heading_true_rad * RAD_TO_DEG;
+    // float mv_rad = use_manual_magvar ? magvar_manual_rad : magvar_rad;
+    // auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
+    // heading_true_rad = wrap2pi(last_h + mv_rad);
+    // heading_true_deg = heading_true_rad * RAD_TO_DEG;
     add("navigation.headingTrue", heading_true_rad);
   }
 

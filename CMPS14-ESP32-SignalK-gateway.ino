@@ -59,11 +59,11 @@ void setup() {
     // OTA
     init_OTA();
 
-    // Webserver
+    // Webserver handlers
     setup_webserver_callbacks();
 
-    // Websocket
-    setup_websocket_callbacks();  
+    // Websocket event handlers
+    setup_websocket_callbacks();
 
   // No WiFi connection, use only LCD output and power off WiFi 
   } else {  
@@ -83,40 +83,50 @@ void loop() {
   static unsigned long last_read_ms = 0;                              
   static unsigned long last_lcd_ms = 0;
   static unsigned long next_ws_try_ms = 0;
+  
 
   if (!LCD_ONLY) { 
-    ArduinoOTA.handle();                                           // OTA
-    server.handleClient();                                         // Webserver
-    ws.poll();                                                     // Keep websocket alive
-    if (!WiFi.isConnected() && ws_open) {                          // Kill ghost websocket
+    bool wifi = WiFi.isConnected();         // Wifi still ok?
+    if (wifi) {
+      ArduinoOTA.handle();                  // OTA
+      server.handleClient();                // Webserver
+      ws.poll();                            // Keep websocket alive
+    } else if (!wifi && ws_open){           // Kill ghost websocket (ws_open but wifi disconnected)
       ws.close();
       ws_open = false;
     }
+  
+    // Websocket reconnect
+    static unsigned long expn_retry_ms = WS_RETRY_MS;
+    if (wifi && !ws_open && (long)(now - next_ws_try_ms) >= 0){ 
+      ws.connect(SK_URL);
+      next_ws_try_ms = now + expn_retry_ms;
+      expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
+    }
+    if (ws_open) expn_retry_ms = WS_RETRY_MS;
+    else use_manual_magvar = true;
   }
 
-  static unsigned long expn_retry_ms = WS_RETRY_MS;
-  if (!LCD_ONLY && !ws_open && (long)(now - next_ws_try_ms) >= 0){  // Execute only on ticks when timer is due, only if Websocket dropped and only if not in LCD mode
-    ws.connect(SK_URL);
-    next_ws_try_ms = now + expn_retry_ms;
-    expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
-  }
-  if (ws_open) expn_retry_ms = WS_RETRY_MS;
 
+  // Read values from CMPS14
   if ((long)(now - last_read_ms) >= READ_MS) {
     last_read_ms = now;
-    read_compass();                                                 // Read values from CMPS14 only when timer is due
+    read_compass();                                                 
   }
 
-  send_hdg_pitch_roll_delta();                                     // And send values to SignalK server
+  // Send values to SignalK server
+  send_hdg_pitch_roll_delta();                                     
   send_pitch_roll_minmax_delta();
   
+  // Monitor calibration status
   if (cal_mode_runtime == CAL_SEMI_AUTO) {
-    cmps14_monitor_and_store(true);                                 // Monitor and save automatically when profile is good enough
+    cmps14_monitor_and_store(true);                                 
   } else {
-    cmps14_monitor_and_store(false);                                // Monitor but do not save automatically, user saves profile from Web UI
+    cmps14_monitor_and_store(false);                                
   }
 
-  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) { // Monitor FULL AUTO mode timeout
+  // Monitor FULL AUTO mode timeout
+  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) { 
     long left = full_auto_stop_ms - (now - full_auto_start_ms);
     if (left <= 0) {
       stop_calibration();
@@ -126,25 +136,24 @@ void loop() {
     full_auto_left_ms = left;
   }
 
-  if ((long)(now - last_lcd_ms) >= LCD_MS) {                        // Execute only on ticks when LCD timer is due
+  // Print heading on LCD
+  if ((long)(now - last_lcd_ms) >= LCD_MS) {                      
     last_lcd_ms = now;
     if (now >= lcd_hold_ms) {
-      if (!LCD_ONLY && ws_open && send_hdg_true && validf(heading_true_deg)) {
+      if (send_hdg_true && validf(heading_true_deg)) {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
         lcd_print_lines("  HEADING (T):", buf);
-      }
-      else if (validf(heading_deg)) {
+      } else if (validf(heading_deg)) {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
         lcd_print_lines("  HEADING (M):", buf);
-        heading_true_deg = NAN;
-        heading_true_rad = NAN;
       }
     }
   }
 
-  led_update_by_cal_mode();                                         // blue led
-  led_update_by_conn_status();                                      // green led
+  // Led indicators
+  led_update_by_cal_mode();                                        
+  led_update_by_conn_status();                                     
 
 } 
