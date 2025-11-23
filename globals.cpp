@@ -10,7 +10,6 @@ const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5
 
 // CMPS14 calibration
 bool cmps14_cal_profile_stored        = false;  // Calibration profile stored flag
-bool cmps14_factory_reset             = false;  // Factory reset flag
 const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer - prime number
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp

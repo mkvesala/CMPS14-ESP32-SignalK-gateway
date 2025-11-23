@@ -29,8 +29,7 @@ extern CalMode cal_mode_runtime;
 const char* calmode_str(CalMode m);
 
 // CMPS14 calibration
-extern bool cmps14_cal_profile_stored;   // Calibration profile stored flagextern 
-extern bool cmps14_factory_reset;        // Factory reset flag
+extern bool cmps14_cal_profile_stored;   // Calibration profile stored flag
 extern const unsigned long CAL_POLL_MS;  // Autocalibration save condition timer 
 extern const uint8_t CAL_OK_REQUIRED;    // Autocalibration save condition threshold
 extern unsigned long full_auto_start_ms; // Full auto mode start timestamp

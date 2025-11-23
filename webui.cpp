@@ -48,7 +48,6 @@ void handle_reset(){
     cal_mode_runtime = CAL_USE;
     cal_mode_boot = CAL_USE;
     cmps14_cal_profile_stored = false;
-    cmps14_factory_reset = true;
   }
   handle_root(); 
 }
@@ -97,7 +96,6 @@ void handle_status() {
   doc["use_manual_magvar"]    = use_manual_magvar;   
   doc["send_hdg_true"]        = send_hdg_true;         
   doc["stored"]               = cmps14_cal_profile_stored; 
-  doc["factory_reset"]        = cmps14_factory_reset;
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");

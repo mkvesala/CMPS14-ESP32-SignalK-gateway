@@ -126,7 +126,6 @@ bool cmps14_enable_background_cal(bool autosave) {
   if (!cmps14_cmd(REG_CAL3)) return false;
   const uint8_t cfg = autosave ? REG_AUTO_ON : REG_AUTO_OFF;
   if (!cmps14_cmd(cfg)) return false;
-  cmps14_factory_reset = false;                     // We are not anymore in resetted mode
   return true;
 }
 
@@ -164,7 +163,6 @@ bool cmps14_store_profile() {
   if (!cmps14_cmd(REG_SAVE3)) return false;
   if (!cmps14_cmd(REG_USEMODE)) return false;    // Switch on use mode which exits calibration
   cmps14_cal_profile_stored = true;
-  cmps14_factory_reset = false;                  // We are not anymore in resetted status
   return true;
 }
 
