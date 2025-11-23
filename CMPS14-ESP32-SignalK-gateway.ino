@@ -79,26 +79,34 @@ void setup() {
 // ===== L O O P ===== //
 void loop() {
 
-  const unsigned long now = millis();              
-  static unsigned long last_read_ms = 0;                              
-  static unsigned long last_lcd_ms = 0;
-  static unsigned long next_ws_try_ms = 0;
-  
+  // Timers
+  const unsigned long now = millis();
+  static unsigned long expn_retry_ms      = WS_RETRY_MS;
+  static unsigned long next_ws_try_ms     = 0;
+  static unsigned long last_tx_ms         = 0;   
+  static unsigned long last_minmax_tx_ms  = 0;         
+  static unsigned long last_read_ms       = 0;                              
+  static unsigned long last_lcd_ms        = 0;
 
   if (!LCD_ONLY) { 
-    bool wifi = WiFi.isConnected();         // Wifi still ok?
-    if (wifi) {
-      ArduinoOTA.handle();                  // OTA
-      server.handleClient();                // Webserver
-      ws.poll();                            // Keep websocket alive
-    } else if (!wifi && ws_open){           // Kill ghost websocket (ws_open but wifi disconnected)
+    
+    // OTA
+    ArduinoOTA.handle();                  
+    
+    // Webserver 
+    server.handleClient();                
+    
+    // Keep websocket alive
+    if (ws_open) ws.poll();               
+    
+    // Kill ghost websocket (websocket still open but wifi has dropped)
+    if (!WiFi.isConnected() && ws_open){  
       ws.close();
       ws_open = false;
     }
   
-    // Websocket reconnect
-    static unsigned long expn_retry_ms = WS_RETRY_MS;
-    if (wifi && !ws_open && (long)(now - next_ws_try_ms) >= 0){ 
+    // Websocket reconnect and keep using manual variation if websocket not opened
+    if (WiFi.isConnected() && !ws_open && (long)(now - next_ws_try_ms) >= 0){ 
       ws.connect(SK_URL);
       next_ws_try_ms = now + expn_retry_ms;
       expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
@@ -107,16 +115,23 @@ void loop() {
     else use_manual_magvar = true;
   }
 
-
   // Read values from CMPS14
   if ((long)(now - last_read_ms) >= READ_MS) {
     last_read_ms = now;
     read_compass();                                                 
   }
 
-  // Send values to SignalK server
-  send_hdg_pitch_roll_delta();                                     
-  send_pitch_roll_minmax_delta();
+  // Send heading, pitch and roll to SignalK server
+  if ((long)(now - last_tx_ms) >= MIN_TX_INTERVAL_MS) {
+    last_tx_ms = now;
+    send_hdg_pitch_roll_delta();
+  }
+
+  // Send pitch and roll min and max to SignalK server
+  if ((long)(now - last_minmax_tx_ms) >= MINMAX_TX_INTERVAL_MS) {
+    last_minmax_tx_ms = now;
+    send_pitch_roll_minmax_delta();
+  }
   
   // Monitor calibration status
   if (cal_mode_runtime == CAL_SEMI_AUTO) {
@@ -136,7 +151,7 @@ void loop() {
     full_auto_left_ms = left;
   }
 
-  // Print heading on LCD
+  // Display heading (T or M) on LCD
   if ((long)(now - last_lcd_ms) >= LCD_MS) {                      
     last_lcd_ms = now;
     if (now >= lcd_hold_ms) {

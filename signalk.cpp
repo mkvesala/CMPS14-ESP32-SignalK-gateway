@@ -70,27 +70,30 @@ void setup_websocket_callbacks() {
 // Send batch of SignalK deltas but only if change exceeds the deadband limits (no unnecessary sending)
 void send_hdg_pitch_roll_delta() {
   
-  if (LCD_ONLY || !ws_open) return;                                                                    // execute only if WiFi and Websocket ok
-  if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return;                         // execute only if values are valid
+  if (LCD_ONLY || !ws_open) return; 
+  if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return; 
 
-  static unsigned long last_tx_ms = 0;
-  const unsigned long now = millis();
-  if (now - last_tx_ms < MIN_TX_INTERVAL_MS) return;                                                   // Timer for sending to SignalK
+  // static unsigned long last_tx_ms = 0;
+  // const unsigned long now = millis();
+  // if (now - last_tx_ms < MIN_TX_INTERVAL_MS) return;
 
   static float last_h = NAN, last_p = NAN, last_r = NAN;
   bool changed_h = false, changed_p = false, changed_r = false;
 
   if (!validf(last_h) || fabsf(ang_diff_rad(heading_rad, last_h)) >= DB_HDG_RAD) {
-    changed_h = true; last_h = heading_rad;
+    changed_h = true;
+    last_h = heading_rad;
   }
   if (!validf(last_p) || fabsf(pitch_rad - last_p) >= DB_ATT_RAD) {
-    changed_p = true; last_p = pitch_rad;
+    changed_p = true;
+    last_p = pitch_rad;
   }
   if (!validf(last_r) || fabsf(roll_rad - last_r) >= DB_ATT_RAD) {
-    changed_r = true; last_r = roll_rad;
+    changed_r = true;
+    last_r = roll_rad;
   }
 
-  if (!(changed_h || changed_p || changed_r)) return;                                                 // Exit if values have not changed
+  if (!(changed_h || changed_p || changed_r)) return;  
 
   StaticJsonDocument<512> doc;
   doc["context"] = "vessels.self";
@@ -105,16 +108,10 @@ void send_hdg_pitch_roll_delta() {
     o["value"] = v;
   };
 
-  if (changed_h) add("navigation.headingMagnetic", last_h);     // SignalK paths and values
+  if (changed_h) add("navigation.headingMagnetic", last_h); 
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
-  if (changed_h && send_hdg_true) {                             // Send navigation.headingTrue unless user has not switched this off
-    // float mv_rad = use_manual_magvar ? magvar_manual_rad : magvar_rad;
-    // auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
-    // heading_true_rad = wrap2pi(last_h + mv_rad);
-    // heading_true_deg = heading_true_rad * RAD_TO_DEG;
-    add("navigation.headingTrue", heading_true_rad);
-  }
+  if (changed_h && send_hdg_true) add("navigation.headingTrue", heading_true_rad);
 
   if (values.size() == 0) return;
 
@@ -126,17 +123,17 @@ void send_hdg_pitch_roll_delta() {
     ws_open = false;
   }
 
-  last_tx_ms = now;
+  // last_tx_ms = now;
 }
 
 // Send pitch and roll maximum values to SignalK if changed and less frequently than "live" values
 void send_pitch_roll_minmax_delta() {
   
-  if (LCD_ONLY || !ws_open) return;                                                 // execute only if WiFi and Websocket ok
+  if (LCD_ONLY || !ws_open) return; 
 
-  static unsigned long last_minmax_tx_ms = 0;
-  const unsigned long now = millis();
-  if (now - last_minmax_tx_ms < MINMAX_TX_INTERVAL_MS) return;                      // execute only if timer is due
+  // static unsigned long last_minmax_tx_ms = 0;
+  // const unsigned long now = millis();
+  // if (now - last_minmax_tx_ms < MINMAX_TX_INTERVAL_MS) return; 
 
   static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
 
@@ -145,7 +142,7 @@ void send_pitch_roll_minmax_delta() {
   bool ch_rmin = (validf(roll_min_rad)  && roll_min_rad  != last_sent_roll_min);
   bool ch_rmax = (validf(roll_max_rad)  && roll_max_rad  != last_sent_roll_max);
 
-  if (!(ch_pmin || ch_pmax || ch_rmin || ch_rmax)) return;                          // execute only if values have been changed
+  if (!(ch_pmin || ch_pmax || ch_rmin || ch_rmax)) return;
 
   StaticJsonDocument<512> doc;
   doc["context"] = "vessels.self";
@@ -160,7 +157,7 @@ void send_pitch_roll_minmax_delta() {
     o["value"] = v; 
   };
 
-  if (ch_pmin) add("navigation.attitude.pitch.min", pitch_min_rad);       // SignalK paths and values
+  if (ch_pmin) add("navigation.attitude.pitch.min", pitch_min_rad); 
   if (ch_pmax) add("navigation.attitude.pitch.max", pitch_max_rad);
   if (ch_rmin) add("navigation.attitude.roll.min",  roll_min_rad);
   if (ch_rmax) add("navigation.attitude.roll.max",  roll_max_rad);
@@ -180,5 +177,5 @@ void send_pitch_roll_minmax_delta() {
   if (ch_rmin) last_sent_roll_min  = roll_min_rad;
   if (ch_rmax) last_sent_roll_max  = roll_max_rad;
   
-  last_minmax_tx_ms = now;
+  // last_minmax_tx_ms = now;
 }
