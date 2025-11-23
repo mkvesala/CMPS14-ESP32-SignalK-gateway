@@ -79,7 +79,7 @@ Preferences prefs;
 WebsocketsClient ws;
 volatile bool ws_open = false;
 const unsigned long WS_RETRY_MS = 1999;
-const unsigned long WS_RETRY_MAX = 19997;
+const unsigned long WS_RETRY_MAX = 119993;
 
 // Webserver
 WebServer server(80);

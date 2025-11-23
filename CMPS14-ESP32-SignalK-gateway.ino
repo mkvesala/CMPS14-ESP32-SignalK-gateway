@@ -107,6 +107,7 @@ void loop() {
   
     // Websocket reconnect and keep using manual variation if websocket not opened
     if (WiFi.isConnected() && !ws_open && (long)(now - next_ws_try_ms) >= 0){ 
+      lcd_print_lines("SIGNALK WS", "CONNECT...");
       ws.connect(SK_URL);
       next_ws_try_ms = now + expn_retry_ms;
       expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
