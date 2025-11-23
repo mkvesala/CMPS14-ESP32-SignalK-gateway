@@ -23,7 +23,7 @@ Led indicators for calibration mode and connection status (two leds).
 
 1. Need to get a reliable low-cost digital compass that can be connected to SignalK server of my vessel
 2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. Refresh my vague C/C++ skills as I have not delivered any code since 2005 (and before that was mostly Java and Smallworld Magik)
+3. Refresh my vague C/C++ skills as I have not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
 ## Features
 
