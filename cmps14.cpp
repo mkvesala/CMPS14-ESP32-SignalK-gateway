@@ -63,10 +63,8 @@ bool read_compass(){
   if (heading_deg < 0) heading_deg += 360.0f;
   if (heading_deg >= 360.0f) heading_deg -= 360.0f;
 
-   float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg; // Get magnetic variation
-  // auto wrap2pi = [](float r){ while (r < 0) r += 2.0f*M_PI; while (r >= 2.0f*M_PI) r -= 2.0f*M_PI; return r; };
-  // heading_true_rad = wrap2pi(heading_rad + mv_rad);
-  heading_true_deg = heading_deg + mv_deg;                            // True deg = magnetic deg + variation
+  float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg; // Get magnetic variation
+  heading_true_deg = heading_deg + mv_deg;                           // True deg = magnetic deg + variation
   if (heading_true_deg < 0) heading_true_deg += 360.0f;
   if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
 
@@ -172,11 +170,10 @@ bool cmps14_store_profile() {
 
 // Monitor and optional storing of the calibration profile
 void cmps14_monitor_and_store(bool save) {
-  static unsigned long last_cal_poll_ms = 0;
   static uint8_t cal_ok_count = 0;
-  const unsigned long now = millis();
-  if (now - last_cal_poll_ms < CAL_POLL_MS) return;
-  last_cal_poll_ms = now;
+  // const unsigned long now = millis();
+  // if (now - last_cal_poll_ms < CAL_POLL_MS) return;
+  // last_cal_poll_ms = now;
   uint8_t statuses[4];
   cmps14_get_cal_status(statuses);
   uint8_t mag   = statuses[0];

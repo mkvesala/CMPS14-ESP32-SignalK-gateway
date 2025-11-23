@@ -85,7 +85,8 @@ void loop() {
   static unsigned long next_ws_try_ms     = 0;
   static unsigned long last_tx_ms         = 0;   
   static unsigned long last_minmax_tx_ms  = 0;         
-  static unsigned long last_read_ms       = 0;                              
+  static unsigned long last_read_ms       = 0;
+  static unsigned long last_cal_poll_ms   = 0;                           
   static unsigned long last_lcd_ms        = 0;
 
   if (!LCD_ONLY) { 
@@ -135,11 +136,16 @@ void loop() {
   }
   
   // Monitor calibration status
-  if (cal_mode_runtime == CAL_SEMI_AUTO) {
-    cmps14_monitor_and_store(true);                                 
-  } else {
-    cmps14_monitor_and_store(false);                                
+  if ((long)(now - last_cal_poll_ms) >= CAL_POLL_MS) {
+    last_cal_poll_ms = now;
+    cmps14_monitor_and_store(cal_mode_runtime == CAL_SEMI_AUTO);
   }
+
+  // if (cal_mode_runtime == CAL_SEMI_AUTO) {
+  //   cmps14_monitor_and_store(true);                                 
+  // } else {
+  //   cmps14_monitor_and_store(false);                                
+  // }
 
   // Monitor FULL AUTO mode timeout
   if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) { 
