@@ -183,8 +183,8 @@ Path                  Description               Parameters
 
 1. GPIO2 blue led indicator (built in led of SH-ESP32 board)
    - Solid state: *USE* mode
-   - Slow ~1 Hz blinking: *FULL AUTO* calibration mode active
    - Fast ~5 Hz blinking: *AUTO* or *MANUAL* calibration mode active
+   - Slow ~0.5 Hz blinking: *FULL AUTO* calibration mode active
    - Off: Houston, we have a problem.
 2. GPIO13 green led indicator (additional led soldered onto the board)
    - Solid state: websocket connection to SignalK server is open
