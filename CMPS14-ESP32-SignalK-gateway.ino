@@ -141,12 +141,6 @@ void loop() {
     cmps14_monitor_and_store(cal_mode_runtime == CAL_SEMI_AUTO);
   }
 
-  // if (cal_mode_runtime == CAL_SEMI_AUTO) {
-  //   cmps14_monitor_and_store(true);                                 
-  // } else {
-  //   cmps14_monitor_and_store(false);                                
-  // }
-
   // Monitor FULL AUTO mode timeout
   if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) { 
     long left = full_auto_stop_ms - (now - full_auto_start_ms);

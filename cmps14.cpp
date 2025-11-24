@@ -35,48 +35,54 @@ bool read_compass(){
   uint8_t n = Wire.requestFrom(CMPS14_ADDR, toRead);
   if (n != toRead) return false;
 
+  // Raw values from CMPS14 - pich and roll may be negative
   uint8_t hi   = Wire.read();
   uint8_t lo   = Wire.read();
-  int8_t pitch = (int8_t)Wire.read();         // Pitch and roll are -90°...90°
+  int8_t pitch = (int8_t)Wire.read();
   int8_t roll  = (int8_t)Wire.read();
 
-  uint16_t ang10 = ((uint16_t)hi << 8) | lo;  // 0..3599 (0.1°)
-  float raw_deg = ((float)ang10) / 10.0f;     // 0..359.9° - raw value from CMPS14
+  // Raw deg
+  uint16_t ang10 = ((uint16_t)hi << 8) | lo;
+  float raw_deg = ((float)ang10) / 10.0f; 
   
-  raw_deg += installation_offset_deg;         // Correct raw deg with physical installation error if such defined by user
+  // Heading (C)
+  raw_deg += installation_offset_deg;
   if (raw_deg >= 360.0f) raw_deg -= 360.0f;
   if (raw_deg <    0.0f) raw_deg += 360.0f;
-
-  if (isnan(compass_deg)) {                   // If 1st iteration, set compass deg without any smoothing
+  if (isnan(compass_deg)) {                   
     compass_deg = raw_deg;
-  } else {                                    // Otherwise, let's apply smoothing factor to set compass deg
+  } else {                                    
     float diff = raw_deg - compass_deg;
-    if (diff > 180.0f)  diff -= 360.0f;       // Ensure shortest arc
+    if (diff > 180.0f)  diff -= 360.0f;       
     if (diff < -180.0f) diff += 360.0f;
-    compass_deg += HEADING_ALPHA * diff;      // Compass deg = raw deg + offset + smoothing
+    compass_deg += HEADING_ALPHA * diff;  
     if (compass_deg >= 360.0f) compass_deg -= 360.0f;
     if (compass_deg < 0.0f)   compass_deg += 360.0f;
   }
  
-  dev_deg = deviation_harm_deg(hc, compass_deg);  // Get the deviation deg for current compass deg - harmonic model
-  heading_deg = compass_deg + dev_deg;            // Magnetic deg = compass deg + deviation
+  // Heading (M)
+  dev_deg = deviation_harm_deg(hc, compass_deg);
+  heading_deg = compass_deg + dev_deg; 
   if (heading_deg < 0) heading_deg += 360.0f;
   if (heading_deg >= 360.0f) heading_deg -= 360.0f;
 
-  float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg; // Get magnetic variation
-  heading_true_deg = heading_deg + mv_deg;                           // True deg = magnetic deg + variation
+  // Heading (T)
+  float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg; 
+  heading_true_deg = heading_deg + mv_deg;                           
   if (heading_true_deg < 0) heading_true_deg += 360.0f;
   if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
 
   pitch_deg   = (float)pitch;
   roll_deg    = (float)roll;
 
+  // Radians for SignalK
   heading_rad      = heading_deg * DEG_TO_RAD;
   heading_true_rad = heading_true_deg * DEG_TO_RAD;
   pitch_rad        = pitch_deg * DEG_TO_RAD;
   roll_rad         = roll_deg * DEG_TO_RAD;
 
-  if (isnan(pitch_max_rad)) {                 // Update the new maximum values
+  // Update the new maximum values
+  if (isnan(pitch_max_rad)) {      
     pitch_max_rad = pitch_rad;
   } else if (pitch_rad > pitch_max_rad) {
     pitch_max_rad = pitch_rad;
@@ -158,10 +164,10 @@ void cmps14_get_cal_status(uint8_t out[4]){
 
 // Save calibration AND stop calibrating
 bool cmps14_store_profile() {
-  if (!cmps14_cmd(REG_SAVE1)) return false;      // Sequence of storing the full calibration profile
+  if (!cmps14_cmd(REG_SAVE1)) return false; 
   if (!cmps14_cmd(REG_SAVE2)) return false;
   if (!cmps14_cmd(REG_SAVE3)) return false;
-  if (!cmps14_cmd(REG_USEMODE)) return false;    // Switch on use mode which exits calibration
+  if (!cmps14_cmd(REG_USEMODE)) return false; 
   cmps14_cal_profile_stored = true;
   return true;
 }
@@ -169,9 +175,6 @@ bool cmps14_store_profile() {
 // Monitor and optional storing of the calibration profile
 void cmps14_monitor_and_store(bool save) {
   static uint8_t cal_ok_count = 0;
-  // const unsigned long now = millis();
-  // if (now - last_cal_poll_ms < CAL_POLL_MS) return;
-  // last_cal_poll_ms = now;
   uint8_t statuses[4];
   cmps14_get_cal_status(statuses);
   uint8_t mag   = statuses[0];
@@ -179,13 +182,15 @@ void cmps14_monitor_and_store(bool save) {
   uint8_t gyro  = statuses[2];
   uint8_t sys   = statuses[3];
 
-  if (sys == 3 && accel == 3 && mag == 3) {       // Require that SYS is 3, ACC is 3 and MAG is 3 - omit GYR as there's a firmware bug
+  // Omit gyr, there's a reported firmware bug in CMPS14
+  if (sys == 3 && accel == 3 && mag == 3) { 
     if (cal_ok_count < 255) cal_ok_count++;
   } else {
     cal_ok_count = 0;
   }
  
-  if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { // When over threshold, save the calibration profile automatically
+  // AUTO mode saving routine
+  if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { 
     if (cmps14_store_profile()) {
       lcd_show_info("CALIBRATION", "SAVED");
       cal_mode_runtime = CAL_USE;
@@ -199,8 +204,8 @@ void cmps14_monitor_and_store(bool save) {
 // Reset CMPS14
 bool cmps14_reset() {
   if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET3)) {
-    delay(601);                       // Wait for the sensor to boot
-    if (cmps14_cmd(REG_USEMODE)){     // Use mode
+    delay(601);   // Datasheet recommends 300 ms delay
+    if (cmps14_cmd(REG_USEMODE)){ 
       return true;
     }
     return false;

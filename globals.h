@@ -16,7 +16,7 @@ using namespace websockets;
 
 // ESP32 WiFi and OTA settings
 extern char SK_URL[512];                  // URL of SignalK server
-extern char SK_SOURCE[32];                // ESP32 source name for SignalK, used also as the OTA hostname
+extern char SK_SOURCE[32];                // ESP32's source name for SignalK, used also as the OTA hostname
 extern char RSSIc[16];                    // WiFi signal quality description
 extern char IPc[16];                      // IP address cstring
 extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
@@ -37,21 +37,21 @@ extern unsigned long full_auto_stop_ms;  // Full auto mode timeout, 0 = never
 extern unsigned long full_auto_left_ms;  // Full auto mode time left
 
 // CMPS14 reading parameters
-extern float installation_offset_deg;                      // Physical installation error of the compass module, configured via web UI
-extern float dev_deg;                                      // Deviation at heading_deg calculated by harmonic model
-extern float magvar_manual_deg;                            // Variation that is set manually from web UI
-extern float magvar_manual_rad;                            // Manual variation in rad
-extern bool send_hdg_true;                                 // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
-extern bool use_manual_magvar;                             // Use magvar_manual_deg if true
+extern float installation_offset_deg;                 // Physical installation error of the compass module, configured via web UI
+extern float dev_deg;                                 // Deviation at heading_deg calculated by harmonic model
+extern float magvar_manual_deg;                       // Variation that is set manually from web UI
+extern float magvar_manual_rad;                       // Manual variation in rad
+extern bool send_hdg_true;                            // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
+extern bool use_manual_magvar;                        // Use magvar_manual_deg if true
 extern unsigned long lcd_hold_ms;
-extern const float HEADING_ALPHA;                          // Smoothing factor 0...1, larger value less smoothing
-extern const unsigned long MIN_TX_INTERVAL_MS;             // Max frequency for sending deltas to SignalK 
-extern const float DB_HDG_RAD;                             // Deadband threshold for heading
-extern const float DB_ATT_RAD;                             // Pitch/roll deadband threshold
-extern const unsigned long MINMAX_TX_INTERVAL_MS;          // Frequency for pitch/roll maximum values sending 
-extern const unsigned long LCD_MS;                         // Frequency to print on LCD in loop()
-extern const unsigned long READ_MS;                        // Frequency to read values from CMPS14 in loop()
-extern const uint8_t CMPS14_ADDR;                          // I2C address of CMPS14
+extern const float HEADING_ALPHA;                     // Smoothing factor 0...1, larger value less smoothing
+extern const unsigned long MIN_TX_INTERVAL_MS;        // Max frequency for sending deltas to SignalK 
+extern const float DB_HDG_RAD;                        // Deadband threshold for heading
+extern const float DB_ATT_RAD;                        // Pitch/roll deadband threshold
+extern const unsigned long MINMAX_TX_INTERVAL_MS;     // Frequency for pitch/roll maximum values sending 
+extern const unsigned long LCD_MS;                    // Frequency to print on LCD in loop()
+extern const unsigned long READ_MS;                   // Frequency to read values from CMPS14 in loop()
+extern const uint8_t CMPS14_ADDR;                     // I2C address of CMPS14
 
 // CMPS14 values in degrees for LCD and WebServer
 extern float heading_deg;
@@ -95,15 +95,15 @@ extern WebServer server;
 // I2C LCD 16x2
 extern std::unique_ptr<LiquidCrystal_I2C> lcd;
 extern bool lcd_present;
-extern char prev_top[17];                      // Previous value of top line
-extern char prev_bot[17];                      // Previous value of bottom line
-extern const uint8_t LCD_ADDR1;                // Scan both I2C addresses when init LCD
+extern char prev_top[17];                 // Previous value of top line
+extern char prev_bot[17];                 // Previous value of bottom line
+extern const uint8_t LCD_ADDR1;           // Scan both I2C addresses when init LCD
 extern const uint8_t LCD_ADDR2;
 
 // Compass deviation harmonic model for harmonic.h
-extern const float headings_deg[8];                    // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
-extern float dev_at_card_deg[8];                       // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
-extern HarmonicCoeffs hc;                              // Five coeffs to calculate full deviation curve;
+extern const float headings_deg[8];       // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
+extern float dev_at_card_deg[8];          // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
+extern HarmonicCoeffs hc;                 // Five coeffs to calculate full deviation curve;
 
 // Return float validity
 inline bool validf(float x) { return !isnan(x) && isfinite(x); }

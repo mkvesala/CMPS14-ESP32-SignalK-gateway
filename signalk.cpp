@@ -1,6 +1,6 @@
 #include "signalk.h"
 
-// Create SignalK server URL
+// Create SignalK server URL for websocket
 void build_sk_url() {
   if (strlen(SK_TOKEN) > 0)
     snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream?token=%s", SK_HOST, SK_PORT, SK_TOKEN);
@@ -8,7 +8,7 @@ void build_sk_url() {
     snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream", SK_HOST, SK_PORT);
 }
 
-// Set SignalK source and OTA hostname (equal) based on ESP32 MAC address tail
+// Set ESP32's SignalK source and OTA hostname based on ESP32's MAC address tail
 void build_sk_source() {
   uint8_t m[6];
   WiFi.macAddress(m);
@@ -21,15 +21,17 @@ void setup_websocket_callbacks() {
   ws.onEvent([](WebsocketsEvent e, String){
     if (e == WebsocketsEvent::ConnectionOpened) {
       ws_open = true;
-      if (!send_hdg_true) return;                             // Do nothing if user has switched off sending of navigation.headingTrue
-      StaticJsonDocument<256> sub;                            // Otherwise, subscribe navigation.magneticVariation path from SignalK server
+      
+      // When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
+      if (!send_hdg_true) return;
+      StaticJsonDocument<256> sub;
       sub["context"] = "vessels.self";
       auto subscribe = sub.createNestedArray("subscribe");
       auto s = subscribe.createNestedObject();
       s["path"] = "navigation.magneticVariation";
       s["format"] = "delta";
       s["policy"] = "ideal";
-      s["period"] = 1000;                                     // Request ~1 Hz updates
+      s["period"] = 1000;
 
       char buf[256];
       size_t n = serializeJson(sub, buf, sizeof(buf));
@@ -39,8 +41,9 @@ void setup_websocket_callbacks() {
     if (e == WebsocketsEvent::GotPing)           { ws.pong(); }
   });
 
+  // In heading true mode read navigation.magneticVariation from SignalK delta
   ws.onMessage([](WebsocketsMessage msg){
-    if (!send_hdg_true) return;                                // Do nothing if user has switched off sending of navigation.headingTrue and if data is not valid / found
+    if (!send_hdg_true) return;
     if (!msg.isText()) return;
     StaticJsonDocument<1024> d;
     if (deserializeJson(d, msg.data())) return;
@@ -54,7 +57,7 @@ void setup_websocket_callbacks() {
         if (strcmp(path, "navigation.magneticVariation") == 0) {
           if (v["value"].is<float>() || v["value"].is<double>()) {  
             float mv = v["value"].as<float>();
-            if (validf(mv)) {                                  // If received valid value, set global variation value to this and stop using manual value
+            if (validf(mv)) { 
               magvar_rad = mv;
               use_manual_magvar = false;
               magvar_deg = magvar_rad * RAD_TO_DEG;
@@ -67,15 +70,11 @@ void setup_websocket_callbacks() {
 
 }
 
-// Send batch of SignalK deltas but only if change exceeds the deadband limits (no unnecessary sending)
+// Send heading, pitch and roll to SignalK when change exceeds the deadband limits
 void send_hdg_pitch_roll_delta() {
   
   if (LCD_ONLY || !ws_open) return; 
   if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return; 
-
-  // static unsigned long last_tx_ms = 0;
-  // const unsigned long now = millis();
-  // if (now - last_tx_ms < MIN_TX_INTERVAL_MS) return;
 
   static float last_h = NAN, last_p = NAN, last_r = NAN;
   bool changed_h = false, changed_p = false, changed_r = false;
@@ -122,18 +121,12 @@ void send_hdg_pitch_roll_delta() {
     ws.close();
     ws_open = false;
   }
-
-  // last_tx_ms = now;
 }
 
-// Send pitch and roll maximum values to SignalK if changed and less frequently than "live" values
+// Send pitch and roll min and max values to SignalK if changed
 void send_pitch_roll_minmax_delta() {
   
   if (LCD_ONLY || !ws_open) return; 
-
-  // static unsigned long last_minmax_tx_ms = 0;
-  // const unsigned long now = millis();
-  // if (now - last_minmax_tx_ms < MINMAX_TX_INTERVAL_MS) return; 
 
   static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
 
@@ -177,5 +170,4 @@ void send_pitch_roll_minmax_delta() {
   if (ch_rmin) last_sent_roll_min  = roll_min_rad;
   if (ch_rmax) last_sent_roll_max  = roll_max_rad;
   
-  // last_minmax_tx_ms = now;
 }

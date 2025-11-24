@@ -28,21 +28,21 @@ const char* calmode_str(CalMode m){
 }    
 
 // CMPS14 reading parameters
-float installation_offset_deg             = 0.0f;                      // Physical installation error of the compass module, configured via web UI
-float dev_deg                             = 0.0f;                      // Deviation at heading_deg calculated by harmonic model
-float magvar_manual_deg                   = 0.0f;                      // Variation that is set manually from web UI
-float magvar_manual_rad                   = 0.0f;                      // Manual variation in rad
-bool send_hdg_true                        = true;                      // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
-bool use_manual_magvar                    = true;                      // Use magvar_manual_deg if true
+float installation_offset_deg             = 0.0f;        // Physical installation error of the compass module, configured via web UI
+float dev_deg                             = 0.0f;        // Deviation at heading_deg calculated by harmonic model
+float magvar_manual_deg                   = 0.0f;        // Variation that is set manually from web UI
+float magvar_manual_rad                   = 0.0f;        // Manual variation in rad
+bool send_hdg_true                        = true;        // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
+bool use_manual_magvar                    = true;        // Use magvar_manual_deg if true
 unsigned long lcd_hold_ms                 = 0;
-const float HEADING_ALPHA                 = 0.15f;                     // Smoothing factor 0...1, larger value less smoothing
-const unsigned long MIN_TX_INTERVAL_MS    = 101;                       // Max frequency for sending deltas to SignalK - prime number
-const float DB_HDG_RAD                    = 0.00436f;                  // 0.25°: deadband threshold for heading
-const float DB_ATT_RAD                    = 0.00436f;                  // 0.25°: pitch/roll deadband threshold
-const unsigned long MINMAX_TX_INTERVAL_MS = 997;                       // Frequency for pitch/roll maximum values sending - prime number
-const unsigned long LCD_MS                = 1009;                      // Frequency to print on LCD in loop() - prime number
-const unsigned long READ_MS               = 47;                        // Frequency to read values from CMPS14 in loop() - prime number
-const uint8_t CMPS14_ADDR                 = 0x60;                      // I2C address of CMPS14
+const float HEADING_ALPHA                 = 0.15f;       // Smoothing factor 0...1, larger value less smoothing
+const unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK - prime number
+const float DB_HDG_RAD                    = 0.00436f;    // 0.25°: deadband threshold for heading
+const float DB_ATT_RAD                    = 0.00436f;    // 0.25°: pitch/roll deadband threshold
+const unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency for pitch/roll maximum values sending - prime number
+const unsigned long LCD_MS                = 1009;        // Frequency to print on LCD in loop() - prime number
+const unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop() - prime number
+const uint8_t CMPS14_ADDR                 = 0x60;        // I2C address of CMPS14
 
 // CMPS14 values in degrees for LCD and WebServer
 float heading_deg       = NAN;
@@ -86,9 +86,9 @@ WebServer server(80);
 // I2C LCD 16x2
 std::unique_ptr<LiquidCrystal_I2C> lcd;
 bool lcd_present          = false;
-char prev_top[17]         = "";                      // Previous value of top line
-char prev_bot[17]         = "";                      // Previous value of bottom line
-const uint8_t LCD_ADDR1   = 0x27;                    // Scan both I2C addresses when init LCD
+char prev_top[17]         = "";      // Previous value of top line
+char prev_bot[17]         = "";      // Previous value of bottom line
+const uint8_t LCD_ADDR1   = 0x27;    // Scan both I2C addresses when init LCD
 const uint8_t LCD_ADDR2   = 0x3F;
 
 // Compass deviation harmonic model for harmonic.h

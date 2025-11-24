@@ -122,7 +122,7 @@ void handle_set_offset() {
     prefs.end();
 
     char line2[17];
-    snprintf(line2, sizeof(line2), "SET: %6.1f%c", installation_offset_deg, 223);
+    snprintf(line2, sizeof(line2), "SAVED %5.0f%c", installation_offset_deg, 223);
     lcd_show_info("INSTALL OFFSET", line2);
   }
   handle_root();
@@ -148,7 +148,8 @@ void handle_dev8_set() {
   dev_at_card_deg[6] = getf("W");
   dev_at_card_deg[7] = getf("NW");
 
-  hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg); // Calculate 5 coeffs
+  // Calculate 5 coeffs
+  hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg); 
 
   prefs.begin("cmps14", false);
   for (int i = 0; i < 8; i++) {
@@ -191,12 +192,12 @@ void handle_calmode_set() {
     prefs.begin("cmps14", false);
     prefs.putUChar("cal_mode_boot", (uint8_t)v);
     prefs.end();
-    lcd_show_info("BOOT MODE", calmode_str(v));
+    lcd_show_info("BOOT MODE SAVED", calmode_str(v));
   }
   handle_root();
 }
 
-// Web UI handler to set magnetic variation manually. Used automatically if SignalK server navigation.magneticVariation is not available
+// Web UI handler to set magnetic variation manually.
 void handle_magvar_set() {
   
   if (server.hasArg("v")) {
@@ -212,7 +213,7 @@ void handle_magvar_set() {
     prefs.end();
 
     char line2[17];
-    snprintf(line2, sizeof(line2), "SET: %5.1f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? 'E':'W'));
+    snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? 'E':'W'));
     lcd_show_info("MAG VARIATION", line2);
   }
   handle_root();
@@ -229,11 +230,11 @@ void handle_heading_mode() {
   prefs.putBool("send_hdg_true", send_hdg_true);
   prefs.end();
 
-  lcd_show_info("HEADING MODE", send_hdg_true ? "TRUE" : "MAGNETIC");
+  lcd_show_info("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC");
   handle_root();
 }
 
-// Web UI handler for the HTML page (memory-friendly streaming version instead of large String handling)
+// Web UI handler for the configuration HTML page 
 void handle_root() {
 
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
@@ -596,10 +597,11 @@ void handle_restart() {
   }
 
   char line2[17];
-  snprintf(line2, sizeof(line2), "IN %5lu ms", (unsigned long)ms);
-  lcd_show_info("RESTARTING...", line2);
+  snprintf(line2, sizeof(line2), "%5lu ms", (unsigned long)ms);
+  lcd_show_info("RESTARTING IN", line2);
 
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);            // Draw HTML page which refreshes to / in 30 seconds
+  // Draw HTML page which refreshes to root config page in 30 seconds
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);            
   server.sendHeader("Connection", "close");
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");

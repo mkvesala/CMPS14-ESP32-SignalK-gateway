@@ -1,6 +1,6 @@
 #include "harmonic.h"
 
-// Solve A..E with least squares method from 8 datapoints
+// Solve A..E with least squares method from 8 given datapoints
 HarmonicCoeffs fit_harmonic_from_8(const float* hdg_deg, const float* dev_deg) {
   double MTM[5][5] = {0};
   double MTy[5] = {0};

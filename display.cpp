@@ -10,7 +10,7 @@ static inline void copy16(char* dst, const char* src) {
 void lcd_init_safe() {
 
   uint8_t addr = 0;
-  if (i2c_device_present(LCD_ADDR1)) addr = LCD_ADDR1;        // Scan both I2C addresses
+  if (i2c_device_present(LCD_ADDR1)) addr = LCD_ADDR1;
   else if (i2c_device_present(LCD_ADDR2)) addr = LCD_ADDR2;
 
   if (addr) {
@@ -26,7 +26,7 @@ void lcd_init_safe() {
 // LCD basic printing on two lines
 void lcd_print_lines(const char* l1, const char* l2) {
   if (!lcd_present) return;
-  if (!strcmp(prev_top, l1) && !strcmp(prev_bot, l2)) return; // If content not changed, do nothing - less blinking
+  if (!strcmp(prev_top, l1) && !strcmp(prev_bot, l2)) return;
 
   char t[17], b[17];
   copy16(t, l1);
@@ -59,13 +59,13 @@ void led_update_by_cal_mode(){
 
   switch (cal_mode_runtime){
     case CAL_USE:
-      digitalWrite(LED_PIN_BL, HIGH);                    // blue led on continuously
+      digitalWrite(LED_PIN_BL, HIGH); 
       return;
     case CAL_FULL_AUTO: {
-      const unsigned long toggle_ms = 503;
+      const unsigned long toggle_ms = 997;
       if (now - last >= toggle_ms) {
         state = !state;
-        digitalWrite(LED_PIN_BL, state ? HIGH : LOW);    // blue led blinks on 1 hz frequency
+        digitalWrite(LED_PIN_BL, state ? HIGH : LOW); 
         last = now;
       }
       break;
@@ -75,13 +75,13 @@ void led_update_by_cal_mode(){
       const unsigned long toggle_ms = 101;
       if (now - last >= toggle_ms) {
         state = !state;
-        digitalWrite(LED_PIN_BL, state ? HIGH : LOW);    // blue led blinks on 5 hz frequency
+        digitalWrite(LED_PIN_BL, state ? HIGH : LOW); 
         last = now;
       }
       break;
     }
     default:
-      digitalWrite(LED_PIN_BL, LOW);                     // blue led off
+      digitalWrite(LED_PIN_BL, LOW);
       break;
   }
 }
@@ -93,17 +93,17 @@ void led_update_by_conn_status(){
   const unsigned long now = millis();
 
   if (LCD_ONLY) {
-    const unsigned long toggle_ms = 997;
+    const unsigned long toggle_ms = 1009;
     if (now - last >= toggle_ms) {
       state = !state;
-      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);    // green led blinks with 0.5 Hz frequency
+      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);
       last = now;
     }
     return;
   }
 
   if (ws_open) {
-    digitalWrite(LED_PIN_GR, HIGH);                    // green led on continuously
+    digitalWrite(LED_PIN_GR, HIGH);
     return;
   }
 
@@ -111,12 +111,12 @@ void led_update_by_conn_status(){
     const unsigned long toggle_ms = 97;
     if (now - last >= toggle_ms) {
       state = !state;
-      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);    // green led blinks with 5 Hz frequency
+      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);
       last = now;
     }
     return;
   }
 
-  digitalWrite(LED_PIN_GR, LOW);                      // green led off
+  digitalWrite(LED_PIN_GR, LOW); 
 
 }
