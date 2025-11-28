@@ -35,9 +35,13 @@ bool CMPS14::begin(TwoWire &wirePort) {
 }
 
 // Check connection
-bool CMPS14::isConnected() const {
+bool CMPS14::is_connected() const {
     Wire.beginTransmission(addr);
     return (Wire.endTransmission() == 0);
+}
+
+CMPS14Data CMPS14::get_data() const {
+    return { heading_rad, heading_true_rad, pitch_rad, roll_rad, pitch_min_rad, pitch_max_rad, roll_min_rad, roll_max_rad, true };
 }
 
 // Read current sensor data
@@ -57,30 +61,11 @@ bool CMPS14::read() {
 
     uint16_t ang10 = ((uint16_t)hi << 8) | lo;
     float raw_deg = ((float)ang10) / 10.0f;
-    smoothHeading(raw_deg);
-
-    // Apply harmonic deviation and variation
-    float dev_deg = deviation_harm_deg(hc, compass_deg);
-    heading_deg = compass_deg + dev_deg;
-    if (heading_deg >= 360.0f) heading_deg -= 360.0f;
-    if (heading_deg < 0.0f) heading_deg += 360.0f;
-
-    float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
-    heading_true_deg = heading_deg + mv_deg;
-    if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
-    if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
-
-    pitch_deg = (float)pitch_raw;
-    roll_deg  = (float)roll_raw;
-    return true;
-}
-
-// Smooth heading
-void CMPS14::smoothHeading(float raw_deg) {
+    
+    // Heading (C)
     raw_deg += installation_offset_deg;
     if (raw_deg >= 360.0f) raw_deg -= 360.0f;
     if (raw_deg < 0.0f) raw_deg += 360.0f;
-
     if (isnan(compass_deg)) {
         compass_deg = raw_deg;
     } else {
@@ -91,10 +76,47 @@ void CMPS14::smoothHeading(float raw_deg) {
         if (compass_deg >= 360.0f) compass_deg -= 360.0f;
         if (compass_deg < 0.0f) compass_deg += 360.0f;
     }
+
+    // Heading (M)
+    float dev_deg = deviation_harm_deg(hc, compass_deg);
+    heading_deg = compass_deg + dev_deg;
+    if (heading_deg >= 360.0f) heading_deg -= 360.0f;
+    if (heading_deg < 0.0f) heading_deg += 360.0f;
+
+    // Heading (T)
+    float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
+    heading_true_deg = heading_deg + mv_deg;
+    if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
+    if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
+
+    pitch_deg = (float)pitch_raw;
+    roll_deg  = (float)roll_raw;
+
+    // Radians for SignalK
+    heading_rad      = heading_deg * DEG_TO_RAD;
+    heading_true_rad = heading_true_deg * DEG_TO_RAD;
+    pitch_rad        = pitch_deg * DEG_TO_RAD;
+    roll_rad         = roll_deg * DEG_TO_RAD;
+
+    // Update the new maximum values
+    if (isnan(pitch_max_rad)) pitch_max_rad = pitch_rad;
+    else if (pitch_rad > pitch_max_rad) pitch_max_rad = pitch_rad;
+    
+    if (isnan(pitch_min_rad)) pitch_min_rad = pitch_rad;
+    else if (pitch_rad < pitch_min_rad) pitch_min_rad = pitch_rad;
+
+    if (isnan(roll_max_rad)) roll_max_rad = roll_rad;
+    else if (roll_rad > roll_max_rad) roll_max_rad = roll_rad;
+
+    if (isnan(roll_min_rad)) roll_min_rad = roll_rad;
+    else if (roll_rad < roll_min_rad) roll_min_rad = roll_rad;
+
+    return true;
 }
 
+
 // Send command to CMPS14
-bool CMPS14::sendCommand(uint8_t cmd) {
+bool CMPS14::send_command(uint8_t cmd) {
     wire->beginTransmission(addr);
     wire->write(REG_CMD);
     wire->write(cmd);
@@ -108,50 +130,50 @@ bool CMPS14::sendCommand(uint8_t cmd) {
 
 // Reset the CMPS14
 bool CMPS14::reset() {
-    return sendCommand(REG_RESET1)
-        && sendCommand(REG_RESET2)
-        && sendCommand(REG_RESET3)
-        && sendCommand(0x80); // use mode
+    return send_command(REG_RESET1)
+        && send_command(REG_RESET2)
+        && send_command(REG_RESET3)
+        && send_command(REG_USEMODE); // use mode
 }
 
 // Enable background calibration
-bool CMPS14::enableBackgroundCal(bool autosave) {
-    return sendCommand(REG_CAL1)
-        && sendCommand(REG_CAL2)
-        && sendCommand(REG_CAL3)
-        && sendCommand(autosave ? REG_AUTO_ON : REG_AUTO_OFF);
+bool CMPS14::enable_background_cal(bool autosave) {
+    return send_command(REG_CAL1)
+        && send_command(REG_CAL2)
+        && send_command(REG_CAL3)
+        && send_command(autosave ? REG_AUTO_ON : REG_AUTO_OFF);
 }
 
 // Start calibration
-bool CMPS14::startCalibration(CalMode mode) {
+bool CMPS14::start_calibration(CalMode mode) {
     cal_mode_runtime = mode;
     bool ok = false;
     switch (mode) {
-        case CAL_FULL_AUTO: ok = enableBackgroundCal(true); break;
-        case CAL_SEMI_AUTO: ok = enableBackgroundCal(false); break;
-        case CAL_MANUAL:    ok = enableBackgroundCal(false); break;
-        default: ok = sendCommand(0x80); break; // use mode
+        case CAL_FULL_AUTO: ok = enable_background_cal(true); break;
+        case CAL_SEMI_AUTO: ok = enable_background_cal(false); break;
+        case CAL_MANUAL:    ok = enable_background_cal(false); break;
+        default: ok = send_command(REG_USEMODE); break; // use mode
     }
     return ok;
 }
 
 // Stop calibration
-bool CMPS14::stopCalibration() {
+bool CMPS14::stop_calibration() {
     cal_mode_runtime = CAL_USE;
-    return sendCommand(0x80);
+    return send_command(REG_USEMODE);
 }
 
 // Monitor and store calibration if needed
-void CMPS14::monitorAndStore(bool autoSave) {
+void CMPS14::monitor_and_store(bool autoSave) {
     uint8_t statuses[4];
-    getCalStatus(statuses);
+    get_cal_status(statuses);
     uint8_t mag = statuses[0], acc = statuses[1], sys = statuses[3];
     if (sys == 3 && acc == 3 && mag == 3) {
         if (cal_ok_count < 255) cal_ok_count++;
     } else cal_ok_count = 0;
 
     if (autoSave && !cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) {
-        if (sendCommand(REG_SAVE1) && sendCommand(REG_SAVE2) && sendCommand(REG_SAVE3)) {
+        if (send_command(REG_SAVE1) && send_command(REG_SAVE2) && send_command(REG_SAVE3)) {
             cal_profile_stored = true;
             lcd_show_info("CALIBRATION", "SAVED");
             cal_mode_runtime = CAL_USE;
@@ -163,7 +185,7 @@ void CMPS14::monitorAndStore(bool autoSave) {
 }
 
 // Read calibration status byte
-uint8_t CMPS14::readCalStatusByte() {
+uint8_t CMPS14::read_cal_status_byte() {
     wire->beginTransmission(addr);
     wire->write(REG_CAL_STATUS);
     if (wire->endTransmission(false) != 0) return REG_NACK;
@@ -173,8 +195,8 @@ uint8_t CMPS14::readCalStatusByte() {
 }
 
 // Get calibration status
-void CMPS14::getCalStatus(uint8_t out[4]) {
-    uint8_t byte = readCalStatusByte();
+void CMPS14::get_cal_status(uint8_t out[4]) {
+    uint8_t byte = read_cal_status_byte();
     uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
     if (byte != REG_NACK) {
         mag = (byte     ) & REG_MASK;
