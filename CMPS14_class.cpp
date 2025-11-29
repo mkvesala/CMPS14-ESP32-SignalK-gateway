@@ -1,4 +1,4 @@
-#include "CMPS14.h"
+#include "CMPS14_class.h"
 
 // CMPS14 register map
 static const uint8_t REG_ANGLE_16_H    = 0x02;  // 16-bit angle * 10 (hi)

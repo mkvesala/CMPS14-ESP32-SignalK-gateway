@@ -1,5 +1,6 @@
 #pragma once
 
+#include "harmonic.h"
 #include "display.h"
 #include "globals.h"
 

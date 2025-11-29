@@ -82,29 +82,17 @@ bool read_compass(){
   roll_rad         = roll_deg * DEG_TO_RAD;
 
   // Update the new maximum values
-  if (isnan(pitch_max_rad)) {      
-    pitch_max_rad = pitch_rad;
-  } else if (pitch_rad > pitch_max_rad) {
-    pitch_max_rad = pitch_rad;
-  }
+  if (isnan(pitch_max_rad)) pitch_max_rad = pitch_rad;
+  else if (pitch_rad > pitch_max_rad) pitch_max_rad = pitch_rad;
   
-  if (isnan(pitch_min_rad)) {
-    pitch_min_rad = pitch_rad;
-  } else if (pitch_rad < pitch_min_rad) {
-    pitch_min_rad = pitch_rad;
-  }
+  if (isnan(pitch_min_rad)) pitch_min_rad = pitch_rad;
+  else if (pitch_rad < pitch_min_rad) pitch_min_rad = pitch_rad;
 
-  if (isnan(roll_max_rad)) {
-    roll_max_rad = roll_rad;
-  } else if (roll_rad > roll_max_rad) {
-    roll_max_rad = roll_rad;
-  }
+  if (isnan(roll_max_rad)) roll_max_rad = roll_rad;
+  else if (roll_rad > roll_max_rad) roll_max_rad = roll_rad;
 
-  if (isnan(roll_min_rad)) {
-    roll_min_rad = roll_rad;
-  } else if (roll_rad < roll_min_rad) {
-    roll_min_rad = roll_rad;
-  }
+  if (isnan(roll_min_rad)) roll_min_rad = roll_rad;
+  else if (roll_rad < roll_min_rad) roll_min_rad = roll_rad;
 
   return true;
 
