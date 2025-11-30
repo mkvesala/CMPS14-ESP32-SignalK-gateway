@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "cmps14.h"
-#include "CMPS14_class.h"
+#include "CMPS14Sensor.h"
+#include "CMPS14Processor.h"
 #include "display.h"
 #include "signalk.h"
 #include "webui.h"

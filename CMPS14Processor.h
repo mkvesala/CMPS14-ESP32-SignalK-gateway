@@ -3,79 +3,83 @@
 #include "harmonic.h"
 #include "display.h"
 #include "globals.h"
+#include "CMPS14Sensor.h"
 
-struct CMPS14Data {
-    float heading_rad;
-    float heading_true_rad;
-    float pitch_rad;
-    float roll_rad;
-    float pitch_min_rad;
-    float pitch_max_rad;
-    float roll_min_rad;
-    float roll_max_rad;
-    bool valid;
-};
-
-class CMPS14 {
+class CMPS14Processor {
 public:
-    explicit CMPS14(uint8_t i2c_addr = CMPS14_ADDR);
+    explicit CMPS14Processor (CMPS14Sensor &cmps14Sensor);
 
-    // Basics
-    bool begin(TwoWire &wirePort = Wire);
-    bool read();
-    bool reset();
-    bool is_connected() const; 
+    bool begin(TwoWire &wirePort);
+    bool update();
 
     // Calibration
-    bool start_calibration(CalMode mode);
-    bool stop_calibration();
-    void monitor_and_store(bool autoSave);
-
+    bool reset();
+    bool startCalibration(CalMode mode);
+    bool stopCalibration();
+    void monitorCalibration(bool autosave);
+    bool initCalibrationModeBoot(CalMode boot_mode);
+    bool saveCalibrationProfile();
     // Getters
-    float get_heading_deg() const { return heading_deg; }
-    float get_heading_rad() const { return heading_rad; }
-    float get_heading_true_deg() const { return heading_true_deg; }
-    float get_heading_true_rad() const { return heading_true_rad; }
-    float get_pitch_deg() const { return pitch_deg; }
-    float get_pitch_rad() const { return pitch_rad; }
-    float get_roll_deg() const { return roll_deg; }
-    float get_roll_rad() const { return roll_rad; }
-    float get_pitch_min_rad() const { return pitch_min_rad; }
-    float get_pitch_max_rad() const { return pitch_max_rad; }
-    float get_roll_min_rad() const { return roll_min_rad; }
-    float get_roll_max_rad() const { return roll_max_rad; }
-    CalMode get_mode() const { return cal_mode_runtime; }
-    CMPS14Data get_data() const;
+    // float getHeadingDeg() const { return heading_deg; }
+    // float getHeadingRad() const { return heading_rad; }
+    // float getHeadingTrueDeg() const { return heading_true_deg; }
+    // float getHeadingTrueRad() const { return heading_true_rad; }
+    // float getPitchDeg() const { return pitch_deg; }
+    // float gePitchRad() const { return pitch_rad; }
+    // float getRollDeg() const { return roll_deg; }
+    // float getRollRad() const { return roll_rad; }
+    // float getPitchMinRad() const { return pitch_min_rad; }
+    // float getPitchMaxRad() const { return pitch_max_rad; }
+    // float getRollMinRad() const { return roll_min_rad; }
+    // float getRollMaxRad() const { return roll_max_rad; }
+    // CalMode getMode() const { return cal_mode_runtime; }
 
 private:
-    // Helpers
-    bool send_command(uint8_t cmd);
-    bool enable_background_cal(bool autosave);
-    uint8_t read_cal_status_byte();
-    void get_cal_status(uint8_t out[4]);
+
+    bool enableBackgroundCal(bool autosave);
+    uint8_t readCalStatusByte();
+    void getCalStatus(uint8_t out[4]);
     
-    // State etc.
-    uint8_t addr;
+    CMPS14Sensor &sensor;
     TwoWire *wire;
-    CalMode cal_mode_runtime = CAL_USE;
 
     // Compass and attitude in degrees
-    float compass_deg = NAN;
-    float heading_deg = NAN;
-    float heading_true_deg = NAN;
-    float pitch_deg = NAN;
-    float roll_deg = NAN;
+    // float compass_deg = NAN;
+    // float heading_deg = NAN;
+    // float heading_true_deg = NAN;
+    // float pitch_deg = NAN;
+    // float roll_deg = NAN;
 
     // Compass and attitude in radians
-    float pitch_min_rad = NAN;
-    float pitch_max_rad = NAN;
-    float roll_min_rad = NAN;
-    float roll_max_rad = NAN;
+    // float pitch_min_rad = NAN;
+    // float pitch_max_rad = NAN;
+    // float roll_min_rad = NAN;
+    // float roll_max_rad = NAN;
 
     // Monitor calibration
     uint8_t cal_ok_count = 0;
     bool cal_profile_stored = false;
 
     // Harmonic deviation model
-    HarmonicCoeffs hc {0,0,0,0,0};
+    // HarmonicCoeffs hc {0,0,0,0,0};
+
+    // CMPS14 register map
+    static const uint8_t REG_USEMODE       = 0x80;  // Command use-mode
+    static const uint8_t REG_CAL_STATUS    = 0x1E;  // Calibration status
+    static const uint8_t REG_SAVE1         = 0xF0;  // Series of commands to store calibration profile
+    static const uint8_t REG_SAVE2         = 0xF5;
+    static const uint8_t REG_SAVE3         = 0xF6;
+    static const uint8_t REG_CAL1          = 0x98;  // Series of commands to start calibration
+    static const uint8_t REG_CAL2          = 0x95;
+    static const uint8_t REG_CAL3          = 0x99;
+    static const uint8_t REG_RESET1        = 0xE0;  // Series of commands to reset CMPS14
+    static const uint8_t REG_RESET2        = 0xE5;
+    static const uint8_t REG_RESET3        = 0xE2; 
+    static const uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
+    static const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
+    static const uint8_t REG_ACK1          = 0x55;  // Ack (new firmware)
+    static const uint8_t REG_ACK2          = 0x07;  // Ack (CMPS12 compliant)
+    static const uint8_t REG_NACK          = 0xFF;  // Nack
+    static const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
+    static const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
 };

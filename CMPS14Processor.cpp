@@ -1,66 +1,19 @@
-#include "CMPS14_class.h"
+#include "CMPS14Processor.h"
 
-// CMPS14 register map
-static const uint8_t REG_ANGLE_16_H    = 0x02;  // 16-bit angle * 10 (hi)
-static const uint8_t REG_ANGLE_16_L    = 0x03;  // 16-bit angle * 10 (lo)
-static const uint8_t REG_PITCH         = 0x04;  // signed degrees
-static const uint8_t REG_ROLL          = 0x05;  // signed degrees
-static const uint8_t REG_USEMODE       = 0x80;  // Command use-mode
-static const uint8_t REG_CAL_STATUS    = 0x1E;  // Calibration status
-static const uint8_t REG_SAVE1         = 0xF0;  // Series of commands to store calibration profile
-static const uint8_t REG_SAVE2         = 0xF5;
-static const uint8_t REG_SAVE3         = 0xF6;
-static const uint8_t REG_CAL1          = 0x98;  // Series of commands to start calibration
-static const uint8_t REG_CAL2          = 0x95;
-static const uint8_t REG_CAL3          = 0x99;
-static const uint8_t REG_RESET1        = 0xE0;  // Series of commands to reset CMPS14
-static const uint8_t REG_RESET2        = 0xE5;
-static const uint8_t REG_RESET3        = 0xE2; 
-static const uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
-static const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
-static const uint8_t REG_ACK1          = 0x55;  // Ack (new firmware)
-static const uint8_t REG_ACK2          = 0x07;  // Ack (CMPS12 compliant)
-static const uint8_t REG_NACK          = 0xFF;  // Nack
-static const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
-static const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
+// Constructor, takes CMPS14Sensor as parameter
+CMPS14Processor::CMPS14Processor(CMPS14Sensor &cmps14Sensor) : sensor(cmps14Sensor), wire(nullptr) {}
 
-// Constructor
-CMPS14::CMPS14(uint8_t i2c_addr) : addr(i2c_addr), wire(&Wire) {}
-
-// Initialize sensor
-bool CMPS14::begin(TwoWire &wirePort) {
+// Begin, calls CMPSSensor.begin()
+bool CMPS14Processor::begin(TwoWire &wirePort) {
     wire = &wirePort;
-    wire->beginTransmission(addr);
-    return (wire->endTransmission() == 0);
+    return sensor.begin(wirePort);
 }
 
-// Check connection
-bool CMPS14::is_connected() const {
-    Wire.beginTransmission(addr);
-    return (Wire.endTransmission() == 0);
-}
+// Update global shared variables, interim solution, globals to be replaced by data struct of CMPS14Processor
+bool CMPS14Processor::update() {
+    float raw_deg, pitch_raw, roll_raw;
 
-CMPS14Data CMPS14::get_data() const {
-    return { heading_rad, heading_true_rad, pitch_rad, roll_rad, pitch_min_rad, pitch_max_rad, roll_min_rad, roll_max_rad, true };
-}
-
-// Read current sensor data
-bool CMPS14::read() {
-    wire->beginTransmission(addr);
-    wire->write(REG_ANGLE_16_H);
-    if (wire->endTransmission(false) != 0) return false;
-
-    const uint8_t toRead = 4;
-    uint8_t n = wire->requestFrom(addr, toRead);
-    if (n != toRead) return false;
-
-    uint8_t hi = wire->read();
-    uint8_t lo = wire->read();
-    int8_t pitch_raw = (int8_t)wire->read();
-    int8_t roll_raw  = (int8_t)wire->read();
-
-    uint16_t ang10 = ((uint16_t)hi << 8) | lo;
-    float raw_deg = ((float)ang10) / 10.0f;
+    if (!sensor.read(raw_deg, pitch_raw, roll_raw)) return false;
     
     // Heading (C)
     raw_deg += installation_offset_deg;
@@ -89,8 +42,8 @@ bool CMPS14::read() {
     if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
     if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
 
-    pitch_deg = (float)pitch_raw;
-    roll_deg  = (float)roll_raw;
+    pitch_deg = pitch_raw;
+    roll_deg  = roll_raw;
 
     // Radians for SignalK
     heading_rad      = heading_deg * DEG_TO_RAD;
@@ -114,67 +67,85 @@ bool CMPS14::read() {
     return true;
 }
 
-
-// Send command to CMPS14
-bool CMPS14::send_command(uint8_t cmd) {
-    wire->beginTransmission(addr);
-    wire->write(REG_CMD);
-    wire->write(cmd);
-    if (wire->endTransmission() != 0) return false;
-    delay(20);
-    wire->requestFrom(addr, (uint8_t)1);
-    if (!wire->available()) return false;
-    uint8_t b = wire->read();
-    return (b == REG_ACK1 || b == REG_ACK2);
+// Reset CMPS14Sensor
+bool CMPS14Processor::reset() {
+    bool ok =
+        sensor.sendCommand(REG_RESET1) &&
+        sensor.sendCommand(REG_RESET2) &&
+        sensor.sendCommand(REG_RESET3);
+    if (!ok) return false;
+    delay(600);
+    if (sensor.sendCommand(REG_USEMODE)) return true;
+    return false;
 }
 
-// Reset the CMPS14
-bool CMPS14::reset() {
-    return send_command(REG_RESET1)
-        && send_command(REG_RESET2)
-        && send_command(REG_RESET3)
-        && send_command(REG_USEMODE); // use mode
+// Enable calibration with optional autosave (built in autosave of CMPS14)
+bool CMPS14Processor::enableBackgroundCal(bool autosave) {
+    return sensor.sendCommand(REG_CAL1)
+        && sensor.sendCommand(REG_CAL2)
+        && sensor.sendCommand(REG_CAL3)
+        && sensor.sendCommand(autosave ? REG_AUTO_ON : REG_AUTO_OFF);
 }
 
-// Enable background calibration
-bool CMPS14::enable_background_cal(bool autosave) {
-    return send_command(REG_CAL1)
-        && send_command(REG_CAL2)
-        && send_command(REG_CAL3)
-        && send_command(autosave ? REG_AUTO_ON : REG_AUTO_OFF);
-}
-
-// Start calibration
-bool CMPS14::start_calibration(CalMode mode) {
+// Start calibration with desired calibration mode
+bool CMPS14Processor::startCalibration(CalMode mode) {
     cal_mode_runtime = mode;
     bool ok = false;
     switch (mode) {
-        case CAL_FULL_AUTO: ok = enable_background_cal(true); break;
-        case CAL_SEMI_AUTO: ok = enable_background_cal(false); break;
-        case CAL_MANUAL:    ok = enable_background_cal(false); break;
-        default: ok = send_command(REG_USEMODE); break; // use mode
+        case CAL_FULL_AUTO: {
+            ok = enableBackgroundCal(true);
+            full_auto_left_ms = 0;
+            full_auto_start_ms = millis();
+        } break;
+        case CAL_SEMI_AUTO: ok = enableBackgroundCal(false); break;
+        case CAL_MANUAL:    ok = enableBackgroundCal(false); break;
+        default:            ok = sensor.sendCommand(REG_USEMODE); break;
     }
     return ok;
 }
 
-// Stop calibration
-bool CMPS14::stop_calibration() {
+// Stop calibration and return to use-mode
+bool CMPS14Processor::stopCalibration() {
     cal_mode_runtime = CAL_USE;
-    return send_command(REG_USEMODE);
+    return sensor.sendCommand(REG_USEMODE);
 }
 
-// Monitor and store calibration if needed
-void CMPS14::monitor_and_store(bool autoSave) {
+// Read calibration status byte
+uint8_t CMPS14Processor::readCalStatusByte() {
+    return sensor.readRegister(REG_CAL_STATUS);
+}
+
+// Get calibration status by checking the contents of the calibration byte
+void CMPS14Processor::getCalStatus(uint8_t out[4]) {
+    uint8_t byte = readCalStatusByte();
+    uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
+    if (byte != REG_NACK) {
+        mag = (byte     ) & REG_MASK;
+        acc = (byte >> 2) & REG_MASK;
+        gyr = (byte >> 4) & REG_MASK;
+        sys = (byte >> 6) & REG_MASK;
+    }
+    out[0] = mag; out[1] = acc; out[2] = gyr; out[3] = sys;
+}
+
+// Monitor calibration and optionally save calibration profile
+void CMPS14Processor::monitorCalibration(bool autosave) {
     uint8_t statuses[4];
-    get_cal_status(statuses);
+    getCalStatus(statuses);
     uint8_t mag = statuses[0], acc = statuses[1], sys = statuses[3];
     if (sys == 3 && acc == 3 && mag == 3) {
         if (cal_ok_count < 255) cal_ok_count++;
     } else cal_ok_count = 0;
 
-    if (autoSave && !cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) {
-        if (send_command(REG_SAVE1) && send_command(REG_SAVE2) && send_command(REG_SAVE3)) {
+    if (autosave && !cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) {
+        bool ok = 
+            sensor.sendCommand(REG_SAVE1) &&
+            sensor.sendCommand(REG_SAVE2) && 
+            sensor.sendCommand(REG_SAVE3) &&
+            sensor.sendCommand(REG_USEMODE);
+        if (ok) {
             cal_profile_stored = true;
+            cmps14_cal_profile_stored = true;
             lcd_show_info("CALIBRATION", "SAVED");
             cal_mode_runtime = CAL_USE;
         } else {
@@ -184,25 +155,34 @@ void CMPS14::monitor_and_store(bool autoSave) {
     }
 }
 
-// Read calibration status byte
-uint8_t CMPS14::read_cal_status_byte() {
-    wire->beginTransmission(addr);
-    wire->write(REG_CAL_STATUS);
-    if (wire->endTransmission(false) != 0) return REG_NACK;
-    wire->requestFrom(addr, (uint8_t)1);
-    if (!wire->available()) return REG_NACK;
-    return wire->read();
+// Save calibration profile
+bool CMPS14Processor::saveCalibrationProfile() {
+    bool ok = 
+        sensor.sendCommand(REG_SAVE1) &&
+        sensor.sendCommand(REG_SAVE2) &&
+        sensor.sendCommand(REG_SAVE3) &&
+        sensor.sendCommand(REG_USEMODE);
+    if (ok) {
+        cal_profile_stored = true;
+        cmps14_cal_profile_stored = true;
+    }
+    return ok;
 }
 
-// Get calibration status
-void CMPS14::get_cal_status(uint8_t out[4]) {
-    uint8_t byte = read_cal_status_byte();
-    uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
-    if (byte != REG_NACK) {
-        mag = (byte     ) & REG_MASK;
-        acc = (byte >> 2) & REG_MASK;
-        gyr = (byte >> 4) & REG_MASK;
-        sys = (byte >> 6) & REG_MASK;
+// Start calibration mode or use-mode, default is use-mode, manual never used at boot
+bool CMPS14Processor::initCalibrationModeBoot(CalMode mode_boot) {
+    if (!sensor.available()) {
+        lcd_print_lines("CMPS14 N/A", "CHECK WIRING!");
+        cal_mode_runtime = CAL_USE;
+        return false;
     }
-    out[0] = mag; out[1] = acc; out[2] = gyr; out[3] = sys;
+    bool started = false;
+    switch (mode_boot) {
+        case CAL_FULL_AUTO:     started = startCalibration(CAL_FULL_AUTO); break;
+        case CAL_SEMI_AUTO:     started = startCalibration(CAL_SEMI_AUTO); break;
+        case CAL_MANUAL:        started = startCalibration(CAL_MANUAL); break;
+        default:                started = stopCalibration(); break;
+    }
+    if (!started) lcd_print_lines("CAL MODE", "START FAILED");
+    else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
 }

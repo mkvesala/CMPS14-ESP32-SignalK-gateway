@@ -25,7 +25,7 @@ static const uint8_t REG_CMD           = 0x00;  // Command byte, write before se
 static const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
 
 // Read values from CMPS14 compass and attitude sensor
-bool read_compass(){
+bool read_compass(){ // OK
   
   Wire.beginTransmission(CMPS14_ADDR);
   Wire.write(REG_ANGLE_16_H);
@@ -99,7 +99,7 @@ bool read_compass(){
 }
 
 // Send a command to CMPS14
-bool cmps14_cmd(uint8_t cmd) {
+bool cmps14_cmd(uint8_t cmd) { // OK
   Wire.beginTransmission(CMPS14_ADDR);
   Wire.write(REG_CMD);
   Wire.write(cmd);
@@ -114,7 +114,7 @@ bool cmps14_cmd(uint8_t cmd) {
 }
 
 // Enable autocalibration with optional autosave
-bool cmps14_enable_background_cal(bool autosave) {
+bool cmps14_enable_background_cal(bool autosave) { //
   if (!cmps14_cmd(REG_CAL1)) return false;
   if (!cmps14_cmd(REG_CAL2)) return false;
   if (!cmps14_cmd(REG_CAL3)) return false;
@@ -124,7 +124,7 @@ bool cmps14_enable_background_cal(bool autosave) {
 }
 
 // Read calibration status
-uint8_t cmps14_read_cal_status_byte() {
+uint8_t cmps14_read_cal_status_byte() { // OK
   Wire.beginTransmission(CMPS14_ADDR);
   Wire.write(REG_CAL_STATUS);
   if (Wire.endTransmission(false) != 0) return REG_NACK;
@@ -135,7 +135,7 @@ uint8_t cmps14_read_cal_status_byte() {
 }
 
 // Read calibration status byte content
-void cmps14_get_cal_status(uint8_t out[4]){
+void cmps14_get_cal_status(uint8_t out[4]){ // OK
   uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
   uint8_t byte = cmps14_read_cal_status_byte();
   if (byte != REG_NACK) {
@@ -151,7 +151,7 @@ void cmps14_get_cal_status(uint8_t out[4]){
 }
 
 // Save calibration AND stop calibrating
-bool cmps14_store_profile() {
+bool cmps14_store_profile() { // OK
   if (!cmps14_cmd(REG_SAVE1)) return false; 
   if (!cmps14_cmd(REG_SAVE2)) return false;
   if (!cmps14_cmd(REG_SAVE3)) return false;
@@ -161,7 +161,7 @@ bool cmps14_store_profile() {
 }
 
 // Monitor and optional storing of the calibration profile
-void cmps14_monitor_and_store(bool save) {
+void cmps14_monitor_and_store(bool save) { // OK
   static uint8_t cal_ok_count = 0;
   uint8_t statuses[4];
   cmps14_get_cal_status(statuses);
@@ -190,7 +190,7 @@ void cmps14_monitor_and_store(bool save) {
 }
 
 // Reset CMPS14
-bool cmps14_reset() {
+bool cmps14_reset() { // OK
   if (cmps14_cmd(REG_RESET1) && cmps14_cmd(REG_RESET2) && cmps14_cmd(REG_RESET3)) {
     delay(601);   // Datasheet recommends 300 ms delay
     if (cmps14_cmd(REG_USEMODE)){ 
@@ -225,7 +225,7 @@ bool start_calibration_semiauto(){
 }
 
 // Stop all calibration
-bool stop_calibration() {
+bool stop_calibration() { // OK
   if (!cmps14_cmd(REG_USEMODE)) return false; 
   cal_mode_runtime = CAL_USE;
   return true;
