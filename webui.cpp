@@ -61,8 +61,6 @@ void handleStatus() {
   gyr = statuses[2];
   sys = statuses[3];
 
-  float variation_deg = use_manual_magvar ? compass.getManualVariation() : compass.getLiveVariation();
-
   if (WiFi.isConnected()) {
     setIPAddrCstr();
     setRSSICstr();
@@ -81,7 +79,7 @@ void handleStatus() {
   doc["roll_deg"]             = compass.getRollDeg();
   doc["offset"]               = compass.getInstallationOffset();
   doc["dev"]                  = compass.getDeviation();
-  doc["variation"]            = variation_deg;
+  doc["variation"]            = compass.getVariation();
   doc["heading_true_deg"]     = compass.getHeadingTrueDeg();
   doc["acc"]                  = acc;
   doc["mag"]                  = mag;
@@ -91,9 +89,9 @@ void handleStatus() {
   doc["hcc"]                  = hc.C;
   doc["hcd"]                  = hc.D;
   doc["hce"]                  = hc.E;
-  doc["use_manual_magvar"]    = use_manual_magvar;   
+  doc["use_manual_magvar"]    = compass.getUseManualVariation();   
   doc["send_hdg_true"]        = send_hdg_true;         
-  doc["stored"]               = cmps14_cal_profile_stored; 
+  doc["stored"]               = compass.getCalProfileStored(); 
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -273,7 +271,7 @@ void handleRoot() {
 
   if (cal_mode_runtime == CAL_SEMI_AUTO || cal_mode_runtime == CAL_MANUAL) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
-    if (!cmps14_cal_profile_stored) {
+    if (!compass.getCalProfileStored()) {
       server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
     } else {
       server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");

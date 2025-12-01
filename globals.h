@@ -29,7 +29,6 @@ extern CalMode cal_mode_runtime;
 const char* calmode_str(CalMode m);
 
 // CMPS14 calibration
-extern bool cmps14_cal_profile_stored;   // Calibration profile stored flag
 extern const unsigned long CAL_POLL_MS;  // Autocalibration save condition timer 
 extern const uint8_t CAL_OK_REQUIRED;    // Autocalibration save condition threshold
 extern unsigned long full_auto_start_ms; // Full auto mode start timestamp
@@ -38,7 +37,6 @@ extern unsigned long full_auto_left_ms;  // Full auto mode time left
 
 // CMPS14 reading parameters
 extern bool send_hdg_true;                            // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
-extern bool use_manual_magvar;                        // Use magvar_manual_deg if true
 extern unsigned long lcd_hold_ms;
 extern const float HEADING_ALPHA;                     // Smoothing factor 0...1, larger value less smoothing
 extern const unsigned long MIN_TX_INTERVAL_MS;        // Max frequency for sending deltas to SignalK 

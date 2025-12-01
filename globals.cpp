@@ -9,7 +9,6 @@ bool LCD_ONLY                   = false;          // True when no WiFi available
 const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5 minutes - prime number, to be exact
 
 // CMPS14 calibration
-bool cmps14_cal_profile_stored        = false;  // Calibration profile stored flag
 const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer - prime number
 const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
@@ -29,7 +28,6 @@ const char* calmode_str(CalMode m){
 
 // CMPS14 reading parameters
 bool send_hdg_true                        = true;        // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
-bool use_manual_magvar                    = true;        // Use magvar_manual_deg if true
 unsigned long lcd_hold_ms                 = 0;
 const float HEADING_ALPHA                 = 0.15f;       // Smoothing factor 0...1, larger value less smoothing
 const unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK - prime number

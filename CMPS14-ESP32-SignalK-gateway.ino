@@ -154,7 +154,7 @@ void loop() {
       expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
     }
     if (ws_open) expn_retry_ms = WS_RETRY_MS;
-    else use_manual_magvar = true;
+    else compass.setUseManualVariation(true);
   }
 
   // Read values from CMPS14

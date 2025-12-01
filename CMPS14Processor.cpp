@@ -37,7 +37,7 @@ bool CMPS14Processor::update() {
     if (heading_deg < 0.0f) heading_deg += 360.0f;
 
     // Heading (T)
-    float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_live_deg;
+    float mv_deg = getVariation();
     heading_true_deg = heading_deg + mv_deg;
     if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
     if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
@@ -86,7 +86,6 @@ bool CMPS14Processor::reset() {
     if (sensor.sendCommand(REG_USEMODE)) {
         cal_mode_runtime = CAL_USE;
         cal_mode_boot = CAL_USE;
-        cmps14_cal_profile_stored = false;
         cal_profile_stored = false;
         return true;
     }
@@ -159,7 +158,6 @@ void CMPS14Processor::monitorCalibration(bool autosave) {
             sensor.sendCommand(REG_USEMODE);
         if (ok) {
             cal_profile_stored = true;
-            cmps14_cal_profile_stored = true;
             updateLCD("CALIBRATION", "SAVED", true);
             cal_mode_runtime = CAL_USE;
         } else {
@@ -178,7 +176,6 @@ bool CMPS14Processor::saveCalibrationProfile() {
         sensor.sendCommand(REG_USEMODE);
     if (ok) {
         cal_profile_stored = true;
-        cmps14_cal_profile_stored = true;
         cal_mode_runtime = CAL_USE;
     }
     return ok;

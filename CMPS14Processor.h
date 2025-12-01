@@ -29,17 +29,22 @@ public:
     float getRollDeg() const { return roll_deg; }
     float getInstallationOffset() const { return installation_offset_deg; }
     float getDeviation() const { return dev_deg; }
+    float getVariation() const {return use_manual_magvar ? magvar_manual_deg : magvar_live_deg; }
     float getManualVariation() const { return magvar_manual_deg; }
-    float getLiveVariation() const {return magvar_live_deg; }
 
     auto getHeadingDelta() const { return headingDelta; }
     auto getMinMaxDelta() const { return minMaxDelta; }
     // CalMode getMode() const { return cal_mode_runtime; }
 
+    bool getUseManualVariation() const { return use_manual_magvar; }
+    bool getCalProfileStored() const { return cal_profile_stored; }
+
     // Setters
     void setInstallationOffset(float offset) { installation_offset_deg = offset; }
     void setManualVariation(float variation) { magvar_manual_deg = variation; }
     void setLiveVariation(float variation) { magvar_live_deg = variation; }
+    void setUseManualVariation(bool manual) { use_manual_magvar = manual; }
+    void setCalProfileStored(bool stored) { cal_profile_stored = stored; }
 
 private:
 
@@ -56,6 +61,8 @@ private:
     float dev_deg = 0.0f;                       // Deviation calculated by harmonic model
     float magvar_manual_deg = 0.0f;             // Variation that is set manually from web UI
     float magvar_live_deg = 0.0f;               // Variation from SignalK navigation.magneticVariation path
+    bool use_manual_magvar = true;              // Use magvar_manual_deg if true
+    bool cal_profile_stored = false;            // Calibration profile saved if true
 
     // Compass and attitude in degrees
     float compass_deg = NAN;
@@ -76,7 +83,6 @@ private:
 
     // Monitor calibration
     uint8_t cal_ok_count = 0;
-    bool cal_profile_stored = false;
 
     // Harmonic deviation model
     // HarmonicCoeffs hc {0,0,0,0,0};
