@@ -74,8 +74,14 @@ bool CMPS14Processor::reset() {
         sensor.sendCommand(REG_RESET2) &&
         sensor.sendCommand(REG_RESET3);
     if (!ok) return false;
-    delay(600);
-    if (sensor.sendCommand(REG_USEMODE)) return true;
+    delay(599);  // Datasheet recommends delay of 300 ms here
+    if (sensor.sendCommand(REG_USEMODE)) {
+        cal_mode_runtime = CAL_USE;
+        cal_mode_boot = CAL_USE;
+        cmps14_cal_profile_stored = false;
+        cal_profile_stored = false;
+        return true;
+    }
     return false;
 }
 
@@ -146,10 +152,10 @@ void CMPS14Processor::monitorCalibration(bool autosave) {
         if (ok) {
             cal_profile_stored = true;
             cmps14_cal_profile_stored = true;
-            lcd_show_info("CALIBRATION", "SAVED");
+            updateLCD("CALIBRATION", "SAVED", true);
             cal_mode_runtime = CAL_USE;
         } else {
-            lcd_show_info("CALIBRATION", "FAILED");
+            updateLCD("CALIBRATION", "FAILED", true);
         }
         cal_ok_count = 0;
     }
@@ -165,24 +171,26 @@ bool CMPS14Processor::saveCalibrationProfile() {
     if (ok) {
         cal_profile_stored = true;
         cmps14_cal_profile_stored = true;
+        cal_mode_runtime = CAL_USE;
     }
     return ok;
 }
 
 // Start calibration mode or use-mode, default is use-mode, manual never used at boot
 bool CMPS14Processor::initCalibrationModeBoot(CalMode mode_boot) {
-    if (!sensor.available()) {
-        lcd_print_lines("CMPS14 N/A", "CHECK WIRING!");
-        cal_mode_runtime = CAL_USE;
-        return false;
-    }
     bool started = false;
+    if (!sensor.available()) {
+        updateLCD("CMPS14 N/A", "CHECK WIRING!");
+        cal_mode_runtime = CAL_USE;
+        return started;
+    }
     switch (mode_boot) {
         case CAL_FULL_AUTO:     started = startCalibration(CAL_FULL_AUTO); break;
         case CAL_SEMI_AUTO:     started = startCalibration(CAL_SEMI_AUTO); break;
         case CAL_MANUAL:        started = startCalibration(CAL_MANUAL); break;
         default:                started = stopCalibration(); break;
     }
-    if (!started) lcd_print_lines("CAL MODE", "START FAILED");
-    else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
+    if (!started) updateLCD("CAL MODE", "START FAILED");
+    else updateLCD("CAL MODE", calmode_str(cal_mode_runtime));
+    return started;
 }

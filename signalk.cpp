@@ -1,7 +1,7 @@
 #include "signalk.h"
 
 // Create SignalK server URL for websocket
-void build_sk_url() {
+void setSignalKURL() {
   if (strlen(SK_TOKEN) > 0)
     snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream?token=%s", SK_HOST, SK_PORT, SK_TOKEN);
   else
@@ -9,14 +9,14 @@ void build_sk_url() {
 }
 
 // Set ESP32's SignalK source and OTA hostname based on ESP32's MAC address tail
-void build_sk_source() {
+void setSignalKSource() {
   uint8_t m[6];
   WiFi.macAddress(m);
   snprintf(SK_SOURCE, sizeof(SK_SOURCE), "esp32.cmps14-%02x%02x%02x", m[3], m[4], m[5]);
 }
 
 // Websocket callbacks
-void setup_websocket_callbacks() {
+void setupWebsocketCallbacks() {
   
   ws.onEvent([](WebsocketsEvent e, String){
     if (e == WebsocketsEvent::ConnectionOpened) {
@@ -71,7 +71,7 @@ void setup_websocket_callbacks() {
 }
 
 // Send heading, pitch and roll to SignalK when change exceeds the deadband limits
-void send_hdg_pitch_roll_delta() {
+void sendHdgPitchRollDelta() {
   
   if (LCD_ONLY || !ws_open) return; 
   if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return; 
@@ -124,7 +124,7 @@ void send_hdg_pitch_roll_delta() {
 }
 
 // Send pitch and roll min and max values to SignalK if changed
-void send_pitch_roll_minmax_delta() {
+void sendPitchRollMinMaxDelta() {
   
   if (LCD_ONLY || !ws_open) return; 
 

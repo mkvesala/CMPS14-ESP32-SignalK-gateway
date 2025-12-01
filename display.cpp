@@ -7,11 +7,11 @@ static inline void copy16(char* dst, const char* src) {
 }
 
 // Initialize LCD screen
-void lcd_init_safe() {
+void initLCD() {
 
   uint8_t addr = 0;
-  if (i2c_device_present(LCD_ADDR1)) addr = LCD_ADDR1;
-  else if (i2c_device_present(LCD_ADDR2)) addr = LCD_ADDR2;
+  if (i2cAvailable(LCD_ADDR1)) addr = LCD_ADDR1;
+  else if (i2cAvailable(LCD_ADDR2)) addr = LCD_ADDR2;
 
   if (addr) {
     lcd = std::make_unique<LiquidCrystal_I2C>(addr, 16, 2);
@@ -24,7 +24,7 @@ void lcd_init_safe() {
 }
 
 // LCD basic printing on two lines
-void lcd_print_lines(const char* l1, const char* l2) {
+void updateLCD(const char* l1, const char* l2, bool hold) {
   if (!lcd_present) return;
   if (!strcmp(prev_top, l1) && !strcmp(prev_bot, l2)) return;
 
@@ -43,16 +43,12 @@ void lcd_print_lines(const char* l1, const char* l2) {
   copy16(prev_top, t);
   copy16(prev_bot, b);
 
-}
+  if (hold) lcd_hold_ms = millis() + LCD_MS;
 
-// LCD show info content without overwriting immediately with loop() content (hdg)
-void lcd_show_info(const char* l1, const char* l2){
-  lcd_print_lines(l1, l2);
-  lcd_hold_ms = millis() + LCD_MS;
 }
 
 // LED indicator for calibration mode, blue led at GPIO2
-void led_update_by_cal_mode(){
+void updateLedByCalMode(){
   static unsigned long last = 0;
   static bool state = false;
   const unsigned long now = millis();
@@ -87,7 +83,7 @@ void led_update_by_cal_mode(){
 }
 
 // LED indicator for wifi mode, green led at GPIO13
-void led_update_by_conn_status(){
+void updateLedByConnStatus(){
   static unsigned long last = 0;
   static bool state = false;
   const unsigned long now = millis();

@@ -1,9 +1,9 @@
 #pragma once
 
 #include "globals.h"
-#include "cmps14.h"
 #include "signalk.h"
 #include "display.h"
+#include "CMPS14Instances.h"
 
 void handle_status();
 void handle_set_offset();
@@ -18,4 +18,4 @@ void handle_calibrate_on();
 void handle_calibrate_off();
 void handle_store();
 void handle_reset();
-void setup_webserver_callbacks();
+void setupWebserverCallbacks();

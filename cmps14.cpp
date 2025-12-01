@@ -180,10 +180,10 @@ void cmps14_monitor_and_store(bool save) { // OK
   // AUTO mode saving routine
   if (save && !cmps14_cal_profile_stored && cal_ok_count >= CAL_OK_REQUIRED) { 
     if (cmps14_store_profile()) {
-      lcd_show_info("CALIBRATION", "SAVED");
+      updateLCD("CALIBRATION", "SAVED", true);
       cal_mode_runtime = CAL_USE;
     } else {
-      lcd_show_info("CALIBRATION", "NOT SAVED");
+      updateLCD("CALIBRATION", "NOT SAVED", true);
     }
     cal_ok_count = 0;
   }
@@ -233,7 +233,7 @@ bool stop_calibration() { // OK
 
 // Start calibration or use-mode based on preferences, default is use-mode, manual never used at boot
 void cmps14_init_with_cal_mode() {
-  if (i2c_device_present(CMPS14_ADDR)){
+  if (i2cAvailable(CMPS14_ADDR)){
     bool started = false;
     switch (cal_mode_boot){                           
       case CAL_FULL_AUTO:
@@ -249,7 +249,7 @@ void cmps14_init_with_cal_mode() {
         started = stop_calibration();
         break;
     }
-    if (!started) lcd_print_lines("CAL MODE", "START FAILED");
-    else lcd_print_lines("CAL MODE", calmode_str(cal_mode_runtime));
-  } else lcd_print_lines("CMPS14 N/A", "CHECK WIRING");
+    if (!started) updateLCD("CAL MODE", "START FAILED");
+    else updateLCD("CAL MODE", calmode_str(cal_mode_runtime));
+  } else updateLCD("CMPS14 N/A", "CHECK WIRING");
 }

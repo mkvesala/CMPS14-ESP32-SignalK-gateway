@@ -128,13 +128,13 @@ inline const char* ms_to_hms_str(unsigned long ms) {
 }
 
 // Scan I2C address
-bool i2c_device_present(uint8_t addr);
+bool i2cAvailable(uint8_t addr);
 
 // Get saved configuration from ESP32 preferences
-void get_config_from_prefs();
+void loadSavedPreferences();
 
 // Update RSSI description
-void update_rssi_cstr();
+void setRSSICstr();
 
 // Update IP Address cstring
-void update_ipaddr_cstr();
+void setIPAddrCstr();

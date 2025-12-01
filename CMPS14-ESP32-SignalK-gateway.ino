@@ -1,7 +1,5 @@
 #include "globals.h"
-#include "cmps14.h"
-#include "CMPS14Sensor.h"
-#include "CMPS14Processor.h"
+#include "CMPS14Instances.h"
 #include "display.h"
 #include "signalk.h"
 #include "webui.h"
@@ -22,7 +20,13 @@ void setup() {
   Wire.setClock(400000);
   delay(47);
 
-  lcd_init_safe();
+  initLCD();
+  delay(47);
+
+  if (!compass.begin(Wire)) {
+    updateLCD("CMPS14 ERROR", "INIT FAILED!");
+    delay(UINT32_MAX);
+  }
   delay(47);
 
   pinMode(LED_PIN_BL, OUTPUT);
@@ -31,10 +35,10 @@ void setup() {
   digitalWrite(LED_PIN_GR, LOW);
 
   // Get saved configuration from ESP32 preferences
-  get_config_from_prefs();
+  loadSavedPreferences();
 
   // Init CMPS14 with appropriate calibration mode or use-mode
-  cmps14_init_with_cal_mode();
+  compass.initCalibrationModeBoot(cal_mode_boot);
   delay(1009);
 
   // Stop bluetooth to save power
@@ -44,7 +48,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  lcd_print_lines("WIFI", "CONNECT...");
+  updateLCD("WIFI", "CONNECT...");
   unsigned long t0 = millis();
 
   // Try to connect WiFi until timeout
@@ -54,29 +58,29 @@ void setup() {
   if (WiFi.isConnected()) {  
     
     // URL, source, IP address and RSSI stuff
-    build_sk_url();
-    build_sk_source();
-    update_ipaddr_cstr();
-    update_rssi_cstr();
+    setSignalKURL();
+    setSignalKSource();
+    setIPAddrCstr();
+    setRSSICstr();
     
-    lcd_print_lines(IPc, RSSIc);
+    updateLCD(IPc, RSSIc);
     delay(1009);
 
     // OTA
-    init_OTA();
+    initOTA();
 
     // Webserver handlers
-    setup_webserver_callbacks();
+    setupWebserverCallbacks();
 
     // Websocket event handlers
-    setup_websocket_callbacks();
+    setupWebsocketCallbacks();
 
   // No WiFi connection, use only LCD output and power off WiFi 
   } else {  
     LCD_ONLY = true;
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF); 
-    lcd_print_lines("LCD ONLY MODE", "NO WIFI");
+    updateLCD("LCD ONLY MODE", "NO WIFI");
     delay(1009);
   }
 
@@ -98,9 +102,11 @@ void loop() {
   if (!LCD_ONLY) { 
     
     // OTA
+    // Todo: consider moving from loop to separate task
     ArduinoOTA.handle();                  
     
-    // Webserver 
+    // Webserver
+    // Todo: consider moving from loop to separate task
     server.handleClient();                
     
     // Keep websocket alive
@@ -113,8 +119,9 @@ void loop() {
     }
   
     // Websocket reconnect and keep using manual variation if websocket not opened
+    // Todo: consider moving from loop to separate task or to set a max retries counter
     if (WiFi.isConnected() && !ws_open && (long)(now - next_ws_try_ms) >= 0){ 
-      lcd_print_lines("SIGNALK WS", "CONNECT...");
+      updateLCD("SIGNALK WS", "CONNECT...");
       ws.connect(SK_URL);
       next_ws_try_ms = now + expn_retry_ms;
       expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
@@ -125,34 +132,33 @@ void loop() {
 
   // Read values from CMPS14
   if ((long)(now - last_read_ms) >= READ_MS) {
-    last_read_ms = now;
-    read_compass();                                                 
+    last_read_ms = now; 
+    compass.update();                                               
   }
 
   // Send heading, pitch and roll to SignalK server
   if ((long)(now - last_tx_ms) >= MIN_TX_INTERVAL_MS) {
     last_tx_ms = now;
-    send_hdg_pitch_roll_delta();
+    sendHdgPitchRollDelta();
   }
 
   // Send pitch and roll min and max to SignalK server
   if ((long)(now - last_minmax_tx_ms) >= MINMAX_TX_INTERVAL_MS) {
     last_minmax_tx_ms = now;
-    send_pitch_roll_minmax_delta();
+    sendPitchRollMinMaxDelta();
   }
   
   // Monitor calibration status
   if ((long)(now - last_cal_poll_ms) >= CAL_POLL_MS) {
     last_cal_poll_ms = now;
-    cmps14_monitor_and_store(cal_mode_runtime == CAL_SEMI_AUTO);
+    compass.monitorCalibration(cal_mode_runtime == CAL_SEMI_AUTO);
   }
 
   // Monitor FULL AUTO mode timeout
   if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) { 
     long left = full_auto_stop_ms - (now - full_auto_start_ms);
     if (left <= 0) {
-      stop_calibration();
-      lcd_show_info("FULL AUTO", "TIMEOUT");
+      if (compass.stopCalibration()) updateLCD("FULL AUTO", "TIMEOUT", true);
       left = 0;
     }
     full_auto_left_ms = left;
@@ -165,17 +171,17 @@ void loop() {
       if (send_hdg_true && validf(heading_true_deg)) {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
-        lcd_print_lines("  HEADING (T):", buf);
+        updateLCD("  HEADING (T):", buf);
       } else if (validf(heading_deg)) {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
-        lcd_print_lines("  HEADING (M):", buf);
+        updateLCD("  HEADING (M):", buf);
       }
     }
   }
 
   // Led indicators
-  led_update_by_cal_mode();                                        
-  led_update_by_conn_status();                                     
+  updateLedByCalMode();                                        
+  updateLedByConnStatus();                                     
 
 } 

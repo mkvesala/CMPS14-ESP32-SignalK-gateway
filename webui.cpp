@@ -1,7 +1,7 @@
 #include "webui.h"
 
 // Set up webserver to call the handlers
-void setup_webserver_callbacks() {
+void setupWebserverCallbacks() {
   server.on("/", handle_root);
   server.on("/status", handle_status);
   server.on("/cal/on", handle_calibrate_on);
@@ -20,7 +20,8 @@ void setup_webserver_callbacks() {
 
 // Web UI handler for CALIBRATE button
 void handle_calibrate_on(){
-  if (start_calibration_manual_mode()) {
+  // if (start_calibration_manual_mode()) {
+  if (compass.startCalibration(CAL_MANUAL)) {
     // ok
   }
   handle_root();
@@ -28,7 +29,8 @@ void handle_calibrate_on(){
 
 // Web UI handler for STOP button
 void handle_calibrate_off(){
-  if (stop_calibration()) {
+  // if (stop_calibration()) {
+  if (compass.stopCalibration()) {
     // ok
   }
   handle_root();
@@ -36,18 +38,18 @@ void handle_calibrate_off(){
 
 // Web UI handler for SAVE button
 void handle_store(){
-  if (cmps14_store_profile()) {
-    cal_mode_runtime = CAL_USE;
+  // if (cmps14_store_profile()) {
+  if (compass.saveCalibrationProfile()) {
+    // ok
   }
   handle_root();
 }
 
 // Web UI handler for RESET button
 void handle_reset(){
-  if (cmps14_reset()) {
-    cal_mode_runtime = CAL_USE;
-    cal_mode_boot = CAL_USE;
-    cmps14_cal_profile_stored = false;
+  // if (cmps14_reset()) {
+  if (compass.reset()) {
+    // ok
   }
   handle_root(); 
 }
@@ -57,7 +59,8 @@ void handle_status() {
   
   uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
   uint8_t statuses[4];
-  cmps14_get_cal_status(statuses);
+  // cmps14_get_cal_status(statuses);
+  compass.getCalStatus(statuses);
   mag = statuses[0];
   acc = statuses[1];
   gyr = statuses[2];
@@ -66,8 +69,8 @@ void handle_status() {
   float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
 
   if (WiFi.isConnected()) {
-    update_ipaddr_cstr();
-    update_rssi_cstr();
+    setIPAddrCstr();
+    setRSSICstr();
   } 
 
   StaticJsonDocument<1024> doc;
@@ -123,7 +126,7 @@ void handle_set_offset() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c", installation_offset_deg, 223);
-    lcd_show_info("INSTALL OFFSET", line2);
+    updateLCD("INSTALL OFFSET", line2, true);
   }
   handle_root();
 }
@@ -162,7 +165,7 @@ void handle_dev8_set() {
   prefs.putFloat("hc_E", hc.E);
   prefs.end();
 
-  lcd_show_info("DEVIATION TABLE", "SAVED");
+  updateLCD("DEVIATION TABLE", "SAVED", true);
 
   handle_root();
 }
@@ -192,7 +195,7 @@ void handle_calmode_set() {
     prefs.begin("cmps14", false);
     prefs.putUChar("cal_mode_boot", (uint8_t)v);
     prefs.end();
-    lcd_show_info("BOOT MODE SAVED", calmode_str(v));
+    updateLCD("BOOT MODE SAVED", calmode_str(v), true);
   }
   handle_root();
 }
@@ -214,7 +217,7 @@ void handle_magvar_set() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? 'E':'W'));
-    lcd_show_info("MAG VARIATION", line2);
+    updateLCD("MAG VARIATION", line2, true);
   }
   handle_root();
 }
@@ -230,7 +233,7 @@ void handle_heading_mode() {
   prefs.putBool("send_hdg_true", send_hdg_true);
   prefs.end();
 
-  lcd_show_info("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC");
+  updateLCD("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC", true);
   handle_root();
 }
 
@@ -598,7 +601,7 @@ void handle_restart() {
 
   char line2[17];
   snprintf(line2, sizeof(line2), "%5lu ms", (unsigned long)ms);
-  lcd_show_info("RESTARTING IN", line2);
+  updateLCD("RESTARTING IN", line2, true);
 
   // Draw HTML page which refreshes to root config page in 30 seconds
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);            

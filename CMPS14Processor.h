@@ -19,6 +19,8 @@ public:
     void monitorCalibration(bool autosave);
     bool initCalibrationModeBoot(CalMode boot_mode);
     bool saveCalibrationProfile();
+    void getCalStatus(uint8_t out[4]);
+    
     // Getters
     // float getHeadingDeg() const { return heading_deg; }
     // float getHeadingRad() const { return heading_rad; }
@@ -38,7 +40,6 @@ private:
 
     bool enableBackgroundCal(bool autosave);
     uint8_t readCalStatusByte();
-    void getCalStatus(uint8_t out[4]);
     
     CMPS14Sensor &sensor;
     TwoWire *wire;

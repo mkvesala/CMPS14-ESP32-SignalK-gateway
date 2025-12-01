@@ -97,13 +97,13 @@ float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measure
 HarmonicCoeffs hc {0,0,0,0,0};                                        // Five coeffs to calculate full deviation curve
 
 // Scan I2C address
-bool i2c_device_present(uint8_t addr) {
+bool i2cAvailable(uint8_t addr) {
   Wire.beginTransmission(addr);
   return (Wire.endTransmission() == 0);
 }
 
 // Get all permanently saved preferences
-void get_config_from_prefs() {
+void loadSavedPreferences() {
   prefs.begin("cmps14", false);  
   installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
   magvar_manual_deg = prefs.getFloat("mv_man_deg", 0.0f);
@@ -131,7 +131,7 @@ void get_config_from_prefs() {
 }
 
 // Description for WiFi signal level
-void update_rssi_cstr() {
+void setRSSICstr() {
   int rssi = WiFi.RSSI();
   const char* label =
       (rssi > -55) ? "EXCELLENT" :
@@ -141,7 +141,7 @@ void update_rssi_cstr() {
 }
 
 // Update IP address cstring
-void update_ipaddr_cstr() {
+void setIPAddrCstr() {
   IPAddress ip = WiFi.localIP();
   snprintf(IPc, sizeof(IPc), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 }
