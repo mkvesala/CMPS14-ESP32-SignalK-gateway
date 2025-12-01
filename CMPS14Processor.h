@@ -1,8 +1,8 @@
 #pragma once
 
 #include "harmonic.h"
-#include "display.h"
 #include "globals.h"
+#include "CalMode.h"
 #include "CMPS14Sensor.h"
 
 class CMPS14Processor {
@@ -17,7 +17,7 @@ public:
     bool startCalibration(CalMode mode);
     bool stopCalibration();
     void monitorCalibration(bool autosave);
-    bool initCalibrationModeBoot(CalMode boot_mode);
+    bool initCalibrationModeBoot();
     bool saveCalibrationProfile();
     void getCalStatus(uint8_t out[4]);
     
@@ -34,7 +34,8 @@ public:
 
     auto getHeadingDelta() const { return headingDelta; }
     auto getMinMaxDelta() const { return minMaxDelta; }
-    // CalMode getMode() const { return cal_mode_runtime; }
+    CalMode getCalibrationModeBoot() const { return cal_mode_boot; }
+    CalMode getCalibrationModeRuntime() const { return cal_mode_runtime; }
 
     bool getUseManualVariation() const { return use_manual_magvar; }
     bool getCalProfileStored() const { return cal_profile_stored; }
@@ -45,6 +46,8 @@ public:
     void setLiveVariation(float variation) { magvar_live_deg = variation; }
     void setUseManualVariation(bool manual) { use_manual_magvar = manual; }
     void setCalProfileStored(bool stored) { cal_profile_stored = stored; }
+    void setCalibrationModeBoot(CalMode mode) { cal_mode_boot = mode; }
+    void setCalibrationModeRuntime(CalMode mode) { cal_mode_runtime = mode; }
 
 private:
 
@@ -55,6 +58,9 @@ private:
     
     CMPS14Sensor &sensor;
     TwoWire *wire;
+
+    CalMode cal_mode_boot = CAL_USE;
+    CalMode cal_mode_runtime = CAL_USE;
 
     // CMPS14 processing
     float installation_offset_deg = 0.0f;       // Physical installation offset of the CMPS14 sensor in degrees

@@ -22,12 +22,6 @@ extern char IPc[16];                      // IP address cstring
 extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
 extern const uint32_t WIFI_TIMEOUT_MS;    // Try WiFi connection max 
 
-// Three calibration modes + use mode
-enum CalMode : uint8_t { CAL_USE=0, CAL_FULL_AUTO=1, CAL_SEMI_AUTO=2, CAL_MANUAL=3 };
-extern CalMode cal_mode_boot;
-extern CalMode cal_mode_runtime; 
-const char* calmode_str(CalMode m);
-
 // CMPS14 calibration
 extern const unsigned long CAL_POLL_MS;  // Autocalibration save condition timer 
 extern const uint8_t CAL_OK_REQUIRED;    // Autocalibration save condition threshold

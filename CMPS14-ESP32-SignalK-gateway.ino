@@ -4,6 +4,7 @@
 #include "signalk.h"
 #include "webui.h"
 #include "OTA.h"
+#include "CalMode.h"
 
 // CMPS14
 CMPS14Sensor sensor(CMPS14_ADDR);
@@ -31,7 +32,7 @@ void loadSavedPreferences() {
     prefs.putFloat("hc_E", hc.E);
   }
   send_hdg_true = prefs.getBool("send_hdg_true", true);
-  cal_mode_boot = (CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE);
+  compass.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE));
   full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
   prefs.end();
 }
@@ -65,7 +66,7 @@ void setup() {
   loadSavedPreferences();
 
   // Init CMPS14 with appropriate calibration mode or use-mode
-  compass.initCalibrationModeBoot(cal_mode_boot);
+  compass.initCalibrationModeBoot();
   delay(1009);
 
   // Stop bluetooth to save power
@@ -178,11 +179,11 @@ void loop() {
   // Monitor calibration status
   if ((long)(now - last_cal_poll_ms) >= CAL_POLL_MS) {
     last_cal_poll_ms = now;
-    compass.monitorCalibration(cal_mode_runtime == CAL_SEMI_AUTO);
+    compass.monitorCalibration(compass.getCalibrationModeRuntime() == CAL_SEMI_AUTO);
   }
 
   // Monitor FULL AUTO mode timeout
-  if (cal_mode_runtime == CAL_FULL_AUTO && full_auto_stop_ms > 0) { 
+  if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO && full_auto_stop_ms > 0) { 
     long left = full_auto_stop_ms - (now - full_auto_start_ms);
     if (left <= 0) {
       if (compass.stopCalibration()) updateLCD("FULL AUTO", "TIMEOUT", true);

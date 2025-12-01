@@ -4,6 +4,7 @@
 #include "signalk.h"
 #include "display.h"
 #include "CMPS14Instances.h"
+#include "CalMode.h"
 
 void handleStatus();
 void handleSetOffset();

@@ -68,8 +68,8 @@ void handleStatus() {
 
   StaticJsonDocument<1024> doc;
 
-  doc["cal_mode"]             = calmode_str(cal_mode_runtime);
-  doc["cal_mode_boot"]        = calmode_str(cal_mode_boot);
+  doc["cal_mode"]             = calModeToString(compass.getCalibrationModeRuntime());
+  doc["cal_mode_boot"]        = calModeToString(compass.getCalibrationModeBoot());
   doc["fa_left"]              = ms_to_hms_str(full_auto_left_ms);
   doc["wifi"]                 = IPc;
   doc["rssi"]                 = RSSIc;
@@ -173,9 +173,9 @@ void handleSetCalmode() {
     else if (m == "semi")    v = CAL_SEMI_AUTO;
     else if (m == "manual")  v = CAL_MANUAL;
     else                     v = CAL_USE;
-    cal_mode_boot = v;
+    compass.setCalibrationModeBoot(v);
    
-    if (!(cal_mode_runtime == CAL_FULL_AUTO)) {
+    if (!(compass.getCalibrationModeRuntime() == CAL_FULL_AUTO)) {
       long to = server.arg("fastop").toInt();
       if (to <= 0) to = 0;
       if (to > 60) to = 60;
@@ -188,7 +188,7 @@ void handleSetCalmode() {
     prefs.begin("cmps14", false);
     prefs.putUChar("cal_mode_boot", (uint8_t)v);
     prefs.end();
-    updateLCD("BOOT MODE SAVED", calmode_str(v), true);
+    updateLCD("BOOT MODE SAVED", calModeToString(v), true);
   }
   handleRoot();
 }
@@ -259,26 +259,26 @@ void handleRoot() {
   // DIV Calibrate, Stop, Reset
   server.sendContent_P(R"(
     <div class='card' id='controls'>)");
-  if (cal_mode_runtime == CAL_FULL_AUTO) {
+  if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO) {
     char buf[128];
-    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calmode_str(cal_mode_runtime), ms_to_hms_str(full_auto_left_ms));
+    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(compass.getCalibrationModeRuntime()), ms_to_hms_str(full_auto_left_ms));
     server.sendContent(buf);
   } else {
     char buf[64];
-    snprintf(buf, sizeof(buf), "Current mode: %s<br>", calmode_str(cal_mode_runtime));
+    snprintf(buf, sizeof(buf), "Current mode: %s<br>", calModeToString(compass.getCalibrationModeRuntime()));
     server.sendContent(buf);
   }
 
-  if (cal_mode_runtime == CAL_SEMI_AUTO || cal_mode_runtime == CAL_MANUAL) {
+  if (compass.getCalibrationModeRuntime() == CAL_SEMI_AUTO || compass.getCalibrationModeRuntime() == CAL_MANUAL) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
     if (!compass.getCalProfileStored()) {
       server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
     } else {
       server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");
     }
-  } else if (cal_mode_runtime == CAL_USE) {
+  } else if (compass.getCalibrationModeRuntime() == CAL_USE) {
     server.sendContent_P(R"(<a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
-  } else if (cal_mode_runtime == CAL_FULL_AUTO) {
+  } else if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
   }
   server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></div>)");
@@ -288,13 +288,13 @@ void handleRoot() {
     <div class='card'>
     <form action="/calmode/set" method="get">
     <label>Boot mode </label><label><input type="radio" name="calmode" value="full")");
-  { if (cal_mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
+  { if (compass.getCalibrationModeBoot() == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
   server.sendContent_P(R"(>Full auto </label><label>
     <input type="radio" name="calmode" value="semi")");
-  { if (cal_mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
+  { if (compass.getCalibrationModeBoot() == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
   server.sendContent_P(R"(>Auto </label><label>
     <input type="radio" name="calmode" value="use")");
-  { if (cal_mode_boot == CAL_USE) server.sendContent_P(R"( checked)"); }
+  { if (compass.getCalibrationModeBoot() == CAL_USE) server.sendContent_P(R"( checked)"); }
   server.sendContent_P(R"(>Use/Manual</label><br>
     <label>Full auto stops in </label>
     <input type="number" name="fastop" step="1" min="0" max="60" value=")");

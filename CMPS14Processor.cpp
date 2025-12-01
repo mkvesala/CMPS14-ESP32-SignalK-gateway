@@ -158,10 +158,10 @@ void CMPS14Processor::monitorCalibration(bool autosave) {
             sensor.sendCommand(REG_USEMODE);
         if (ok) {
             cal_profile_stored = true;
-            updateLCD("CALIBRATION", "SAVED", true);
+            // updateLCD("CALIBRATION", "SAVED", true);
             cal_mode_runtime = CAL_USE;
         } else {
-            updateLCD("CALIBRATION", "FAILED", true);
+            // updateLCD("CALIBRATION", "FAILED", true);
         }
         cal_ok_count = 0;
     }
@@ -182,20 +182,20 @@ bool CMPS14Processor::saveCalibrationProfile() {
 }
 
 // Start calibration mode or use-mode, default is use-mode, manual never used at boot
-bool CMPS14Processor::initCalibrationModeBoot(CalMode mode_boot) {
+bool CMPS14Processor::initCalibrationModeBoot() {
     bool started = false;
     if (!sensor.available()) {
-        updateLCD("CMPS14 N/A", "CHECK WIRING!");
+        // updateLCD("CMPS14 N/A", "CHECK WIRING!");
         cal_mode_runtime = CAL_USE;
         return started;
     }
-    switch (mode_boot) {
+    switch (cal_mode_boot) {
         case CAL_FULL_AUTO:     started = startCalibration(CAL_FULL_AUTO); break;
         case CAL_SEMI_AUTO:     started = startCalibration(CAL_SEMI_AUTO); break;
         case CAL_MANUAL:        started = startCalibration(CAL_MANUAL); break;
         default:                started = stopCalibration(); break;
     }
-    if (!started) updateLCD("CAL MODE", "START FAILED");
-    else updateLCD("CAL MODE", calmode_str(cal_mode_runtime));
+    // if (!started) updateLCD("CAL MODE", "START FAILED");
+    // else updateLCD("CAL MODE", calmode_str(cal_mode_runtime));
     return started;
-}
+}   

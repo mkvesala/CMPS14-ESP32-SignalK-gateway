@@ -15,17 +15,6 @@ unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestam
 unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
 unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
 
-CalMode cal_mode_boot                 = CAL_USE;
-CalMode cal_mode_runtime              = CAL_USE; 
-const char* calmode_str(CalMode m){
-  switch(m){
-    case CAL_FULL_AUTO:               return "FULL AUTO";
-    case CAL_SEMI_AUTO:               return "AUTO";
-    case CAL_MANUAL:                  return "MANUAL";
-    default:                          return "USE";
-  }
-}    
-
 // CMPS14 reading parameters
 bool send_hdg_true                        = true;        // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 unsigned long lcd_hold_ms                 = 0;

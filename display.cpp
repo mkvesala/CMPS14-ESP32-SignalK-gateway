@@ -53,7 +53,7 @@ void updateLedByCalMode(){
   static bool state = false;
   const unsigned long now = millis();
 
-  switch (cal_mode_runtime){
+  switch (compass.getCalibrationModeRuntime()){
     case CAL_USE:
       digitalWrite(LED_PIN_BL, HIGH); 
       return;
