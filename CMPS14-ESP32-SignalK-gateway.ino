@@ -168,6 +168,8 @@ void loop() {
   if ((long)(now - last_lcd_ms) >= LCD_MS) {                      
     last_lcd_ms = now;
     if (now >= lcd_hold_ms) {
+      float heading_true_deg = compass.getHeadingTrueDeg();
+      float heading_deg = compass.getHeadingDeg();
       if (send_hdg_true && validf(heading_true_deg)) {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);

@@ -46,23 +46,23 @@ bool CMPS14Processor::update() {
     roll_deg  = roll_raw;
 
     // Radians for SignalK
-    heading_rad      = heading_deg * DEG_TO_RAD;
-    heading_true_rad = heading_true_deg * DEG_TO_RAD;
-    pitch_rad        = pitch_deg * DEG_TO_RAD;
-    roll_rad         = roll_deg * DEG_TO_RAD;
+    headingDelta.heading_rad      = heading_deg * DEG_TO_RAD;
+    headingDelta.heading_true_rad = heading_true_deg * DEG_TO_RAD;
+    headingDelta.pitch_rad        = pitch_deg * DEG_TO_RAD;
+    headingDelta.roll_rad         = roll_deg * DEG_TO_RAD;
 
     // Update the new maximum values
-    if (isnan(pitch_max_rad)) pitch_max_rad = pitch_rad;
-    else if (pitch_rad > pitch_max_rad) pitch_max_rad = pitch_rad;
+    if (isnan(minMaxDelta.pitch_max_rad)) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
+    else if (headingDelta.pitch_rad > minMaxDelta.pitch_max_rad) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
     
-    if (isnan(pitch_min_rad)) pitch_min_rad = pitch_rad;
-    else if (pitch_rad < pitch_min_rad) pitch_min_rad = pitch_rad;
+    if (isnan(minMaxDelta.pitch_min_rad)) minMaxDelta.pitch_min_rad = headingDelta.pitch_rad;
+    else if (headingDelta.pitch_rad < minMaxDelta.pitch_min_rad) minMaxDelta.pitch_min_rad = headingDelta.pitch_rad;
 
-    if (isnan(roll_max_rad)) roll_max_rad = roll_rad;
-    else if (roll_rad > roll_max_rad) roll_max_rad = roll_rad;
+    if (isnan(minMaxDelta.roll_max_rad)) minMaxDelta.roll_max_rad = headingDelta.roll_rad;
+    else if (headingDelta.roll_rad > minMaxDelta.roll_max_rad) minMaxDelta.roll_max_rad = headingDelta.roll_rad;
 
-    if (isnan(roll_min_rad)) roll_min_rad = roll_rad;
-    else if (roll_rad < roll_min_rad) roll_min_rad = roll_rad;
+    if (isnan(minMaxDelta.roll_min_rad)) minMaxDelta.roll_min_rad = headingDelta.roll_rad;
+    else if (headingDelta.roll_rad < minMaxDelta.roll_min_rad) minMaxDelta.roll_min_rad = headingDelta.roll_rad;
 
     return true;
 }

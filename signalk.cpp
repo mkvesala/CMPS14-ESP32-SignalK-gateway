@@ -72,24 +72,26 @@ void setupWebsocketCallbacks() {
 
 // Send heading, pitch and roll to SignalK when change exceeds the deadband limits
 void sendHdgPitchRollDelta() {
+
+  auto delta = compass.getHeadingDelta();
   
   if (LCD_ONLY || !ws_open) return; 
-  if (!validf(heading_rad) || !validf(pitch_rad) || !validf(roll_rad)) return; 
+  if (!validf(delta.heading_rad) || !validf(delta.pitch_rad) || !validf(delta.roll_rad)) return; 
 
   static float last_h = NAN, last_p = NAN, last_r = NAN;
   bool changed_h = false, changed_p = false, changed_r = false;
 
-  if (!validf(last_h) || fabsf(ang_diff_rad(heading_rad, last_h)) >= DB_HDG_RAD) {
+  if (!validf(last_h) || fabsf(ang_diff_rad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
     changed_h = true;
-    last_h = heading_rad;
+    last_h = delta.heading_rad;
   }
-  if (!validf(last_p) || fabsf(pitch_rad - last_p) >= DB_ATT_RAD) {
+  if (!validf(last_p) || fabsf(delta.pitch_rad - last_p) >= DB_ATT_RAD) {
     changed_p = true;
-    last_p = pitch_rad;
+    last_p = delta.pitch_rad;
   }
-  if (!validf(last_r) || fabsf(roll_rad - last_r) >= DB_ATT_RAD) {
+  if (!validf(last_r) || fabsf(delta.roll_rad - last_r) >= DB_ATT_RAD) {
     changed_r = true;
-    last_r = roll_rad;
+    last_r = delta.roll_rad;
   }
 
   if (!(changed_h || changed_p || changed_r)) return;  
@@ -110,7 +112,7 @@ void sendHdgPitchRollDelta() {
   if (changed_h) add("navigation.headingMagnetic", last_h); 
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
-  if (changed_h && send_hdg_true) add("navigation.headingTrue", heading_true_rad);
+  if (changed_h && send_hdg_true) add("navigation.headingTrue", delta.heading_true_rad);
 
   if (values.size() == 0) return;
 
@@ -125,15 +127,17 @@ void sendHdgPitchRollDelta() {
 
 // Send pitch and roll min and max values to SignalK if changed
 void sendPitchRollMinMaxDelta() {
+
+  auto delta = compass.getMinMaxDelta();
   
   if (LCD_ONLY || !ws_open) return; 
 
   static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
 
-  bool ch_pmin = (validf(pitch_min_rad) && pitch_min_rad != last_sent_pitch_min);
-  bool ch_pmax = (validf(pitch_max_rad) && pitch_max_rad != last_sent_pitch_max);
-  bool ch_rmin = (validf(roll_min_rad)  && roll_min_rad  != last_sent_roll_min);
-  bool ch_rmax = (validf(roll_max_rad)  && roll_max_rad  != last_sent_roll_max);
+  bool ch_pmin = (validf(delta.pitch_min_rad) && delta.pitch_min_rad != last_sent_pitch_min);
+  bool ch_pmax = (validf(delta.pitch_max_rad) && delta.pitch_max_rad != last_sent_pitch_max);
+  bool ch_rmin = (validf(delta.roll_min_rad)  && delta.roll_min_rad  != last_sent_roll_min);
+  bool ch_rmax = (validf(delta.roll_max_rad)  && delta.roll_max_rad  != last_sent_roll_max);
 
   if (!(ch_pmin || ch_pmax || ch_rmin || ch_rmax)) return;
 
@@ -150,10 +154,10 @@ void sendPitchRollMinMaxDelta() {
     o["value"] = v; 
   };
 
-  if (ch_pmin) add("navigation.attitude.pitch.min", pitch_min_rad); 
-  if (ch_pmax) add("navigation.attitude.pitch.max", pitch_max_rad);
-  if (ch_rmin) add("navigation.attitude.roll.min",  roll_min_rad);
-  if (ch_rmax) add("navigation.attitude.roll.max",  roll_max_rad);
+  if (ch_pmin) add("navigation.attitude.pitch.min", delta.pitch_min_rad); 
+  if (ch_pmax) add("navigation.attitude.pitch.max", delta.pitch_max_rad);
+  if (ch_rmin) add("navigation.attitude.roll.min",  delta.roll_min_rad);
+  if (ch_rmax) add("navigation.attitude.roll.max",  delta.roll_max_rad);
 
   if (values.size() == 0) return;
 
@@ -165,9 +169,9 @@ void sendPitchRollMinMaxDelta() {
     ws_open = false;
   }
 
-  if (ch_pmin) last_sent_pitch_min = pitch_min_rad;
-  if (ch_pmax) last_sent_pitch_max = pitch_max_rad;
-  if (ch_rmin) last_sent_roll_min  = roll_min_rad;
-  if (ch_rmax) last_sent_roll_max  = roll_max_rad;
+  if (ch_pmin) last_sent_pitch_min = delta.pitch_min_rad;
+  if (ch_pmax) last_sent_pitch_max = delta.pitch_max_rad;
+  if (ch_rmin) last_sent_roll_min  = delta.roll_min_rad;
+  if (ch_rmax) last_sent_roll_max  = delta.roll_max_rad;
   
 }

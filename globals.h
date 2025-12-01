@@ -53,23 +53,8 @@ extern const unsigned long LCD_MS;                    // Frequency to print on L
 extern const unsigned long READ_MS;                   // Frequency to read values from CMPS14 in loop()
 extern const uint8_t CMPS14_ADDR;                     // I2C address of CMPS14
 
-// CMPS14 values in degrees for LCD and WebServer
-extern float heading_deg;
-extern float pitch_deg;
-extern float roll_deg;
-extern float compass_deg;
-extern float heading_true_deg;
+// Magnetic variation
 extern float magvar_deg;
-
-// CMPS14 values in radians for SignalK server
-extern float heading_rad;
-extern float heading_true_rad;
-extern float pitch_rad;
-extern float roll_rad;
-extern float pitch_min_rad;
-extern float pitch_max_rad;
-extern float roll_min_rad;
-extern float roll_max_rad;
 extern float magvar_rad;      // Value FROM SignalK navigation.magneticVariation path via subscribe json
 
 // SH-ESP32 default pins for I2C

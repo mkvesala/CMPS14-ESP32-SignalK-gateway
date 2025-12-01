@@ -22,18 +22,14 @@ public:
     void getCalStatus(uint8_t out[4]);
     
     // Getters
-    // float getHeadingDeg() const { return heading_deg; }
-    // float getHeadingRad() const { return heading_rad; }
-    // float getHeadingTrueDeg() const { return heading_true_deg; }
-    // float getHeadingTrueRad() const { return heading_true_rad; }
-    // float getPitchDeg() const { return pitch_deg; }
-    // float gePitchRad() const { return pitch_rad; }
-    // float getRollDeg() const { return roll_deg; }
-    // float getRollRad() const { return roll_rad; }
-    // float getPitchMinRad() const { return pitch_min_rad; }
-    // float getPitchMaxRad() const { return pitch_max_rad; }
-    // float getRollMinRad() const { return roll_min_rad; }
-    // float getRollMaxRad() const { return roll_max_rad; }
+    float getCompassDeg() const { return compass_deg; }
+    float getHeadingDeg() const { return heading_deg; }
+    float getHeadingTrueDeg() const { return heading_true_deg; }
+    float getPitchDeg() const { return pitch_deg; }
+    float getRollDeg() const { return roll_deg; }
+
+    auto getHeadingDelta() const { return headingDelta; }
+    auto getMinMaxDelta() const { return minMaxDelta; }
     // CalMode getMode() const { return cal_mode_runtime; }
 
 private:
@@ -45,17 +41,21 @@ private:
     TwoWire *wire;
 
     // Compass and attitude in degrees
-    // float compass_deg = NAN;
-    // float heading_deg = NAN;
-    // float heading_true_deg = NAN;
-    // float pitch_deg = NAN;
-    // float roll_deg = NAN;
+    float compass_deg = NAN;
+    float heading_deg = NAN;
+    float heading_true_deg = NAN;
+    float pitch_deg = NAN;
+    float roll_deg = NAN;
 
     // Compass and attitude in radians
-    // float pitch_min_rad = NAN;
-    // float pitch_max_rad = NAN;
-    // float roll_min_rad = NAN;
-    // float roll_max_rad = NAN;
+    struct HeadingDelta {
+        float heading_rad = NAN, heading_true_rad = NAN, pitch_rad = NAN, roll_rad = NAN;
+    } headingDelta;
+
+    // Pitch and roll min/max values in radians
+    struct MinMaxDelta {
+        float pitch_min_rad = NAN, pitch_max_rad = NAN, roll_min_rad = NAN, roll_max_rad = NAN;
+    } minMaxDelta;
 
     // Monitor calibration
     uint8_t cal_ok_count = 0;
