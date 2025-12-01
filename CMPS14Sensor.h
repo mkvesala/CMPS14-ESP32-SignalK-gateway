@@ -6,13 +6,15 @@
 class CMPS14Sensor {
 public:
 
-    explicit CMPS14Sensor(uint8_t i2c_addr = CMPS14_ADDR);
+    explicit CMPS14Sensor(uint8_t i2c_addr);
 
     bool begin(TwoWire &wirePort);
     bool available() const;
     bool read(float &angle_deg, float &pitch_deg, float &roll_deg);
     bool sendCommand(uint8_t cmd);
     uint8_t readRegister(uint8_t reg);
+    bool isAck(uint8_t byte);
+    bool isNack(uint8_t byte);
 
 private:
     
@@ -28,6 +30,5 @@ private:
     static const uint8_t REG_ACK2          = 0x07;  // Ack (CMPS12 compliant)
     static const uint8_t REG_NACK          = 0xFF;  // Nack
     static const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
-    static const uint8_t CMPS14_ADDR       = 0x60;  // I2C address of CMPS14
 
 };

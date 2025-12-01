@@ -7,6 +7,10 @@
 #include "webui.h"
 #include "OTA.h"
 
+// CMPS14
+CMPS14Sensor sensor(CMPS14_ADDR);
+CMPS14Processor compass(sensor);
+
 // ===== S E T U P ===== //
 void setup() {
 

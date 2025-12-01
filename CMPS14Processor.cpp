@@ -119,7 +119,7 @@ uint8_t CMPS14Processor::readCalStatusByte() {
 void CMPS14Processor::getCalStatus(uint8_t out[4]) {
     uint8_t byte = readCalStatusByte();
     uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
-    if (byte != REG_NACK) {
+    if (!sensor.isNack(byte)) {
         mag = (byte     ) & REG_MASK;
         acc = (byte >> 2) & REG_MASK;
         gyr = (byte >> 4) & REG_MASK;

@@ -77,9 +77,5 @@ private:
     static const uint8_t REG_RESET3        = 0xE2; 
     static const uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
     static const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
-    static const uint8_t REG_ACK1          = 0x55;  // Ack (new firmware)
-    static const uint8_t REG_ACK2          = 0x07;  // Ack (CMPS12 compliant)
-    static const uint8_t REG_NACK          = 0xFF;  // Nack
-    static const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
     static const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
 };

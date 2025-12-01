@@ -3,20 +3,20 @@
 // Constructor
 CMPS14Sensor::CMPS14Sensor(uint8_t i2c_addr) : addr(i2c_addr), wire(&Wire) {}
 
-// Initialize sensor
+// Begin sensor
 bool CMPS14Sensor::begin(TwoWire &wirePort) {
     wire = &wirePort;
     wire->beginTransmission(addr);
     return (wire->endTransmission() == 0);
 }
 
-// CHECK AVAILABILITY
+// Check availability of sensor
 bool CMPS14Sensor::available() const {
     wire->beginTransmission(addr);
     return (wire->endTransmission() == 0);
 }
 
-// READ
+// Read values from sensor
 bool CMPS14Sensor::read(float &angle_deg, float &pitch_deg, float &roll_deg) {
     wire->beginTransmission(addr);
     wire->write(REG_ANGLE_16_H);
@@ -39,20 +39,20 @@ bool CMPS14Sensor::read(float &angle_deg, float &pitch_deg, float &roll_deg) {
     return true;
 }
 
-// SEND COMMAND
+// Send command byte to sensor
 bool CMPS14Sensor::sendCommand(uint8_t cmd) {
     wire->beginTransmission(addr);
     wire->write(REG_CMD);
     wire->write(cmd);
     if (wire->endTransmission() != 0) return false;
-    delay(23);
+    delay(23);  // Datasheet recommends 20 ms delay here
     wire->requestFrom(addr, (uint8_t)1);
     if (!wire->available()) return false;
     uint8_t b = wire->read();
     return (b == REG_ACK1 || b == REG_ACK2);
 }
 
-// READ REGISTER
+// Read byte from sensor's register
 uint8_t CMPS14Sensor::readRegister(uint8_t reg) {
     wire->beginTransmission(addr);
     wire->write(reg);
@@ -60,4 +60,12 @@ uint8_t CMPS14Sensor::readRegister(uint8_t reg) {
     wire->requestFrom(addr, (uint8_t)1);
     if (!wire->available()) return REG_NACK;
     return wire->read();
+}
+
+bool CMPS14Sensor::isAck(uint8_t byte) {
+    return (byte == REG_ACK1 || byte == REG_ACK2);
+}
+
+bool CMPS14Sensor::isNack(uint8_t byte) {
+    return (byte == REG_NACK); 
 }
