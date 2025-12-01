@@ -28,10 +28,6 @@ const char* calmode_str(CalMode m){
 }    
 
 // CMPS14 reading parameters
-float installation_offset_deg             = 0.0f;        // Physical installation error of the compass module, configured via web UI
-float dev_deg                             = 0.0f;        // Deviation at heading_deg calculated by harmonic model
-float magvar_manual_deg                   = 0.0f;        // Variation that is set manually from web UI
-float magvar_manual_rad                   = 0.0f;        // Manual variation in rad
 bool send_hdg_true                        = true;        // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 bool use_manual_magvar                    = true;        // Use magvar_manual_deg if true
 unsigned long lcd_hold_ms                 = 0;
@@ -43,25 +39,6 @@ const unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency for pitch/
 const unsigned long LCD_MS                = 1009;        // Frequency to print on LCD in loop() - prime number
 const unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop() - prime number
 const uint8_t CMPS14_ADDR                 = 0x60;        // I2C address of CMPS14
-
-// CMPS14 values in degrees for LCD and WebServer
-float heading_deg       = NAN;
-float pitch_deg         = NAN;
-float roll_deg          = NAN;
-float compass_deg       = NAN;
-float heading_true_deg  = NAN;
-float magvar_deg        = NAN;
-
-// CMPS14 values in radians for SignalK server
-float heading_rad       = NAN;
-float heading_true_rad  = NAN;
-float pitch_rad         = NAN;
-float roll_rad          = NAN;
-float pitch_min_rad     = NAN;
-float pitch_max_rad     = NAN;
-float roll_min_rad      = NAN;
-float roll_max_rad      = NAN;
-float magvar_rad        = NAN; // Value FROM SignalK navigation.magneticVariation path via subscribe json
 
 // SH-ESP32 default pins for I2C
 const uint8_t I2C_SDA = 16;
@@ -100,34 +77,6 @@ HarmonicCoeffs hc {0,0,0,0,0};                                        // Five co
 bool i2cAvailable(uint8_t addr) {
   Wire.beginTransmission(addr);
   return (Wire.endTransmission() == 0);
-}
-
-// Get all permanently saved preferences
-void loadSavedPreferences() {
-  prefs.begin("cmps14", false);  
-  installation_offset_deg = prefs.getFloat("offset_deg", 0.0f);
-  magvar_manual_deg = prefs.getFloat("mv_man_deg", 0.0f);
-  if (validf(magvar_manual_deg)) magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
-  for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
-  bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
-  if (haveCoeffs) {
-    hc.A = prefs.getFloat("hc_A", 0.0f);
-    hc.B = prefs.getFloat("hc_B", 0.0f);
-    hc.C = prefs.getFloat("hc_C", 0.0f);
-    hc.D = prefs.getFloat("hc_D", 0.0f);
-    hc.E = prefs.getFloat("hc_E", 0.0f);
-  } else {
-    hc = computeHarmonicCoeffs(headings_deg, dev_at_card_deg);
-    prefs.putFloat("hc_A", hc.A);
-    prefs.putFloat("hc_B", hc.B);
-    prefs.putFloat("hc_C", hc.C);
-    prefs.putFloat("hc_D", hc.D);
-    prefs.putFloat("hc_E", hc.E);
-  }
-  send_hdg_true = prefs.getBool("send_hdg_true", true);
-  cal_mode_boot = (CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE);
-  full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
-  prefs.end();
 }
 
 // Description for WiFi signal level

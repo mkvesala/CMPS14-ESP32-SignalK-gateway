@@ -27,18 +27,35 @@ public:
     float getHeadingTrueDeg() const { return heading_true_deg; }
     float getPitchDeg() const { return pitch_deg; }
     float getRollDeg() const { return roll_deg; }
+    float getInstallationOffset() const { return installation_offset_deg; }
+    float getDeviation() const { return dev_deg; }
+    float getManualVariation() const { return magvar_manual_deg; }
+    float getLiveVariation() const {return magvar_live_deg; }
 
     auto getHeadingDelta() const { return headingDelta; }
     auto getMinMaxDelta() const { return minMaxDelta; }
     // CalMode getMode() const { return cal_mode_runtime; }
 
+    // Setters
+    void setInstallationOffset(float offset) { installation_offset_deg = offset; }
+    void setManualVariation(float variation) { magvar_manual_deg = variation; }
+    void setLiveVariation(float variation) { magvar_live_deg = variation; }
+
 private:
 
     bool enableBackgroundCal(bool autosave);
     uint8_t readCalStatusByte();
+    void updateHeadingDelta();
+    void updateMinMaxDelta();
     
     CMPS14Sensor &sensor;
     TwoWire *wire;
+
+    // CMPS14 processing
+    float installation_offset_deg = 0.0f;       // Physical installation offset of the CMPS14 sensor in degrees
+    float dev_deg = 0.0f;                       // Deviation calculated by harmonic model
+    float magvar_manual_deg = 0.0f;             // Variation that is set manually from web UI
+    float magvar_live_deg = 0.0f;               // Variation from SignalK navigation.magneticVariation path
 
     // Compass and attitude in degrees
     float compass_deg = NAN;

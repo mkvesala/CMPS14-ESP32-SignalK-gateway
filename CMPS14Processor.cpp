@@ -37,7 +37,7 @@ bool CMPS14Processor::update() {
     if (heading_deg < 0.0f) heading_deg += 360.0f;
 
     // Heading (T)
-    float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
+    float mv_deg = use_manual_magvar ? magvar_manual_deg : magvar_live_deg;
     heading_true_deg = heading_deg + mv_deg;
     if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
     if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
@@ -46,12 +46,22 @@ bool CMPS14Processor::update() {
     roll_deg  = roll_raw;
 
     // Radians for SignalK
+    updateHeadingDelta();
+    updateMinMaxDelta();
+
+    return true;
+}
+
+// Update values to HeadingDelta, for SignalK
+void CMPS14Processor::updateHeadingDelta() {
     headingDelta.heading_rad      = heading_deg * DEG_TO_RAD;
     headingDelta.heading_true_rad = heading_true_deg * DEG_TO_RAD;
     headingDelta.pitch_rad        = pitch_deg * DEG_TO_RAD;
     headingDelta.roll_rad         = roll_deg * DEG_TO_RAD;
+}
 
-    // Update the new maximum values
+// Update values to MinMaxDelta, for SignalK
+void CMPS14Processor::updateMinMaxDelta() {
     if (isnan(minMaxDelta.pitch_max_rad)) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
     else if (headingDelta.pitch_rad > minMaxDelta.pitch_max_rad) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
     
@@ -63,8 +73,6 @@ bool CMPS14Processor::update() {
 
     if (isnan(minMaxDelta.roll_min_rad)) minMaxDelta.roll_min_rad = headingDelta.roll_rad;
     else if (headingDelta.roll_rad < minMaxDelta.roll_min_rad) minMaxDelta.roll_min_rad = headingDelta.roll_rad;
-
-    return true;
 }
 
 // Reset CMPS14Sensor

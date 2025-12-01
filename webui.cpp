@@ -61,7 +61,7 @@ void handleStatus() {
   gyr = statuses[2];
   sys = statuses[3];
 
-  float variation_deg = use_manual_magvar ? magvar_manual_deg : magvar_deg;
+  float variation_deg = use_manual_magvar ? compass.getManualVariation() : compass.getLiveVariation();
 
   if (WiFi.isConnected()) {
     setIPAddrCstr();
@@ -79,8 +79,8 @@ void handleStatus() {
   doc["compass_deg"]          = compass.getCompassDeg();
   doc["pitch_deg"]            = compass.getPitchDeg();
   doc["roll_deg"]             = compass.getRollDeg();
-  doc["offset"]               = installation_offset_deg;
-  doc["dev"]                  = dev_deg;
+  doc["offset"]               = compass.getInstallationOffset();
+  doc["dev"]                  = compass.getDeviation();
   doc["variation"]            = variation_deg;
   doc["heading_true_deg"]     = compass.getHeadingTrueDeg();
   doc["acc"]                  = acc;
@@ -112,15 +112,15 @@ void handleSetOffset() {
     if (v < -180.0f) v = -180.0f;
     if (v >  180.0f) v =  180.0f;
 
-    installation_offset_deg = v;
+    compass.setInstallationOffset(v);
 
     // Save prefrences permanently
     prefs.begin("cmps14", false);
-    prefs.putFloat("offset_deg", installation_offset_deg);
+    prefs.putFloat("offset_deg", v);
     prefs.end();
 
     char line2[17];
-    snprintf(line2, sizeof(line2), "SAVED %5.0f%c", installation_offset_deg, 223);
+    snprintf(line2, sizeof(line2), "SAVED %5.0f%c", v, 223);
     updateLCD("INSTALL OFFSET", line2, true);
   }
   handleRoot();
@@ -203,15 +203,14 @@ void handleSetMagvar() {
     if (!validf(v)) v = 0.0f;
     if (v < -90.0f) v = -90.0f;
     if (v >  90.0f) v =  90.0f;
-    magvar_manual_deg = v;
-    magvar_manual_rad = magvar_manual_deg * DEG_TO_RAD;
+    compass.setManualVariation(v);
 
     prefs.begin("cmps14", false);
-    prefs.putFloat("mv_man_deg", magvar_manual_deg);
+    prefs.putFloat("mv_man_deg", v);
     prefs.end();
 
     char line2[17];
-    snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? 'E':'W'));
+    snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(v), 223, (v >= 0 ? 'E':'W'));
     updateLCD("MAG VARIATION", line2, true);
   }
   handleRoot();
@@ -317,7 +316,7 @@ void handleRoot() {
     <input type="number" name="v" step="1" min="-180" max="180" value=")");
       {
         char buf[32];
-        snprintf(buf, sizeof(buf), "%.0f", installation_offset_deg);
+        snprintf(buf, sizeof(buf), "%.0f", compass.getInstallationOffset());
         server.sendContent(buf);
       }
   server.sendContent_P(R"(">&deg; <input type="submit" value="SAVE" class="button"></form></div>)");
@@ -386,7 +385,7 @@ void handleRoot() {
     <input type="number" name="v" step="1" min="-180" max="180" value=")");
     {
       char buf[32];
-      snprintf(buf, sizeof(buf), "%.0f", magvar_manual_deg);
+      snprintf(buf, sizeof(buf), "%.0f", compass.getManualVariation());
       server.sendContent(buf);
     }
   server.sendContent_P(R"(">&deg; <input type="submit" value="SAVE" class="button"></form></div>)");

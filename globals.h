@@ -37,10 +37,6 @@ extern unsigned long full_auto_stop_ms;  // Full auto mode timeout, 0 = never
 extern unsigned long full_auto_left_ms;  // Full auto mode time left
 
 // CMPS14 reading parameters
-extern float installation_offset_deg;                 // Physical installation error of the compass module, configured via web UI
-extern float dev_deg;                                 // Deviation at heading_deg calculated by harmonic model
-extern float magvar_manual_deg;                       // Variation that is set manually from web UI
-extern float magvar_manual_rad;                       // Manual variation in rad
 extern bool send_hdg_true;                            // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 extern bool use_manual_magvar;                        // Use magvar_manual_deg if true
 extern unsigned long lcd_hold_ms;
@@ -52,10 +48,6 @@ extern const unsigned long MINMAX_TX_INTERVAL_MS;     // Frequency for pitch/rol
 extern const unsigned long LCD_MS;                    // Frequency to print on LCD in loop()
 extern const unsigned long READ_MS;                   // Frequency to read values from CMPS14 in loop()
 extern const uint8_t CMPS14_ADDR;                     // I2C address of CMPS14
-
-// Magnetic variation
-extern float magvar_deg;
-extern float magvar_rad;      // Value FROM SignalK navigation.magneticVariation path via subscribe json
 
 // SH-ESP32 default pins for I2C
 extern const uint8_t I2C_SDA;
@@ -114,9 +106,6 @@ inline const char* ms_to_hms_str(unsigned long ms) {
 
 // Scan I2C address
 bool i2cAvailable(uint8_t addr);
-
-// Get saved configuration from ESP32 preferences
-void loadSavedPreferences();
 
 // Update RSSI description
 void setRSSICstr();

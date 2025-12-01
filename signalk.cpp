@@ -58,9 +58,8 @@ void setupWebsocketCallbacks() {
           if (v["value"].is<float>() || v["value"].is<double>()) {  
             float mv = v["value"].as<float>();
             if (validf(mv)) { 
-              magvar_rad = mv;
               use_manual_magvar = false;
-              magvar_deg = magvar_rad * RAD_TO_DEG;
+              compass.setLiveVariation(mv * RAD_TO_DEG);
             } else use_manual_magvar = true;
           }
         }
