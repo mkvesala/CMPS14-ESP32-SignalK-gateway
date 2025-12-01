@@ -10,5 +10,5 @@ struct HarmonicCoeffs {
   float A, B, C, D, E;
 };
 
-HarmonicCoeffs fit_harmonic_from_8(const float* hdg_deg, const float* dev_deg);
-float deviation_harm_deg(const HarmonicCoeffs& h, float hdg_deg);
+HarmonicCoeffs computeHarmonicCoeffs(const float* hdg_deg, const float* dev_deg);
+float computeDeviation(const HarmonicCoeffs& h, float hdg_deg);

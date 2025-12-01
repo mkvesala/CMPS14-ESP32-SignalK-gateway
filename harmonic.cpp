@@ -1,7 +1,7 @@
 #include "harmonic.h"
 
 // Solve A..E with least squares method from 8 given datapoints
-HarmonicCoeffs fit_harmonic_from_8(const float* hdg_deg, const float* dev_deg) {
+HarmonicCoeffs computeHarmonicCoeffs(const float* hdg_deg, const float* dev_deg) {
   double MTM[5][5] = {0};
   double MTy[5] = {0};
   for (int i=0; i<8; i++) {
@@ -40,7 +40,7 @@ HarmonicCoeffs fit_harmonic_from_8(const float* hdg_deg, const float* dev_deg) {
 }
 
 // Calculate deviation (deg) for given heading (deg) using harmonic model
-float deviation_harm_deg(const HarmonicCoeffs& h, float hdg_deg) {
+float computeDeviation(const HarmonicCoeffs& h, float hdg_deg) {
   float th = hdg_deg * M_PI / 180.0f;
   return h.A + h.B*sinf(th) + h.C*cosf(th) + h.D*sinf(2*th) + h.E*cosf(2*th);
 }

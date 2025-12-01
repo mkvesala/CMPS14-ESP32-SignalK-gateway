@@ -117,7 +117,7 @@ void loadSavedPreferences() {
     hc.D = prefs.getFloat("hc_D", 0.0f);
     hc.E = prefs.getFloat("hc_E", 0.0f);
   } else {
-    hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg);
+    hc = computeHarmonicCoeffs(headings_deg, dev_at_card_deg);
     prefs.putFloat("hc_A", hc.A);
     prefs.putFloat("hc_B", hc.B);
     prefs.putFloat("hc_C", hc.C);

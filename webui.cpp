@@ -2,64 +2,59 @@
 
 // Set up webserver to call the handlers
 void setupWebserverCallbacks() {
-  server.on("/", handle_root);
-  server.on("/status", handle_status);
-  server.on("/cal/on", handle_calibrate_on);
-  server.on("/cal/off", handle_calibrate_off);
-  server.on("/store/on", handle_store);
-  server.on("/reset/on", handle_reset);
-  server.on("/offset/set", handle_set_offset);
-  server.on("/dev8/set", handle_dev8_set);
-  server.on("/calmode/set", handle_calmode_set);
-  server.on("/magvar/set", handle_magvar_set);
-  server.on("/heading/mode", handle_heading_mode);
-  server.on("/restart", handle_restart);
-  server.on("/deviationdetails", handle_deviation_details);
+  server.on("/", handleRoot);
+  server.on("/status", handleStatus);
+  server.on("/cal/on", handleStartCalibration);
+  server.on("/cal/off", handleStopCalibration);
+  server.on("/store/on", handleSaveCalibration);
+  server.on("/reset/on", handleReset);
+  server.on("/offset/set", handleSetOffset);
+  server.on("/dev8/set", handleSetDeviations);
+  server.on("/calmode/set", handleSetCalmode);
+  server.on("/magvar/set", handleSetMagvar);
+  server.on("/heading/mode", handleSetHeadingMode);
+  server.on("/restart", handleRestart);
+  server.on("/deviationdetails", handleDeviationTable);
   server.begin();
 }
 
 // Web UI handler for CALIBRATE button
-void handle_calibrate_on(){
-  // if (start_calibration_manual_mode()) {
+void handleStartCalibration(){
   if (compass.startCalibration(CAL_MANUAL)) {
     // ok
   }
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler for STOP button
-void handle_calibrate_off(){
-  // if (stop_calibration()) {
+void handleStopCalibration(){
   if (compass.stopCalibration()) {
     // ok
   }
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler for SAVE button
-void handle_store(){
-  // if (cmps14_store_profile()) {
+void handleSaveCalibration(){
   if (compass.saveCalibrationProfile()) {
     // ok
   }
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler for RESET button
-void handle_reset(){
-  // if (cmps14_reset()) {
+void handleReset(){
   if (compass.reset()) {
     // ok
   }
-  handle_root(); 
+  handleRoot(); 
 }
 
 // Web UI handler for status block, build json with appropriate data
-void handle_status() {
+void handleStatus() {
   
   uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
   uint8_t statuses[4];
-  // cmps14_get_cal_status(statuses);
   compass.getCalStatus(statuses);
   mag = statuses[0];
   acc = statuses[1];
@@ -110,7 +105,7 @@ void handle_status() {
 }
 
 // Web UI handler for installation offset, to correct raw compass heading
-void handle_set_offset() {
+void handleSetOffset() {
   if (server.hasArg("v")) {
     float v = server.arg("v").toFloat();
     if (!validf(v)) v = 0.0f;
@@ -128,11 +123,11 @@ void handle_set_offset() {
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c", installation_offset_deg, 223);
     updateLCD("INSTALL OFFSET", line2, true);
   }
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler for 8 measured deviation values, to correct raw compass heading --> navigation.headingMagnetic
-void handle_dev8_set() {
+void handleSetDeviations() {
   auto getf = [&](const char* k) -> float {
     if (!server.hasArg(k)) return 0.0f;
     float v = server.arg(k).toFloat();
@@ -152,7 +147,7 @@ void handle_dev8_set() {
   dev_at_card_deg[7] = getf("NW");
 
   // Calculate 5 coeffs
-  hc = fit_harmonic_from_8(headings_deg, dev_at_card_deg); 
+  hc = computeHarmonicCoeffs(headings_deg, dev_at_card_deg); 
 
   prefs.begin("cmps14", false);
   for (int i = 0; i < 8; i++) {
@@ -167,11 +162,11 @@ void handle_dev8_set() {
 
   updateLCD("DEVIATION TABLE", "SAVED", true);
 
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler to choose calibration mode on boot
-void handle_calmode_set() {
+void handleSetCalmode() {
   if (server.hasArg("calmode") && server.hasArg("fastop")) {
     
     String m = server.arg("calmode");
@@ -197,11 +192,11 @@ void handle_calmode_set() {
     prefs.end();
     updateLCD("BOOT MODE SAVED", calmode_str(v), true);
   }
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler to set magnetic variation manually.
-void handle_magvar_set() {
+void handleSetMagvar() {
   
   if (server.hasArg("v")) {
     float v = server.arg("v").toFloat();
@@ -219,11 +214,11 @@ void handle_magvar_set() {
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(magvar_manual_deg), 223, (magvar_manual_deg >= 0 ? 'E':'W'));
     updateLCD("MAG VARIATION", line2, true);
   }
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler to set heading mode TRUE or MAGNETIC
-void handle_heading_mode() {
+void handleSetHeadingMode() {
   if (server.hasArg("mode")) {
     String mode = server.arg("mode");
     send_hdg_true = (mode == "true");
@@ -234,11 +229,11 @@ void handle_heading_mode() {
   prefs.end();
 
   updateLCD("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC", true);
-  handle_root();
+  handleRoot();
 }
 
 // Web UI handler for the configuration HTML page 
-void handle_root() {
+void handleRoot() {
 
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.sendHeader("Connection", "close");
@@ -477,7 +472,7 @@ void handle_root() {
 }
 
 // WebUI handler to draw deviation table and deviation curve
-void handle_deviation_details(){
+void handleDeviationTable(){
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.sendHeader("Connection", "close");
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -507,7 +502,7 @@ void handle_deviation_details(){
   const float xmin=0, xmax=360;
   float ymax = 0.0f;
   for (int d=0; d<=360; ++d){
-    float v = deviation_harm_deg(hc, (float)d);
+    float v = computeDeviation(hc, (float)d);
     if (fabs(v) > ymax) ymax = fabs(v);
   }
   ymax = max(ymax + 1.0f, 5.0f); 
@@ -566,7 +561,7 @@ void handle_deviation_details(){
   server.sendContent_P(R"(<polyline fill="none" stroke="#0af" stroke-width="2" points=")");
   for (int d=0; d<=360; ++d){
     float X=xmap((float)d);
-    float Y=ymap(deviation_harm_deg(hc,(float)d));
+    float Y=ymap(computeDeviation(hc,(float)d));
     snprintf(buf,sizeof(buf),"%.1f,%.1f ",X,Y);
     server.sendContent(buf);
   }
@@ -580,9 +575,9 @@ void handle_deviation_details(){
     <table>
     <tr><th>Compass</th><th>Deviation</th><th></th><th>Compass</th><th>Deviation</th></tr>)");
   for (int d=10; d<=180; d+=10){
-    float v = deviation_harm_deg(hc, (float)d);
+    float v = computeDeviation(hc, (float)d);
     int d2 = d+180;
-    float v2 = deviation_harm_deg(hc, (float)d2);
+    float v2 = computeDeviation(hc, (float)d2);
     snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.0f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.0f\u00B0</td></tr>", d, v, d2, v2);
     server.sendContent(buf);
   }
@@ -592,7 +587,7 @@ void handle_deviation_details(){
 }
 
 // Web UI handler for software restart of ESP32
-void handle_restart() {
+void handleRestart() {
   uint32_t ms = 2999;
   if (server.hasArg("ms")){
     long v = server.arg("ms").toInt();
