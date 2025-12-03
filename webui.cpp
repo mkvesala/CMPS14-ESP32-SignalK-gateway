@@ -66,6 +66,7 @@ void handleStatus() {
     setRSSICstr();
   } 
 
+  HarmonicCoeffs hc = compass.getHarmonicCoeffs();
   StaticJsonDocument<1024> doc;
 
   doc["cal_mode"]             = calModeToString(compass.getCalibrationModeRuntime());
@@ -89,9 +90,9 @@ void handleStatus() {
   doc["hcc"]                  = hc.C;
   doc["hcd"]                  = hc.D;
   doc["hce"]                  = hc.E;
-  doc["use_manual_magvar"]    = compass.getUseManualVariation();   
+  doc["use_manual_magvar"]    = compass.isUsingManualVariation();   
   doc["send_hdg_true"]        = send_hdg_true;         
-  doc["stored"]               = compass.getCalProfileStored(); 
+  doc["stored"]               = compass.isCalProfileStored(); 
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -145,7 +146,8 @@ void handleSetDeviations() {
   dev_at_card_deg[7] = getf("NW");
 
   // Calculate 5 coeffs
-  hc = computeHarmonicCoeffs(headings_deg, dev_at_card_deg); 
+  HarmonicCoeffs hc = computeHarmonicCoeffs(dev_at_card_deg); 
+  compass.setHarmonicCoeffs(hc);
 
   prefs.begin("cmps14", false);
   for (int i = 0; i < 8; i++) {
@@ -232,6 +234,9 @@ void handleSetHeadingMode() {
 // Web UI handler for the configuration HTML page 
 void handleRoot() {
 
+  CalMode mode_runtime = compass.getCalibrationModeRuntime();
+  CalMode mode_boot = compass.getCalibrationModeBoot();
+
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.sendHeader("Connection", "close");
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -259,26 +264,26 @@ void handleRoot() {
   // DIV Calibrate, Stop, Reset
   server.sendContent_P(R"(
     <div class='card' id='controls'>)");
-  if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO) {
+  if (mode_runtime == CAL_FULL_AUTO) {
     char buf[128];
-    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(compass.getCalibrationModeRuntime()), ms_to_hms_str(full_auto_left_ms));
+    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(mode_runtime), ms_to_hms_str(full_auto_left_ms));
     server.sendContent(buf);
   } else {
     char buf[64];
-    snprintf(buf, sizeof(buf), "Current mode: %s<br>", calModeToString(compass.getCalibrationModeRuntime()));
+    snprintf(buf, sizeof(buf), "Current mode: %s<br>", calModeToString(mode_runtime));
     server.sendContent(buf);
   }
 
-  if (compass.getCalibrationModeRuntime() == CAL_SEMI_AUTO || compass.getCalibrationModeRuntime() == CAL_MANUAL) {
+  if (mode_runtime == CAL_SEMI_AUTO || mode_runtime == CAL_MANUAL) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
-    if (!compass.getCalProfileStored()) {
+    if (!compass.isCalProfileStored()) {
       server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
     } else {
       server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");
     }
-  } else if (compass.getCalibrationModeRuntime() == CAL_USE) {
+  } else if (mode_runtime == CAL_USE) {
     server.sendContent_P(R"(<a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
-  } else if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO) {
+  } else if (mode_runtime == CAL_FULL_AUTO) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
   }
   server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></div>)");
@@ -288,13 +293,13 @@ void handleRoot() {
     <div class='card'>
     <form action="/calmode/set" method="get">
     <label>Boot mode </label><label><input type="radio" name="calmode" value="full")");
-  { if (compass.getCalibrationModeBoot() == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
+  { if (mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
   server.sendContent_P(R"(>Full auto </label><label>
     <input type="radio" name="calmode" value="semi")");
-  { if (compass.getCalibrationModeBoot() == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
+  { if (mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
   server.sendContent_P(R"(>Auto </label><label>
     <input type="radio" name="calmode" value="use")");
-  { if (compass.getCalibrationModeBoot() == CAL_USE) server.sendContent_P(R"( checked)"); }
+  { if (mode_boot == CAL_USE) server.sendContent_P(R"( checked)"); }
   server.sendContent_P(R"(>Use/Manual</label><br>
     <label>Full auto stops in </label>
     <input type="number" name="fastop" step="1" min="0" max="60" value=")");
@@ -498,6 +503,7 @@ void handleDeviationTable(){
   const float xpad=40, ypad=20;
   const float xmin=0, xmax=360;
   float ymax = 0.0f;
+  HarmonicCoeffs hc = compass.getHarmonicCoeffs();
   for (int d=0; d<=360; ++d){
     float v = computeDeviation(hc, (float)d);
     if (fabs(v) > ymax) ymax = fabs(v);

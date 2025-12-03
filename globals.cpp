@@ -9,8 +9,6 @@ bool LCD_ONLY                   = false;          // True when no WiFi available
 const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5 minutes - prime number, to be exact
 
 // CMPS14 calibration
-const unsigned long CAL_POLL_MS       = 499;    // Autocalibration save condition timer - prime number
-const uint8_t CAL_OK_REQUIRED         = 3;      // Autocalibration save condition threshold
 unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
 unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
 unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
@@ -18,7 +16,6 @@ unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
 // CMPS14 reading parameters
 bool send_hdg_true                        = true;        // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 unsigned long lcd_hold_ms                 = 0;
-const float HEADING_ALPHA                 = 0.15f;       // Smoothing factor 0...1, larger value less smoothing
 const unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK - prime number
 const float DB_HDG_RAD                    = 0.00436f;    // 0.25°: deadband threshold for heading
 const float DB_ATT_RAD                    = 0.00436f;    // 0.25°: pitch/roll deadband threshold
@@ -56,9 +53,7 @@ const uint8_t LCD_ADDR1   = 0x27;    // Scan both I2C addresses when init LCD
 const uint8_t LCD_ADDR2   = 0x3F;
 
 // Compass deviation harmonic model for harmonic.h
-const float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
 float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
-HarmonicCoeffs hc {0,0,0,0,0};                                        // Five coeffs to calculate full deviation curve
 
 // Scan I2C address
 bool i2cAvailable(uint8_t addr) {

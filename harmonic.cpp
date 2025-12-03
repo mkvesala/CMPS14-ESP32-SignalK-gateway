@@ -1,11 +1,11 @@
 #include "harmonic.h"
 
 // Solve A..E with least squares method from 8 given datapoints
-HarmonicCoeffs computeHarmonicCoeffs(const float* hdg_deg, const float* dev_deg) {
+HarmonicCoeffs computeHarmonicCoeffs(const float* dev_deg) {
   double MTM[5][5] = {0};
   double MTy[5] = {0};
   for (int i=0; i<8; i++) {
-    double th = hdg_deg[i] * M_PI/180.0;
+    double th = headings_deg[i] * M_PI/180.0;
     double v[5] = {1.0, sin(th), cos(th), sin(2*th), cos(2*th)};
     double y = dev_deg[i];
     for (int r=0; r<5; r++) {

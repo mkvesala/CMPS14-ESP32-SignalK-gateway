@@ -12,6 +12,7 @@ CMPS14Processor compass(sensor);
 
 // Get all permanently saved preferences
 void loadSavedPreferences() {
+  HarmonicCoeffs hc;
   prefs.begin("cmps14", false);  
   compass.setInstallationOffset(prefs.getFloat("offset_deg", 0.0f));
   compass.setManualVariation(prefs.getFloat("mv_man_deg", 0.0f));
@@ -24,7 +25,8 @@ void loadSavedPreferences() {
     hc.D = prefs.getFloat("hc_D", 0.0f);
     hc.E = prefs.getFloat("hc_E", 0.0f);
   } else {
-    hc = computeHarmonicCoeffs(headings_deg, dev_at_card_deg);
+    hc = computeHarmonicCoeffs(dev_at_card_deg);
+    compass.setHarmonicCoeffs(hc);
     prefs.putFloat("hc_A", hc.A);
     prefs.putFloat("hc_B", hc.B);
     prefs.putFloat("hc_C", hc.C);
@@ -39,6 +41,11 @@ void loadSavedPreferences() {
 
 // ===== S E T U P ===== //
 void setup() {
+
+  pinMode(LED_PIN_BL, OUTPUT);
+  pinMode(LED_PIN_GR, OUTPUT);
+  digitalWrite(LED_PIN_BL, HIGH);
+  digitalWrite(LED_PIN_GR, HIGH);
 
   Serial.begin(115200);
   delay(47);
@@ -57,16 +64,12 @@ void setup() {
   }
   delay(47);
 
-  pinMode(LED_PIN_BL, OUTPUT);
-  pinMode(LED_PIN_GR, OUTPUT);
-  digitalWrite(LED_PIN_BL, LOW);
-  digitalWrite(LED_PIN_GR, LOW);
-
   // Get saved configuration from ESP32 preferences
   loadSavedPreferences();
 
   // Init CMPS14 with appropriate calibration mode or use-mode
-  compass.initCalibrationModeBoot();
+  if (compass.initCalibrationModeBoot()) updateLCD("CAL MODE", calModeToString(compass.getCalibrationModeRuntime()));
+  else updateLCD("CAL MODE", "INIT FAILED!");
   delay(1009);
 
   // Stop bluetooth to save power
@@ -112,12 +115,16 @@ void setup() {
     delay(1009);
   }
 
+  digitalWrite(LED_PIN_BL, LOW);
+  digitalWrite(LED_PIN_GR, LOW);
+
 }
 
 // ===== L O O P ===== //
 void loop() {
 
   // Timers
+  static constexpr unsigned long CAL_POLL_MS = 499;
   const unsigned long now = millis();
   static unsigned long expn_retry_ms      = WS_RETRY_MS;
   static unsigned long next_ws_try_ms     = 0;

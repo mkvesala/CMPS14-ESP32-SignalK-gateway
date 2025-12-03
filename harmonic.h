@@ -10,5 +10,7 @@ struct HarmonicCoeffs {
   float A, B, C, D, E;
 };
 
-HarmonicCoeffs computeHarmonicCoeffs(const float* hdg_deg, const float* dev_deg);
+static constexpr float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 }; // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
+
+HarmonicCoeffs computeHarmonicCoeffs(const float* dev_deg);
 float computeDeviation(const HarmonicCoeffs& h, float hdg_deg);

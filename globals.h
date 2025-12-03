@@ -22,9 +22,7 @@ extern char IPc[16];                      // IP address cstring
 extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
 extern const uint32_t WIFI_TIMEOUT_MS;    // Try WiFi connection max 
 
-// CMPS14 calibration
-extern const unsigned long CAL_POLL_MS;  // Autocalibration save condition timer 
-extern const uint8_t CAL_OK_REQUIRED;    // Autocalibration save condition threshold
+// CMPS14 calibration 
 extern unsigned long full_auto_start_ms; // Full auto mode start timestamp
 extern unsigned long full_auto_stop_ms;  // Full auto mode timeout, 0 = never
 extern unsigned long full_auto_left_ms;  // Full auto mode time left
@@ -32,7 +30,6 @@ extern unsigned long full_auto_left_ms;  // Full auto mode time left
 // CMPS14 reading parameters
 extern bool send_hdg_true;                            // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 extern unsigned long lcd_hold_ms;
-extern const float HEADING_ALPHA;                     // Smoothing factor 0...1, larger value less smoothing
 extern const unsigned long MIN_TX_INTERVAL_MS;        // Max frequency for sending deltas to SignalK 
 extern const float DB_HDG_RAD;                        // Deadband threshold for heading
 extern const float DB_ATT_RAD;                        // Pitch/roll deadband threshold
@@ -70,9 +67,7 @@ extern const uint8_t LCD_ADDR1;           // Scan both I2C addresses when init L
 extern const uint8_t LCD_ADDR2;
 
 // Compass deviation harmonic model for harmonic.h
-extern const float headings_deg[8];       // Cardinal and intercardinal directions N, NE, E, SE, S, SW, W, NE in deg
 extern float dev_at_card_deg[8];          // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
-extern HarmonicCoeffs hc;                 // Five coeffs to calculate full deviation curve;
 
 // Return float validity
 inline bool validf(float x) { return !isnan(x) && isfinite(x); }

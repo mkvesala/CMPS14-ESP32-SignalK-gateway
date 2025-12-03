@@ -1,15 +1,15 @@
 #include "CMPS14Processor.h"
 
-// Constructor, takes CMPS14Sensor as parameter
+// Constructor
 CMPS14Processor::CMPS14Processor(CMPS14Sensor &cmps14Sensor) : sensor(cmps14Sensor), wire(nullptr) {}
 
-// Begin, calls CMPSSensor.begin()
+// Begin
 bool CMPS14Processor::begin(TwoWire &wirePort) {
     wire = &wirePort;
     return sensor.begin(wirePort);
 }
 
-// Update global shared variables, interim solution, globals to be replaced by data struct of CMPS14Processor
+// Process the values received from CMPS14Sensor::read(...)
 bool CMPS14Processor::update() {
     float raw_deg, pitch_raw, roll_raw;
 
@@ -31,14 +31,13 @@ bool CMPS14Processor::update() {
     }
 
     // Heading (M)
-    float dev_deg = computeDeviation(hc, compass_deg);
+    dev_deg = computeDeviation(hc, compass_deg);
     heading_deg = compass_deg + dev_deg;
     if (heading_deg >= 360.0f) heading_deg -= 360.0f;
     if (heading_deg < 0.0f) heading_deg += 360.0f;
 
     // Heading (T)
-    float mv_deg = getVariation();
-    heading_true_deg = heading_deg + mv_deg;
+    heading_true_deg = heading_deg + getVariation();
     if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
     if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
 
@@ -52,7 +51,7 @@ bool CMPS14Processor::update() {
     return true;
 }
 
-// Update values to HeadingDelta, for SignalK
+// Update values of HeadingDelta struct
 void CMPS14Processor::updateHeadingDelta() {
     headingDelta.heading_rad      = heading_deg * DEG_TO_RAD;
     headingDelta.heading_true_rad = heading_true_deg * DEG_TO_RAD;
@@ -60,7 +59,7 @@ void CMPS14Processor::updateHeadingDelta() {
     headingDelta.roll_rad         = roll_deg * DEG_TO_RAD;
 }
 
-// Update values to MinMaxDelta, for SignalK
+// Update values of MinMaxDelta struct
 void CMPS14Processor::updateMinMaxDelta() {
     if (isnan(minMaxDelta.pitch_max_rad)) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
     else if (headingDelta.pitch_rad > minMaxDelta.pitch_max_rad) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
@@ -158,10 +157,7 @@ void CMPS14Processor::monitorCalibration(bool autosave) {
             sensor.sendCommand(REG_USEMODE);
         if (ok) {
             cal_profile_stored = true;
-            // updateLCD("CALIBRATION", "SAVED", true);
             cal_mode_runtime = CAL_USE;
-        } else {
-            // updateLCD("CALIBRATION", "FAILED", true);
         }
         cal_ok_count = 0;
     }
@@ -185,7 +181,6 @@ bool CMPS14Processor::saveCalibrationProfile() {
 bool CMPS14Processor::initCalibrationModeBoot() {
     bool started = false;
     if (!sensor.available()) {
-        // updateLCD("CMPS14 N/A", "CHECK WIRING!");
         cal_mode_runtime = CAL_USE;
         return started;
     }
@@ -195,7 +190,5 @@ bool CMPS14Processor::initCalibrationModeBoot() {
         case CAL_MANUAL:        started = startCalibration(CAL_MANUAL); break;
         default:                started = stopCalibration(); break;
     }
-    // if (!started) updateLCD("CAL MODE", "START FAILED");
-    // else updateLCD("CAL MODE", calmode_str(cal_mode_runtime));
     return started;
 }   

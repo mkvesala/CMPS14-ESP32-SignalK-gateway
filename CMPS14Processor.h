@@ -36,9 +36,10 @@ public:
     auto getMinMaxDelta() const { return minMaxDelta; }
     CalMode getCalibrationModeBoot() const { return cal_mode_boot; }
     CalMode getCalibrationModeRuntime() const { return cal_mode_runtime; }
+    HarmonicCoeffs getHarmonicCoeffs() const { return hc; }
 
-    bool getUseManualVariation() const { return use_manual_magvar; }
-    bool getCalProfileStored() const { return cal_profile_stored; }
+    bool isUsingManualVariation() const { return use_manual_magvar; }
+    bool isCalProfileStored() const { return cal_profile_stored; }
 
     // Setters
     void setInstallationOffset(float offset) { installation_offset_deg = offset; }
@@ -48,6 +49,7 @@ public:
     void setCalProfileStored(bool stored) { cal_profile_stored = stored; }
     void setCalibrationModeBoot(CalMode mode) { cal_mode_boot = mode; }
     void setCalibrationModeRuntime(CalMode mode) { cal_mode_runtime = mode; }
+    void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) { hc = coeffs; }
 
 private:
 
@@ -69,6 +71,11 @@ private:
     float magvar_live_deg = 0.0f;               // Variation from SignalK navigation.magneticVariation path
     bool use_manual_magvar = true;              // Use magvar_manual_deg if true
     bool cal_profile_stored = false;            // Calibration profile saved if true
+
+    HarmonicCoeffs hc = { 0,0,0,0,0 };          // Five harmonic coeffs to compute deviations
+
+    static constexpr float HEADING_ALPHA = 0.15f;       // Smoothing factor for Heading (C)
+    static constexpr uint8_t CAL_OK_REQUIRED = 3;       // Autocalibration save condition threshold
 
     // Compass and attitude in degrees
     float compass_deg = NAN;
