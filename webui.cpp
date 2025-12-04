@@ -135,23 +135,24 @@ void handleSetDeviations() {
     if (v >  90.0f) v =  90.0f;
     return v;
   };
-
-  dev_at_card_deg[0] = getf("N");
-  dev_at_card_deg[1] = getf("NE");
-  dev_at_card_deg[2] = getf("E");
-  dev_at_card_deg[3] = getf("SE");
-  dev_at_card_deg[4] = getf("S");
-  dev_at_card_deg[5] = getf("SW");
-  dev_at_card_deg[6] = getf("W");
-  dev_at_card_deg[7] = getf("NW");
+  float measured_deviations[8];
+  measured_deviations[0] = getf("N");
+  measured_deviations[1] = getf("NE");
+  measured_deviations[2] = getf("E");
+  measured_deviations[3] = getf("SE");
+  measured_deviations[4] = getf("S");
+  measured_deviations[5] = getf("SW");
+  measured_deviations[6] = getf("W");
+  measured_deviations[7] = getf("NW");
 
   // Calculate 5 coeffs
-  HarmonicCoeffs hc = computeHarmonicCoeffs(dev_at_card_deg); 
+  compass.setMeasuredDeviations(measured_deviations);
+  HarmonicCoeffs hc = computeHarmonicCoeffs(measured_deviations); 
   compass.setHarmonicCoeffs(hc);
 
   prefs.begin("cmps14", false);
   for (int i = 0; i < 8; i++) {
-    prefs.putFloat((String("dev") + String(i)).c_str(), dev_at_card_deg[i]);
+    prefs.putFloat((String("dev") + String(i)).c_str(), measured_deviations[i]);
   }
   prefs.putFloat("hc_A", hc.A);
   prefs.putFloat("hc_B", hc.B);
@@ -236,6 +237,8 @@ void handleRoot() {
 
   CalMode mode_runtime = compass.getCalibrationModeRuntime();
   CalMode mode_boot = compass.getCalibrationModeBoot();
+  float measured_deviations[8];
+  compass.getMeasuredDeviations(measured_deviations);
 
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.sendHeader("Connection", "close");
@@ -334,7 +337,7 @@ void handleRoot() {
     snprintf(row1, sizeof(row1),
       "<label>N</label><input name=\"N\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
       "<label>NE</label><input name=\"NE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      dev_at_card_deg[0], dev_at_card_deg[1]);
+      measured_deviations[0], measured_deviations[1]);
     server.sendContent(row1);
   }
   server.sendContent_P(R"(</div><div>)");
@@ -345,7 +348,7 @@ void handleRoot() {
     snprintf(row2, sizeof(row2),
       "<label>E</label><input name=\"E\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
       "<label>SE</label><input name=\"SE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      dev_at_card_deg[2], dev_at_card_deg[3]);
+      measured_deviations[2], measured_deviations[3]);
     server.sendContent(row2);
   }
   server.sendContent_P(R"(</div><div>)");
@@ -356,7 +359,7 @@ void handleRoot() {
     snprintf(row3, sizeof(row3),
       "<label>S</label><input name=\"S\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
       "<label>SW</label><input name=\"SW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      dev_at_card_deg[4], dev_at_card_deg[5]);
+      measured_deviations[4], measured_deviations[5]);
     server.sendContent(row3);
   }
   server.sendContent_P(R"(</div><div>)");
@@ -367,7 +370,7 @@ void handleRoot() {
     snprintf(row4, sizeof(row4),
       "<label>W</label><input name=\"W\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
       "<label>NW</label><input name=\"NW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      dev_at_card_deg[6], dev_at_card_deg[7]);
+      measured_deviations[6], measured_deviations[7]);
     server.sendContent(row4);
   }
 

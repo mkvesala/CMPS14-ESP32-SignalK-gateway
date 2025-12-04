@@ -66,9 +66,6 @@ extern char prev_bot[17];                 // Previous value of bottom line
 extern const uint8_t LCD_ADDR1;           // Scan both I2C addresses when init LCD
 extern const uint8_t LCD_ADDR2;
 
-// Compass deviation harmonic model for harmonic.h
-extern float dev_at_card_deg[8];          // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
-
 // Return float validity
 inline bool validf(float x) { return !isnan(x) && isfinite(x); }
 

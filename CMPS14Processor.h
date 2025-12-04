@@ -32,6 +32,8 @@ public:
     float getVariation() const {return use_manual_magvar ? magvar_manual_deg : magvar_live_deg; }
     float getManualVariation() const { return magvar_manual_deg; }
 
+    void getMeasuredDeviations(float out[8]) const { memcpy(out, measured_deviations, sizeof(measured_deviations)); }
+
     auto getHeadingDelta() const { return headingDelta; }
     auto getMinMaxDelta() const { return minMaxDelta; }
     CalMode getCalibrationModeBoot() const { return cal_mode_boot; }
@@ -50,6 +52,7 @@ public:
     void setCalibrationModeBoot(CalMode mode) { cal_mode_boot = mode; }
     void setCalibrationModeRuntime(CalMode mode) { cal_mode_runtime = mode; }
     void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) { hc = coeffs; }
+    void setMeasuredDeviations(const float in[8]) { memcpy(measured_deviations, in, sizeof(measured_deviations)); }
 
 private:
 
@@ -72,7 +75,9 @@ private:
     bool use_manual_magvar = true;              // Use magvar_manual_deg if true
     bool cal_profile_stored = false;            // Calibration profile saved if true
 
-    HarmonicCoeffs hc = { 0,0,0,0,0 };          // Five harmonic coeffs to compute deviations
+    HarmonicCoeffs hc = { 0,0,0,0,0 };                  // Five harmonic coeffs to compute deviations - as a struct, because part of computing model A, B, C, D and E.
+    
+    float measured_deviations[8] = { 0,0,0,0,0,0,0,0 }; // Measured deviations (deg) in cardinal and intercardinal directions, as an array, because imput only
 
     static constexpr float HEADING_ALPHA = 0.15f;       // Smoothing factor for Heading (C)
     static constexpr uint8_t CAL_OK_REQUIRED = 3;       // Autocalibration save condition threshold
@@ -97,8 +102,6 @@ private:
     // Monitor calibration
     uint8_t cal_ok_count = 0;
 
-    // Harmonic deviation model
-    // HarmonicCoeffs hc {0,0,0,0,0};
 
     // CMPS14 register map
     static const uint8_t REG_USEMODE       = 0x80;  // Command use-mode

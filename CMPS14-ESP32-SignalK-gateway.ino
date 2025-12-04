@@ -16,7 +16,9 @@ void loadSavedPreferences() {
   prefs.begin("cmps14", false);  
   compass.setInstallationOffset(prefs.getFloat("offset_deg", 0.0f));
   compass.setManualVariation(prefs.getFloat("mv_man_deg", 0.0f));
-  for (int i=0;i<8;i++) dev_at_card_deg[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
+  float in[8];
+  for (int i=0;i<8;i++) in[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
+  compass.setMeasuredDeviations(in);
   bool haveCoeffs = prefs.isKey("hc_A") && prefs.isKey("hc_B") && prefs.isKey("hc_C") && prefs.isKey("hc_D") && prefs.isKey("hc_E");
   if (haveCoeffs) {
     hc.A = prefs.getFloat("hc_A", 0.0f);
@@ -25,14 +27,14 @@ void loadSavedPreferences() {
     hc.D = prefs.getFloat("hc_D", 0.0f);
     hc.E = prefs.getFloat("hc_E", 0.0f);
   } else {
-    hc = computeHarmonicCoeffs(dev_at_card_deg);
-    compass.setHarmonicCoeffs(hc);
+    hc = computeHarmonicCoeffs(in);
     prefs.putFloat("hc_A", hc.A);
     prefs.putFloat("hc_B", hc.B);
     prefs.putFloat("hc_C", hc.C);
     prefs.putFloat("hc_D", hc.D);
     prefs.putFloat("hc_E", hc.E);
   }
+  compass.setHarmonicCoeffs(hc);
   send_hdg_true = prefs.getBool("send_hdg_true", true);
   compass.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE));
   full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
@@ -41,11 +43,6 @@ void loadSavedPreferences() {
 
 // ===== S E T U P ===== //
 void setup() {
-
-  pinMode(LED_PIN_BL, OUTPUT);
-  pinMode(LED_PIN_GR, OUTPUT);
-  digitalWrite(LED_PIN_BL, HIGH);
-  digitalWrite(LED_PIN_GR, HIGH);
 
   Serial.begin(115200);
   delay(47);
@@ -63,6 +60,11 @@ void setup() {
     delay(UINT32_MAX);
   }
   delay(47);
+
+  pinMode(LED_PIN_BL, OUTPUT);
+  pinMode(LED_PIN_GR, OUTPUT);
+  digitalWrite(LED_PIN_BL, LOW);
+  digitalWrite(LED_PIN_GR, LOW);
 
   // Get saved configuration from ESP32 preferences
   loadSavedPreferences();
@@ -114,9 +116,6 @@ void setup() {
     updateLCD("LCD ONLY MODE", "NO WIFI");
     delay(1009);
   }
-
-  digitalWrite(LED_PIN_BL, LOW);
-  digitalWrite(LED_PIN_GR, LOW);
 
 }
 

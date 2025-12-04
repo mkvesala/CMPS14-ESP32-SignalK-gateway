@@ -52,9 +52,6 @@ char prev_bot[17]         = "";      // Previous value of bottom line
 const uint8_t LCD_ADDR1   = 0x27;    // Scan both I2C addresses when init LCD
 const uint8_t LCD_ADDR2   = 0x3F;
 
-// Compass deviation harmonic model for harmonic.h
-float dev_at_card_deg[8] = { 0,0,0,0,0,0,0,0 };                       // Measured deviations (deg) in cardinal and intercardinal directions given by user via Web UI
-
 // Scan I2C address
 bool i2cAvailable(uint8_t addr) {
   Wire.beginTransmission(addr);
