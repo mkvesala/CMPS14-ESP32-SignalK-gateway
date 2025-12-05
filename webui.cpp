@@ -55,7 +55,7 @@ void handleStatus() {
   
   uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
   uint8_t statuses[4];
-  compass.getCalStatus(statuses);
+  compass.requestCalStatus(statuses);
   mag = statuses[0];
   acc = statuses[1];
   gyr = statuses[2];

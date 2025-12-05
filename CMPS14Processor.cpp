@@ -128,7 +128,7 @@ uint8_t CMPS14Processor::readCalStatusByte() {
 }
 
 // Get calibration status by checking the contents of the calibration byte
-void CMPS14Processor::getCalStatus(uint8_t out[4]) {
+void CMPS14Processor::requestCalStatus(uint8_t out[4]) {
     uint8_t byte = readCalStatusByte();
     uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
     if (!sensor.isNack(byte)) {
@@ -143,7 +143,7 @@ void CMPS14Processor::getCalStatus(uint8_t out[4]) {
 // Monitor calibration and optionally save calibration profile
 void CMPS14Processor::monitorCalibration(bool autosave) {
     uint8_t statuses[4];
-    getCalStatus(statuses);
+    requestCalStatus(statuses);
     uint8_t mag = statuses[0], acc = statuses[1], sys = statuses[3];
     if (sys == 3 && acc == 3 && mag == 3) {
         if (cal_ok_count < 255) cal_ok_count++;

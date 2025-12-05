@@ -19,7 +19,7 @@ public:
     void monitorCalibration(bool autosave);
     bool initCalibrationModeBoot();
     bool saveCalibrationProfile();
-    void getCalStatus(uint8_t out[4]);
+    void requestCalStatus(uint8_t out[4]);
     
     // Getters
     float getCompassDeg() const { return compass_deg; }
