@@ -28,7 +28,6 @@ extern unsigned long full_auto_stop_ms;  // Full auto mode timeout, 0 = never
 extern unsigned long full_auto_left_ms;  // Full auto mode time left
 
 // CMPS14 reading parameters
-extern bool send_hdg_true;                            // By default, use magnetic variation to calculate and send headingTrue - user might switch this off via web UI
 extern unsigned long lcd_hold_ms;
 extern const unsigned long MIN_TX_INTERVAL_MS;        // Max frequency for sending deltas to SignalK 
 extern const float DB_HDG_RAD;                        // Deadband threshold for heading

@@ -81,7 +81,7 @@ void CMPS14ProcessorPrefs::saveFullAutoTimeout(unsigned long ms) {
 }
 
 void CMPS14ProcessorPrefs::saveSendHeadingTrue(bool enable) {
-    prefs.putBool("sendTrue", enable);
+    prefs.putBool("send_hdg_true", enable);
 }
 
 // ============================================================

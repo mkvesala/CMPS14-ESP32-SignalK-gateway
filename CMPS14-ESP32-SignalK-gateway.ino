@@ -35,7 +35,7 @@ void loadSavedPreferences() {
     prefs.putFloat("hc_E", hc.E);
   }
   compass.setHarmonicCoeffs(hc);
-  send_hdg_true = prefs.getBool("send_hdg_true", true);
+  compass.setSendHeadingTrue(prefs.getBool("send_hdg_true", true));
   compass.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE));
   full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
   prefs.end();
@@ -204,7 +204,7 @@ void loop() {
     if (now >= lcd_hold_ms) {
       float heading_true_deg = compass.getHeadingTrueDeg();
       float heading_deg = compass.getHeadingDeg();
-      if (send_hdg_true && validf(heading_true_deg)) {
+      if (compass.isSendingHeadingTrue() && validf(heading_true_deg)) {
         char buf[17];
         snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
         updateLCD("  HEADING (T):", buf);

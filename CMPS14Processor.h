@@ -42,6 +42,7 @@ public:
 
     bool isUsingManualVariation() const { return use_manual_magvar; }
     bool isCalProfileStored() const { return cal_profile_stored; }
+    bool isSendingHeadingTrue() const { return send_hdg_true; }
 
     // Setters
     void setInstallationOffset(float offset) { installation_offset_deg = offset; }
@@ -49,6 +50,7 @@ public:
     void setLiveVariation(float variation) { magvar_live_deg = variation; }
     void setUseManualVariation(bool manual) { use_manual_magvar = manual; }
     void setCalProfileStored(bool stored) { cal_profile_stored = stored; }
+    void setSendHeadingTrue(bool hdg) { send_hdg_true = hdg; }
     void setCalibrationModeBoot(CalMode mode) { cal_mode_boot = mode; }
     void setCalibrationModeRuntime(CalMode mode) { cal_mode_runtime = mode; }
     void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) { hc = coeffs; }
@@ -74,6 +76,7 @@ private:
     float magvar_live_deg = 0.0f;               // Variation from SignalK navigation.magneticVariation path
     bool use_manual_magvar = true;              // Use magvar_manual_deg if true
     bool cal_profile_stored = false;            // Calibration profile saved if true
+    bool send_hdg_true = true;                  // Send also true heading
 
     HarmonicCoeffs hc = { 0,0,0,0,0 };                  // Five harmonic coeffs to compute deviations - as a struct, because part of computing model A, B, C, D and E.
     
@@ -104,18 +107,18 @@ private:
 
 
     // CMPS14 register map
-    static const uint8_t REG_USEMODE       = 0x80;  // Command use-mode
-    static const uint8_t REG_CAL_STATUS    = 0x1E;  // Calibration status
-    static const uint8_t REG_SAVE1         = 0xF0;  // Series of commands to store calibration profile
-    static const uint8_t REG_SAVE2         = 0xF5;
-    static const uint8_t REG_SAVE3         = 0xF6;
-    static const uint8_t REG_CAL1          = 0x98;  // Series of commands to start calibration
-    static const uint8_t REG_CAL2          = 0x95;
-    static const uint8_t REG_CAL3          = 0x99;
-    static const uint8_t REG_RESET1        = 0xE0;  // Series of commands to reset CMPS14
-    static const uint8_t REG_RESET2        = 0xE5;
-    static const uint8_t REG_RESET3        = 0xE2; 
-    static const uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
-    static const uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
-    static const uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
+    static constexpr uint8_t REG_USEMODE       = 0x80;  // Command use-mode
+    static constexpr uint8_t REG_CAL_STATUS    = 0x1E;  // Calibration status
+    static constexpr uint8_t REG_SAVE1         = 0xF0;  // Series of commands to store calibration profile
+    static constexpr uint8_t REG_SAVE2         = 0xF5;
+    static constexpr uint8_t REG_SAVE3         = 0xF6;
+    static constexpr uint8_t REG_CAL1          = 0x98;  // Series of commands to start calibration
+    static constexpr uint8_t REG_CAL2          = 0x95;
+    static constexpr uint8_t REG_CAL3          = 0x99;
+    static constexpr uint8_t REG_RESET1        = 0xE0;  // Series of commands to reset CMPS14
+    static constexpr uint8_t REG_RESET2        = 0xE5;
+    static constexpr uint8_t REG_RESET3        = 0xE2; 
+    static constexpr uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
+    static constexpr uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
+    static constexpr uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
 };

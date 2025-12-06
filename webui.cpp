@@ -91,7 +91,7 @@ void handleStatus() {
   doc["hcd"]                  = hc.D;
   doc["hce"]                  = hc.E;
   doc["use_manual_magvar"]    = compass.isUsingManualVariation();   
-  doc["send_hdg_true"]        = send_hdg_true;         
+  doc["send_hdg_true"]        = compass.isSendingHeadingTrue();         
   doc["stored"]               = compass.isCalProfileStored(); 
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -219,10 +219,12 @@ void handleSetMagvar() {
 
 // Web UI handler to set heading mode TRUE or MAGNETIC
 void handleSetHeadingMode() {
+  bool send_hdg_true;
   if (server.hasArg("mode")) {
     String mode = server.arg("mode");
     send_hdg_true = (mode == "true");
   }
+  compass.setSendHeadingTrue(send_hdg_true);
 
   prefs.begin("cmps14", false);
   prefs.putBool("send_hdg_true", send_hdg_true);
@@ -239,6 +241,7 @@ void handleRoot() {
   CalMode mode_boot = compass.getCalibrationModeBoot();
   float measured_deviations[8];
   compass.getMeasuredDeviations(measured_deviations);
+  bool send_hdg_true = compass.isSendingHeadingTrue();
 
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.sendHeader("Connection", "close");

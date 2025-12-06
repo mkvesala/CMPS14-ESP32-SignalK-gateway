@@ -23,7 +23,7 @@ void setupWebsocketCallbacks() {
       ws_open = true;
       
       // When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
-      if (!send_hdg_true) return;
+      if (!compass.isSendingHeadingTrue()) return;
       StaticJsonDocument<256> sub;
       sub["context"] = "vessels.self";
       auto subscribe = sub.createNestedArray("subscribe");
@@ -43,7 +43,7 @@ void setupWebsocketCallbacks() {
 
   // In heading true mode read navigation.magneticVariation from SignalK delta
   ws.onMessage([](WebsocketsMessage msg){
-    if (!send_hdg_true) return;
+    if (!compass.isSendingHeadingTrue()) return;
     if (!msg.isText()) return;
     StaticJsonDocument<1024> d;
     if (deserializeJson(d, msg.data())) return;
@@ -111,7 +111,7 @@ void sendHdgPitchRollDelta() {
   if (changed_h) add("navigation.headingMagnetic", last_h); 
   if (changed_p) add("navigation.attitude.pitch",  last_p);
   if (changed_r) add("navigation.attitude.roll",   last_r);
-  if (changed_h && send_hdg_true) add("navigation.headingTrue", delta.heading_true_rad);
+  if (changed_h && compass.isSendingHeadingTrue()) add("navigation.headingTrue", delta.heading_true_rad);
 
   if (values.size() == 0) return;
 
