@@ -71,7 +71,7 @@ void handleStatus() {
 
   doc["cal_mode"]             = calModeToString(compass.getCalibrationModeRuntime());
   doc["cal_mode_boot"]        = calModeToString(compass.getCalibrationModeBoot());
-  doc["fa_left"]              = ms_to_hms_str(full_auto_left_ms);
+  doc["fa_left"]              = ms_to_hms_str(compass.getFullAutoLeft());
   doc["wifi"]                 = IPc;
   doc["rssi"]                 = RSSIc;
   doc["hdg_deg"]              = compass.getHeadingDeg();
@@ -182,7 +182,8 @@ void handleSetCalmode() {
       long to = server.arg("fastop").toInt();
       if (to <= 0) to = 0;
       if (to > 60) to = 60;
-      full_auto_stop_ms = 60 * 1000 * to;
+      unsigned long full_auto_stop_ms = 60 * 1000 * to;
+      compass.setFullAutoTimeout(full_auto_stop_ms);
       prefs.begin("cmps14", false);
       prefs.putULong("fastop", (uint32_t)full_auto_stop_ms);
       prefs.end();
@@ -272,7 +273,7 @@ void handleRoot() {
     <div class='card' id='controls'>)");
   if (mode_runtime == CAL_FULL_AUTO) {
     char buf[128];
-    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(mode_runtime), ms_to_hms_str(full_auto_left_ms));
+    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(mode_runtime), ms_to_hms_str(compass.getFullAutoLeft()));
     server.sendContent(buf);
   } else {
     char buf[64];
@@ -311,7 +312,7 @@ void handleRoot() {
     <input type="number" name="fastop" step="1" min="0" max="60" value=")");
       {
         char buf[32];
-        float to = (float)(full_auto_stop_ms/1000/60);
+        float to = (float)(compass.getFullAutoTimeout()/1000/60);
         snprintf(buf, sizeof(buf), "%.0f", to);
         server.sendContent(buf);
       }

@@ -31,6 +31,9 @@ public:
     float getDeviation() const { return dev_deg; }
     float getVariation() const {return use_manual_magvar ? magvar_manual_deg : magvar_live_deg; }
     float getManualVariation() const { return magvar_manual_deg; }
+    unsigned long getFullAutoTimeout() const { return full_auto_stop_ms; }
+    unsigned long getFullAutoStart() const { return full_auto_start_ms; }
+    unsigned long getFullAutoLeft() const { return full_auto_left_ms; }
 
     void getMeasuredDeviations(float out[8]) const { memcpy(out, measured_deviations, sizeof(measured_deviations)); }
 
@@ -55,6 +58,8 @@ public:
     void setCalibrationModeRuntime(CalMode mode) { cal_mode_runtime = mode; }
     void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) { hc = coeffs; }
     void setMeasuredDeviations(const float in[8]) { memcpy(measured_deviations, in, sizeof(measured_deviations)); }
+    void setFullAutoTimeout(unsigned long ms) { full_auto_stop_ms = ms; }
+    void setFullAutoLeft(unsigned long ms) { full_auto_left_ms = ms; }
 
 private:
 
@@ -102,12 +107,15 @@ private:
         float pitch_min_rad = NAN, pitch_max_rad = NAN, roll_min_rad = NAN, roll_max_rad = NAN;
     } minMaxDelta;
 
-    // Monitor calibration
+    // Calibration
     uint8_t cal_ok_count = 0;
+    unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
+    unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
+    unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
 
 
     // CMPS14 register map
-    static constexpr uint8_t REG_USEMODE       = 0x80;  // Command use-mode
+    static constexpr uint8_t REG_USEMODE       = 0x80;  // Use-mode = normal operation
     static constexpr uint8_t REG_CAL_STATUS    = 0x1E;  // Calibration status
     static constexpr uint8_t REG_SAVE1         = 0xF0;  // Series of commands to store calibration profile
     static constexpr uint8_t REG_SAVE2         = 0xF5;

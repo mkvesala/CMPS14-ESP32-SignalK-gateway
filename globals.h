@@ -22,11 +22,6 @@ extern char IPc[16];                      // IP address cstring
 extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
 extern const uint32_t WIFI_TIMEOUT_MS;    // Try WiFi connection max 
 
-// CMPS14 calibration 
-extern unsigned long full_auto_start_ms; // Full auto mode start timestamp
-extern unsigned long full_auto_stop_ms;  // Full auto mode timeout, 0 = never
-extern unsigned long full_auto_left_ms;  // Full auto mode time left
-
 // CMPS14 reading parameters
 extern unsigned long lcd_hold_ms;
 extern const unsigned long MIN_TX_INTERVAL_MS;        // Max frequency for sending deltas to SignalK 

@@ -8,11 +8,6 @@ char IPc[16];                                     // IP address
 bool LCD_ONLY                   = false;          // True when no WiFi available, using only LCD output
 const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5 minutes - prime number, to be exact
 
-// CMPS14 calibration
-unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
-unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
-unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
-
 // CMPS14 reading parameters
 unsigned long lcd_hold_ms                 = 0;
 const unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK - prime number

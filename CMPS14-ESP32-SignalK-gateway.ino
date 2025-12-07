@@ -37,7 +37,7 @@ void loadSavedPreferences() {
   compass.setHarmonicCoeffs(hc);
   compass.setSendHeadingTrue(prefs.getBool("send_hdg_true", true));
   compass.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE));
-  full_auto_stop_ms = (unsigned long)prefs.getULong("fastop", 0);
+  compass.setFullAutoTimeout((unsigned long)prefs.getULong("fastop", 0));
   prefs.end();
 }
 
@@ -189,13 +189,13 @@ void loop() {
   }
 
   // Monitor FULL AUTO mode timeout
-  if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO && full_auto_stop_ms > 0) { 
-    long left = full_auto_stop_ms - (now - full_auto_start_ms);
+  if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO && compass.getFullAutoTimeout() > 0) { 
+    long left = compass.getFullAutoTimeout() - (now - compass.getFullAutoStart());
     if (left <= 0) {
       if (compass.stopCalibration()) updateLCD("FULL AUTO", "TIMEOUT", true);
       left = 0;
     }
-    full_auto_left_ms = left;
+    compass.setFullAutoLeft(left);
   }
 
   // Display heading (T or M) on LCD
