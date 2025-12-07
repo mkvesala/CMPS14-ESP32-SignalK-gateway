@@ -22,13 +22,13 @@ private:
     TwoWire *wire;
 
     // CMPS14 register map
-    static const uint8_t REG_ANGLE_16_H    = 0x02;  // 16-bit angle * 10 (hi)
-    static const uint8_t REG_ANGLE_16_L    = 0x03;  // 16-bit angle * 10 (lo)
-    static const uint8_t REG_PITCH         = 0x04;  // signed degrees
-    static const uint8_t REG_ROLL          = 0x05;  // signed degrees
-    static const uint8_t REG_ACK1          = 0x55;  // Ack (new firmware)
-    static const uint8_t REG_ACK2          = 0x07;  // Ack (CMPS12 compliant)
-    static const uint8_t REG_NACK          = 0xFF;  // Nack
-    static const uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
+    static constexpr uint8_t REG_ANGLE_16_H    = 0x02;  // 16-bit angle * 10 (hi)
+    static constexpr uint8_t REG_ANGLE_16_L    = 0x03;  // 16-bit angle * 10 (lo)
+    static constexpr uint8_t REG_PITCH         = 0x04;  // signed degrees
+    static constexpr uint8_t REG_ROLL          = 0x05;  // signed degrees
+    static constexpr uint8_t REG_ACK1          = 0x55;  // Ack (new firmware)
+    static constexpr uint8_t REG_ACK2          = 0x07;  // Ack (CMPS12 compliant)
+    static constexpr uint8_t REG_NACK          = 0xFF;  // Nack
+    static constexpr uint8_t REG_CMD           = 0x00;  // Command byte, write before sending other commands
 
 };

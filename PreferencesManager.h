@@ -5,16 +5,12 @@
 #include "CalMode.h"
 #include "harmonic.h"
 
-// Forward declarations for future subsystems
-class SignalKBroker;
-class DisplayController;
-
 // Preferences subsystem for CMPS14Processor
 class CMPS14ProcessorPrefs {
 public:
-    CMPS14ProcessorPrefs(Preferences &prefs);
+    explicit CMPS14ProcessorPrefs(CMPS14Processor &compassref);
 
-    void load(CMPS14Processor &compass);
+    void load();
     void saveInstallationOffset(float offset);
     void saveManualVariation(float deg);
 
@@ -27,36 +23,7 @@ public:
 
 
 private:
-    Preferences &prefs;
-};
-
-// Preferences subsystem for SignalK message broker
-class SignalKBrokerPrefs {
-public:
-    SignalKBrokerPrefs(Preferences &prefs) : prefs(prefs) {}
-    void loadDefault() {}
-private:
-    Preferences &prefs;
-};
-
-// Preferences subsystem for DisplayController
-class DisplayControllerPrefs {
-public:
-    DisplayControllerPrefs(Preferences &prefs) : prefs(prefs) {}
-    void loadDefault() {}
-private:
-    Preferences &prefs;
-};
-
-// Generic PreferencesManager
-class PreferencesManager {
-public:
-    PreferencesManager();
-
-    CMPS14ProcessorPrefs compass_prefs;
-    SignalKBrokerPrefs signalk_prefs;
-    DisplayControllerPrefs display_prefs;
-
-private:
+    const char* ns = "cmps14";
     Preferences prefs;
+    CMPS14Processor &cmps14;
 };

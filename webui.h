@@ -5,6 +5,7 @@
 #include "display.h"
 #include "CMPS14Instances.h"
 #include "CalMode.h"
+#include "PreferencesManager.h"
 
 void handleStatus();
 void handleSetOffset();

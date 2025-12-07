@@ -114,9 +114,7 @@ void handleSetOffset() {
     compass.setInstallationOffset(v);
 
     // Save prefrences permanently
-    prefs.begin("cmps14", false);
-    prefs.putFloat("offset_deg", v);
-    prefs.end();
+    compass_prefs.saveInstallationOffset(v);
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c", v, 223);
@@ -150,16 +148,8 @@ void handleSetDeviations() {
   HarmonicCoeffs hc = computeHarmonicCoeffs(measured_deviations); 
   compass.setHarmonicCoeffs(hc);
 
-  prefs.begin("cmps14", false);
-  for (int i = 0; i < 8; i++) {
-    prefs.putFloat((String("dev") + String(i)).c_str(), measured_deviations[i]);
-  }
-  prefs.putFloat("hc_A", hc.A);
-  prefs.putFloat("hc_B", hc.B);
-  prefs.putFloat("hc_C", hc.C);
-  prefs.putFloat("hc_D", hc.D);
-  prefs.putFloat("hc_E", hc.E);
-  prefs.end();
+  compass_prefs.saveMeasuredDeviations(measured_deviations);
+  compass_prefs.saveHarmonicCoeffs(hc);
 
   updateLCD("DEVIATION TABLE", "SAVED", true);
 
@@ -184,14 +174,10 @@ void handleSetCalmode() {
       if (to > 60) to = 60;
       unsigned long full_auto_stop_ms = 60 * 1000 * to;
       compass.setFullAutoTimeout(full_auto_stop_ms);
-      prefs.begin("cmps14", false);
-      prefs.putULong("fastop", (uint32_t)full_auto_stop_ms);
-      prefs.end();
+      compass_prefs.saveFullAutoTimeout(full_auto_stop_ms);
     }
 
-    prefs.begin("cmps14", false);
-    prefs.putUChar("cal_mode_boot", (uint8_t)v);
-    prefs.end();
+    compass_prefs.saveCalibrationModeBoot(v);
     updateLCD("BOOT MODE SAVED", calModeToString(v), true);
   }
   handleRoot();
@@ -207,9 +193,7 @@ void handleSetMagvar() {
     if (v >  90.0f) v =  90.0f;
     compass.setManualVariation(v);
 
-    prefs.begin("cmps14", false);
-    prefs.putFloat("mv_man_deg", v);
-    prefs.end();
+    compass_prefs.saveManualVariation(v);
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(v), 223, (v >= 0 ? 'E':'W'));
@@ -227,9 +211,7 @@ void handleSetHeadingMode() {
   }
   compass.setSendHeadingTrue(send_hdg_true);
 
-  prefs.begin("cmps14", false);
-  prefs.putBool("send_hdg_true", send_hdg_true);
-  prefs.end();
+  compass_prefs.saveSendHeadingTrue(send_hdg_true);
 
   updateLCD("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC", true);
   handleRoot();

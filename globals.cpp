@@ -26,9 +26,6 @@ const uint8_t I2C_SCL = 17;
 const uint8_t LED_PIN_BL = 2;
 const uint8_t LED_PIN_GR = 13;
 
-// Permanently stored preferences
-Preferences prefs;
-
 // Websocket
 WebsocketsClient ws;
 volatile bool ws_open = false;

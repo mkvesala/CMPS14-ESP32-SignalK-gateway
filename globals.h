@@ -40,9 +40,6 @@ extern const uint8_t I2C_SCL;
 extern const uint8_t LED_PIN_BL;
 extern const uint8_t LED_PIN_GR;
 
-// Permanently stored preferences
-extern Preferences prefs;
-
 // Websocket
 extern WebsocketsClient ws;
 extern volatile bool ws_open;
