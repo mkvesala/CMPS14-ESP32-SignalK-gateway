@@ -2,8 +2,8 @@
 
 #include "CMPS14Sensor.h"
 #include "CMPS14Processor.h"
-#include "PreferencesManager.h"
+#include "CMPS14Preferences.h"
 
 extern CMPS14Sensor sensor;
 extern CMPS14Processor compass;
-extern CMPS14ProcessorPrefs compass_prefs;
+extern CMPS14Preferences compass_prefs;

@@ -5,11 +5,11 @@
 #include "webui.h"
 #include "OTA.h"
 #include "CalMode.h"
-#include "PreferencesManager.h"
+#include "CMPS14Preferences.h"
 
 CMPS14Sensor sensor(CMPS14_ADDR);
 CMPS14Processor compass(sensor);
-CMPS14ProcessorPrefs compass_prefs(compass);
+CMPS14Preferences compass_prefs(compass);
 
 
 // ===== S E T U P ===== //

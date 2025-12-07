@@ -6,9 +6,9 @@
 #include "harmonic.h"
 
 // Preferences subsystem for CMPS14Processor
-class CMPS14ProcessorPrefs {
+class CMPS14Preferences {
 public:
-    explicit CMPS14ProcessorPrefs(CMPS14Processor &compassref);
+    explicit CMPS14Preferences(CMPS14Processor &compassref);
 
     void load();
     void saveInstallationOffset(float offset);

@@ -1,9 +1,9 @@
-#include "PreferencesManager.h"
+#include "CMPS14Preferences.h"
 
-CMPS14ProcessorPrefs::CMPS14ProcessorPrefs(CMPS14Processor &compassref) : cmps14(compassref) {}
+CMPS14Preferences::CMPS14Preferences(CMPS14Processor &compassref) : cmps14(compassref) {}
 
 // Load all settings to CMPS14Processor
-void CMPS14ProcessorPrefs::load() {
+void CMPS14Preferences::load() {
 
     if (!prefs.begin(ns, false)) return;
 
@@ -49,19 +49,19 @@ void CMPS14ProcessorPrefs::load() {
     prefs.end();
 }
 
-void CMPS14ProcessorPrefs::saveInstallationOffset(float offset) {
+void CMPS14Preferences::saveInstallationOffset(float offset) {
     if (!prefs.begin(ns, false)) return;
     prefs.putFloat("offset_deg", offset);
     prefs.end();
 }
 
-void CMPS14ProcessorPrefs::saveManualVariation(float deg) {
+void CMPS14Preferences::saveManualVariation(float deg) {
     if (!prefs.begin(ns, false)) return;
     prefs.putFloat("mv_man_deg", deg);
     prefs.end();
 }
 
-void CMPS14ProcessorPrefs::saveMeasuredDeviations(const float out[8]) {
+void CMPS14Preferences::saveMeasuredDeviations(const float out[8]) {
     if (!prefs.begin(ns, false)) return;
     for (int i = 0; i < 8; i++) {
         char key[8];
@@ -71,7 +71,7 @@ void CMPS14ProcessorPrefs::saveMeasuredDeviations(const float out[8]) {
     prefs.end();
 }
 
-void CMPS14ProcessorPrefs::saveHarmonicCoeffs(const HarmonicCoeffs &hc) {
+void CMPS14Preferences::saveHarmonicCoeffs(const HarmonicCoeffs &hc) {
     if (!prefs.begin(ns, false)) return;
     prefs.putFloat("hc_A", hc.A);
     prefs.putFloat("hc_B", hc.B);
@@ -81,19 +81,19 @@ void CMPS14ProcessorPrefs::saveHarmonicCoeffs(const HarmonicCoeffs &hc) {
     prefs.end();
 }
 
-void CMPS14ProcessorPrefs::saveCalibrationModeBoot(CalMode mode) {
+void CMPS14Preferences::saveCalibrationModeBoot(CalMode mode) {
     if (!prefs.begin(ns, false)) return;
     prefs.putUChar("cal_mode_boot", (uint8_t)mode);
     prefs.end();
 }
 
-void CMPS14ProcessorPrefs::saveFullAutoTimeout(unsigned long ms) {
+void CMPS14Preferences::saveFullAutoTimeout(unsigned long ms) {
     if (!prefs.begin(ns, false)) return;
     prefs.putULong("fastop", ms);
     prefs.end();
 }
 
-void CMPS14ProcessorPrefs::saveSendHeadingTrue(bool enable) {
+void CMPS14Preferences::saveSendHeadingTrue(bool enable) {
     if (!prefs.begin(ns, false)) return;
     prefs.putBool("send_hdg_true", enable);
     prefs.end();
