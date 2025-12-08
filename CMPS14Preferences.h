@@ -25,5 +25,5 @@ public:
 private:
     const char* ns = "cmps14";
     Preferences prefs;
-    CMPS14Processor &cmps14;
+    CMPS14Processor &compass;
 };

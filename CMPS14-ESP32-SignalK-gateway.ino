@@ -1,15 +1,14 @@
 #include "globals.h"
 #include "CMPS14Instances.h"
 #include "display.h"
-#include "signalk.h"
 #include "webui.h"
 #include "OTA.h"
 #include "CalMode.h"
-#include "CMPS14Preferences.h"
 
 CMPS14Sensor sensor(CMPS14_ADDR);
 CMPS14Processor compass(sensor);
 CMPS14Preferences compass_prefs(compass);
+SignalKBroker signalk(compass);
 
 
 // ===== S E T U P ===== //
@@ -61,13 +60,14 @@ void setup() {
   // Execute if WiFi successfully connected
   if (WiFi.isConnected()) {  
     
-    // URL, source, IP address and RSSI stuff
-    setSignalKURL();
-    setSignalKSource();
     setIPAddrCstr();
     setRSSICstr();
     
     updateLCD(IPc, RSSIc);
+    delay(1009);
+
+    if (signalk.begin()) updateLCD ("SIGNALK", "CONNECTED");
+    else updateLCD("SIGNALK", "NOT CONNECTED");
     delay(1009);
 
     // OTA
@@ -75,9 +75,6 @@ void setup() {
 
     // Webserver handlers
     setupWebserverCallbacks();
-
-    // Websocket event handlers
-    setupWebsocketCallbacks();
 
   // No WiFi connection, use only LCD output and power off WiFi 
   } else {  
@@ -112,26 +109,21 @@ void loop() {
     
     // Webserver
     // Todo: consider moving from loop to separate task
-    server.handleClient();                
-    
-    // Keep websocket alive
-    if (ws_open) ws.poll();               
-    
-    // Kill ghost websocket (websocket still open but wifi has dropped)
-    if (!WiFi.isConnected() && ws_open){  
-      ws.close();
-      ws_open = false;
-    }
+    server.handleClient();   
+
+    // Websocket
+    // Todo: consider moving from loop to separate task
+    signalk.handleStatus();             
   
     // Websocket reconnect and keep using manual variation if websocket not opened
     // Todo: consider moving from loop to separate task or to set a max retries counter
-    if (WiFi.isConnected() && !ws_open && (long)(now - next_ws_try_ms) >= 0){ 
+    if (WiFi.isConnected() && !signalk.isOpen() && (long)(now - next_ws_try_ms) >= 0){ 
       updateLCD("SIGNALK WS", "CONNECT...");
-      ws.connect(SK_URL);
+      signalk.connectWebsocket();
       next_ws_try_ms = now + expn_retry_ms;
       expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
     }
-    if (ws_open) expn_retry_ms = WS_RETRY_MS;
+    if (signalk.isOpen()) expn_retry_ms = WS_RETRY_MS;
     else compass.setUseManualVariation(true);
   }
 
@@ -144,13 +136,13 @@ void loop() {
   // Send heading, pitch and roll to SignalK server
   if ((long)(now - last_tx_ms) >= MIN_TX_INTERVAL_MS) {
     last_tx_ms = now;
-    sendHdgPitchRollDelta();
+    signalk.sendHdgPitchRollDelta();
   }
 
   // Send pitch and roll min and max to SignalK server
   if ((long)(now - last_minmax_tx_ms) >= MINMAX_TX_INTERVAL_MS) {
     last_minmax_tx_ms = now;
-    sendPitchRollMinMaxDelta();
+    signalk.sendPitchRollMinMaxDelta();
   }
   
   // Monitor calibration status

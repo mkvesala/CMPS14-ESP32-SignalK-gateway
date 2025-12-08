@@ -1,8 +1,8 @@
 #include "globals.h"
 
 // ESP32 WiFi and OTA settings
-char SK_URL[512];                                 // URL of SignalK server
-char SK_SOURCE[32];                               // ESP32 source name for SignalK, used also as the OTA hostname
+// char SK_URL[512];                                 // URL of SignalK server
+// char SK_SOURCE[32];                               // ESP32 source name for SignalK, used also as the OTA hostname
 char RSSIc[16];                                   // WiFi signal quality description
 char IPc[16];                                     // IP address
 bool LCD_ONLY                   = false;          // True when no WiFi available, using only LCD output
@@ -11,8 +11,8 @@ const uint32_t WIFI_TIMEOUT_MS  = 90001;          // Try WiFi connection max 1.5
 // CMPS14 reading parameters
 unsigned long lcd_hold_ms                 = 0;
 const unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK - prime number
-const float DB_HDG_RAD                    = 0.00436f;    // 0.25°: deadband threshold for heading
-const float DB_ATT_RAD                    = 0.00436f;    // 0.25°: pitch/roll deadband threshold
+// const float DB_HDG_RAD                    = 0.00436f;    // 0.25°: deadband threshold for heading
+// const float DB_ATT_RAD                    = 0.00436f;    // 0.25°: pitch/roll deadband threshold
 const unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency for pitch/roll maximum values sending - prime number
 const unsigned long LCD_MS                = 1009;        // Frequency to print on LCD in loop() - prime number
 const unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop() - prime number
@@ -27,8 +27,8 @@ const uint8_t LED_PIN_BL = 2;
 const uint8_t LED_PIN_GR = 13;
 
 // Websocket
-WebsocketsClient ws;
-volatile bool ws_open = false;
+// WebsocketsClient ws;
+// volatile bool ws_open = false;
 const unsigned long WS_RETRY_MS = 1999;
 const unsigned long WS_RETRY_MAX = 119993;
 

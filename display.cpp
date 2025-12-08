@@ -98,7 +98,7 @@ void updateLedByConnStatus(){
     return;
   }
 
-  if (ws_open) {
+  if (signalk.isOpen()) {
     digitalWrite(LED_PIN_GR, HIGH);
     return;
   }

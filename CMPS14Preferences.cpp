@@ -1,6 +1,6 @@
 #include "CMPS14Preferences.h"
 
-CMPS14Preferences::CMPS14Preferences(CMPS14Processor &compassref) : cmps14(compassref) {}
+CMPS14Preferences::CMPS14Preferences(CMPS14Processor &compassref) : compass(compassref) {}
 
 // Load all settings to CMPS14Processor
 void CMPS14Preferences::load() {
@@ -8,15 +8,15 @@ void CMPS14Preferences::load() {
     if (!prefs.begin(ns, false)) return;
 
     // Installation offset
-    cmps14.setInstallationOffset(prefs.getFloat("offset_deg", 0.0f));
+    compass.setInstallationOffset(prefs.getFloat("offset_deg", 0.0f));
 
     // Manual variation
-    cmps14.setManualVariation(prefs.getFloat("mv_man_deg", 0.0f));
+    compass.setManualVariation(prefs.getFloat("mv_man_deg", 0.0f));
 
     // Measured deviations at 8 cardinal and intercardinal points
     float in[8];
     for (int i=0;i<8;i++) in[i] = prefs.getFloat((String("dev")+String(i)).c_str(), 0.0f);
-    cmps14.setMeasuredDeviations(in);
+    compass.setMeasuredDeviations(in);
 
     // Harmonic coefficients
     HarmonicCoeffs hc;
@@ -35,16 +35,16 @@ void CMPS14Preferences::load() {
         prefs.putFloat("hc_D", hc.D);
         prefs.putFloat("hc_E", hc.E);
     }
-    cmps14.setHarmonicCoeffs(hc);
+    compass.setHarmonicCoeffs(hc);
 
     // Send heading mode: true vs magnetic
-    cmps14.setSendHeadingTrue(prefs.getBool("send_hdg_true", true));
+    compass.setSendHeadingTrue(prefs.getBool("send_hdg_true", true));
 
     // Calibration boot mode
-    cmps14.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE));
+    compass.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE));
   
     // Full auto timeout
-    cmps14.setFullAutoTimeout((unsigned long)prefs.getULong("fastop", 0));
+    compass.setFullAutoTimeout((unsigned long)prefs.getULong("fastop", 0));
 
     prefs.end();
 }

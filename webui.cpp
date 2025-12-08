@@ -622,9 +622,8 @@ void handleRestart() {
   WiFiClient client = server.client();
   if (client) client.stop();
 
-  if(ws_open) {
-    ws.close();
-    ws_open = false;
+  if(signalk.isOpen()) {
+    signalk.closeWebsocket();
   }
 
   delay(ms);
