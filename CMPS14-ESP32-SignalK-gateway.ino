@@ -5,11 +5,13 @@
 #include "OTA.h"
 #include "CalMode.h"
 
-CMPS14Sensor sensor(CMPS14_ADDR);
-CMPS14Processor compass(sensor);
-CMPS14Preferences compass_prefs(compass);
-SignalKBroker signalk(compass);
-
+static constexpr unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK
+static constexpr unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency for pitch/roll maximum values sending
+static constexpr unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop()
+static constexpr unsigned long CAL_POLL_MS           = 499;         // Frequency to poll calibration status in loop() 
+static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
+static constexpr unsigned long WS_RETRY_MS           = 1999;
+static constexpr unsigned long WS_RETRY_MAX          = 119993;
 
 // ===== S E T U P ===== //
 void setup() {
@@ -55,7 +57,7 @@ void setup() {
   unsigned long t0 = millis();
 
   // Try to connect WiFi until timeout
-  while (!WiFi.isConnected() && (millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } 
+  while (!WiFi.isConnected() && (long)(millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } 
 
   // Execute if WiFi successfully connected
   if (WiFi.isConnected()) {  
@@ -91,7 +93,6 @@ void setup() {
 void loop() {
 
   // Timers
-  static constexpr unsigned long CAL_POLL_MS = 499;
   const unsigned long now = millis();
   static unsigned long expn_retry_ms      = WS_RETRY_MS;
   static unsigned long next_ws_try_ms     = 0;

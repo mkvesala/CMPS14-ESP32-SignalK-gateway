@@ -15,22 +15,15 @@
 using namespace websockets;
 
 // ESP32 WiFi and OTA settings
-// extern char SK_URL[512];                  // URL of SignalK server
-// extern char SK_SOURCE[32];                // ESP32's source name for SignalK, used also as the OTA hostname
 extern char RSSIc[16];                    // WiFi signal quality description
 extern char IPc[16];                      // IP address cstring
 extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
-extern const uint32_t WIFI_TIMEOUT_MS;    // Try WiFi connection max 
 
 // CMPS14 reading parameters
 extern unsigned long lcd_hold_ms;
-extern const unsigned long MIN_TX_INTERVAL_MS;        // Max frequency for sending deltas to SignalK 
-// extern const float DB_HDG_RAD;                        // Deadband threshold for heading
-// extern const float DB_ATT_RAD;                        // Pitch/roll deadband threshold
-extern const unsigned long MINMAX_TX_INTERVAL_MS;     // Frequency for pitch/roll maximum values sending 
-extern const unsigned long LCD_MS;                    // Frequency to print on LCD in loop()
-extern const unsigned long READ_MS;                   // Frequency to read values from CMPS14 in loop()
 extern const uint8_t CMPS14_ADDR;                     // I2C address of CMPS14
+
+extern const unsigned long LCD_MS;        // Frequency to print on LCD in loop()
 
 // SH-ESP32 default pins for I2C
 extern const uint8_t I2C_SDA;
@@ -39,12 +32,6 @@ extern const uint8_t I2C_SCL;
 // SH-ESP32 led pins
 extern const uint8_t LED_PIN_BL;
 extern const uint8_t LED_PIN_GR;
-
-// Websocket
-// extern WebsocketsClient ws;
-// extern volatile bool ws_open;
-extern const unsigned long WS_RETRY_MS;
-extern const unsigned long WS_RETRY_MAX;
 
 // Webserver
 extern WebServer server;

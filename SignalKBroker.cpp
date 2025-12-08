@@ -1,9 +1,11 @@
 #include "SignalKBroker.h"
 
+// Constructor
 SignalKBroker::SignalKBroker(CMPS14Processor &compassref)
     : compass(compassref) {
 }
 
+// Begin
 bool SignalKBroker::begin() {
     if (strlen(SK_HOST)<= 0 || SK_PORT <= 0) return false;
     setSignalKURL();
@@ -11,6 +13,7 @@ bool SignalKBroker::begin() {
     return connectWebsocket();
 }
 
+// Poll websocket and kill it if wifi has dropped but ws somehow still open
 void SignalKBroker::handleStatus() {
 
     // Keep websocket alive
@@ -54,11 +57,13 @@ bool SignalKBroker::connectWebsocket() {
     return ws_open;
 }
 
+// Close websocket (used only from web UI restart() handler)
 void SignalKBroker::closeWebsocket() {
     ws.close();
     ws_open = false;
 }
 
+// Callback for onEvent
 void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
     switch (event) {
         case WebsocketsEvent::ConnectionOpened:
@@ -76,6 +81,7 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
     }
 }
 
+// Subscribe navigation.magneticVariation from SignalK server
 void SignalKBroker::handleVariationDelta(){
     ws_open = true;
       
@@ -95,6 +101,7 @@ void SignalKBroker::handleVariationDelta(){
     ws.send(buf, n);
 }
 
+// Callback for onMessage, handle incoming SignalK delta 
 void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
     if (!compass.isSendingHeadingTrue()) return;
     if (!msg.isText()) return;
@@ -120,6 +127,7 @@ void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
     }
 }
 
+// Send heading, pitch and roll to SignalK server
 void SignalKBroker::sendHdgPitchRollDelta() {
     auto delta = compass.getHeadingDelta();
   
@@ -173,6 +181,7 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     }
 }
 
+// Send pitch and roll min/max values to SignalK
 void SignalKBroker::sendPitchRollMinMaxDelta() {
     
     auto delta = compass.getMinMaxDelta();
