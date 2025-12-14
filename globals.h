@@ -9,40 +9,39 @@
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <esp_system.h>
-#include "harmonic.h"
 #include "secrets.h"
 
 using namespace websockets;
 
 // ESP32 WiFi and OTA settings
-extern char RSSIc[16];                    // WiFi signal quality description
-extern char IPc[16];                      // IP address cstring
-extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
+// extern char RSSIc[16];                    // WiFi signal quality description
+// extern char IPc[16];                      // IP address cstring
+// extern bool LCD_ONLY;                     // True when no WiFi available, using only LCD output
 
 // CMPS14 reading parameters
-extern unsigned long lcd_hold_ms;
+// extern unsigned long lcd_hold_ms;
 extern const uint8_t CMPS14_ADDR;                     // I2C address of CMPS14
 
-extern const unsigned long LCD_MS;        // Frequency to print on LCD in loop()
+// extern const unsigned long LCD_MS;        // Frequency to print on LCD in loop()
 
 // SH-ESP32 default pins for I2C
 extern const uint8_t I2C_SDA;
 extern const uint8_t I2C_SCL;
 
 // SH-ESP32 led pins
-extern const uint8_t LED_PIN_BL;
-extern const uint8_t LED_PIN_GR;
+// extern const uint8_t LED_PIN_BL;
+// extern const uint8_t LED_PIN_GR;
 
 // Webserver
 extern WebServer server;
 
 // I2C LCD 16x2
-extern std::unique_ptr<LiquidCrystal_I2C> lcd;
-extern bool lcd_present;
-extern char prev_top[17];                 // Previous value of top line
-extern char prev_bot[17];                 // Previous value of bottom line
-extern const uint8_t LCD_ADDR1;           // Scan both I2C addresses when init LCD
-extern const uint8_t LCD_ADDR2;
+// extern std::unique_ptr<LiquidCrystal_I2C> lcd;
+// extern bool lcd_present;
+// extern char prev_top[17];                 // Previous value of top line
+// extern char prev_bot[17];                 // Previous value of bottom line
+// extern const uint8_t LCD_ADDR1;           // Scan both I2C addresses when init LCD
+// extern const uint8_t LCD_ADDR2;
 
 // Return float validity
 inline bool validf(float x) { return !isnan(x) && isfinite(x); }
@@ -67,10 +66,10 @@ inline const char* ms_to_hms_str(unsigned long ms) {
 }
 
 // Scan I2C address
-bool i2cAvailable(uint8_t addr);
+// bool i2cAvailable(uint8_t addr);
 
 // Update RSSI description
-void setRSSICstr();
+// void setRSSICstr();
 
 // Update IP Address cstring
-void setIPAddrCstr();
+// void setIPAddrCstr();

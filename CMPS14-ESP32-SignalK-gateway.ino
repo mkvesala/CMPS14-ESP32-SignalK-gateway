@@ -1,8 +1,6 @@
 #include "globals.h"
 #include "CMPS14Instances.h"
-#include "display.h"
 #include "webui.h"
-#include "OTA.h"
 #include "CalMode.h"
 
 static constexpr unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK
@@ -10,8 +8,9 @@ static constexpr unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency
 static constexpr unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop()
 static constexpr unsigned long CAL_POLL_MS           = 499;         // Frequency to poll calibration status in loop() 
 static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
-static constexpr unsigned long WS_RETRY_MS           = 1999;
-static constexpr unsigned long WS_RETRY_MAX          = 119993;
+static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
+static constexpr unsigned long WS_RETRY_MAX          = 119993;      // Max reconnect delay for SignalK websocket
+static constexpr unsigned long LCD_MS                = 1009;        // Frequency to show heading on LCD
 
 // ===== S E T U P ===== //
 void setup() {
@@ -24,36 +23,33 @@ void setup() {
   Wire.setClock(400000);
   delay(47);
 
-  initLCD();
+  // Init LCD and LEDs
+  display.begin();
   delay(47);
 
+  // Init compass
   if (!compass.begin(Wire)) {
-    updateLCD("CMPS14 ERROR", "INIT FAILED!");
+    display.showSuccessMessage("CMPS14 INIT", false);
     while(true);
   }
   delay(47);
 
-  pinMode(LED_PIN_BL, OUTPUT);
-  pinMode(LED_PIN_GR, OUTPUT);
-  digitalWrite(LED_PIN_BL, LOW);
-  digitalWrite(LED_PIN_GR, LOW);
-
   // Get saved configuration from ESP32 preferences
   compass_prefs.load();
 
-  // Init CMPS14 with appropriate calibration mode or use-mode
-  if (compass.initCalibrationModeBoot()) updateLCD("CAL MODE", calModeToString(compass.getCalibrationModeRuntime()));
-  else updateLCD("CAL MODE", "INIT FAILED!");
+  // Init appropriate calibration mode or use-mode
+  if (compass.initCalibrationModeBoot()) display.showInfoMessage("CAL MODE INIT", calModeToString(compass.getCalibrationModeRuntime()));
+  else display.showSuccessMessage("CAL MODE INIT", false);
   delay(1009);
 
-  // Stop bluetooth to save power
+  // Stop bluetooth
   btStop(); 
 
   // Init WiFi
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  updateLCD("WIFI", "CONNECT...");
+  display.showInfoMessage("WIFI", "CONNECTING");
   unsigned long t0 = millis();
 
   // Try to connect WiFi until timeout
@@ -62,28 +58,30 @@ void setup() {
   // Execute if WiFi successfully connected
   if (WiFi.isConnected()) {  
     
-    setIPAddrCstr();
-    setRSSICstr();
-    
-    updateLCD(IPc, RSSIc);
+    display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
+    display.showWifiStatus();
     delay(1009);
 
-    if (signalk.begin()) updateLCD ("SIGNALK", "CONNECTED");
-    else updateLCD("SIGNALK", "NOT CONNECTED");
+    display.showSuccessMessage("SK WEBSOCKET", signalk.begin());
     delay(1009);
 
     // OTA
-    initOTA();
+    ArduinoOTA.setHostname(signalk.getSignalKSource());
+    ArduinoOTA.setPassword(WIFI_PASS);
+    ArduinoOTA.onStart([](){});
+    ArduinoOTA.onEnd([]() {});
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});
+    ArduinoOTA.onError([] (ota_error_t error) {});
+    ArduinoOTA.begin();
 
     // Webserver handlers
     setupWebserverCallbacks();
 
   // No WiFi connection, use only LCD output and power off WiFi 
   } else {  
-    LCD_ONLY = true;
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF); 
-    updateLCD("LCD ONLY MODE", "NO WIFI");
+    display.showInfoMessage("WIFI", "NOT AVAILABLE");
     delay(1009);
   }
 
@@ -102,7 +100,7 @@ void loop() {
   static unsigned long last_cal_poll_ms   = 0;                           
   static unsigned long last_lcd_ms        = 0;
 
-  if (!LCD_ONLY) { 
+  if (WiFi.isConnected()) { 
     
     // OTA
     // Todo: consider moving from loop to separate task
@@ -117,9 +115,9 @@ void loop() {
     signalk.handleStatus();             
   
     // Websocket reconnect and keep using manual variation if websocket not opened
-    // Todo: consider moving from loop to separate task or to set a max retries counter
-    if (WiFi.isConnected() && !signalk.isOpen() && (long)(now - next_ws_try_ms) >= 0){ 
-      updateLCD("SIGNALK WS", "CONNECT...");
+    // Todo: consider moving from loop to separate task or to set a max retries counter (websocket connect is a slow operation)
+    if (!signalk.isOpen() && (long)(now - next_ws_try_ms) >= 0){ 
+      display.showInfoMessage("SK WEBSOCKET", "CONNECTING");
       signalk.connectWebsocket();
       next_ws_try_ms = now + expn_retry_ms;
       expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
@@ -156,7 +154,7 @@ void loop() {
   if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO && compass.getFullAutoTimeout() > 0) { 
     long left = compass.getFullAutoTimeout() - (now - compass.getFullAutoStart());
     if (left <= 0) {
-      if (compass.stopCalibration()) updateLCD("FULL AUTO", "TIMEOUT", true);
+      if (compass.stopCalibration()) display.showInfoMessage("FULL AUTO", "TIMEOUT", true);
       left = 0;
     }
     compass.setFullAutoLeft(left);
@@ -165,23 +163,13 @@ void loop() {
   // Display heading (T or M) on LCD
   if ((long)(now - last_lcd_ms) >= LCD_MS) {                      
     last_lcd_ms = now;
-    if (now >= lcd_hold_ms) {
-      float heading_true_deg = compass.getHeadingTrueDeg();
-      float heading_deg = compass.getHeadingDeg();
-      if (compass.isSendingHeadingTrue() && validf(heading_true_deg)) {
-        char buf[17];
-        snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
-        updateLCD("  HEADING (T):", buf);
-      } else if (validf(heading_deg)) {
-        char buf[17];
-        snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
-        updateLCD("  HEADING (M):", buf);
-      }
+    if (now >= display.getTimeToShow() + LCD_MS) {
+      display.showHeading();
     }
   }
 
   // Led indicators
-  updateLedByCalMode();                                        
-  updateLedByConnStatus();                                     
+  display.showCalibrationStatus();
+  display.showConnectionStatus();                                   
 
 } 

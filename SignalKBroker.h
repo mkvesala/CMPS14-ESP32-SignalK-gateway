@@ -17,6 +17,7 @@ public:
     void closeWebsocket();
     void sendHdgPitchRollDelta();
     void sendPitchRollMinMaxDelta();
+    const char* getSignalKSource() { return SK_SOURCE; }
     bool isOpen() const { return ws_open; }
 
 private:

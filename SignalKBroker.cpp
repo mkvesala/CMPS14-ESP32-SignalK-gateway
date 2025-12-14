@@ -66,9 +66,10 @@ void SignalKBroker::closeWebsocket() {
 // Callback for onEvent
 void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
     switch (event) {
-        case WebsocketsEvent::ConnectionOpened:
+        case WebsocketsEvent::ConnectionOpened: {
+            ws_open = true;
             handleVariationDelta();
-            break;
+        }   break;
         case WebsocketsEvent::ConnectionClosed:
             ws_open = false;
             break;
@@ -81,11 +82,8 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
     }
 }
 
-// Subscribe navigation.magneticVariation from SignalK server
-void SignalKBroker::handleVariationDelta(){
-    ws_open = true;
-      
-    // When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
+// When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
+void SignalKBroker::handleVariationDelta(){  
     if (!compass.isSendingHeadingTrue()) return;
     StaticJsonDocument<256> sub;
     sub["context"] = "vessels.self";
@@ -131,7 +129,7 @@ void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
 void SignalKBroker::sendHdgPitchRollDelta() {
     auto delta = compass.getHeadingDelta();
   
-    if (LCD_ONLY || !ws_open) return; 
+    if (!WiFi.isConnected() || !ws_open) return; 
     if (!validf(delta.heading_rad) || !validf(delta.pitch_rad) || !validf(delta.roll_rad)) return; 
 
     static float last_h = NAN, last_p = NAN, last_r = NAN;
@@ -186,7 +184,7 @@ void SignalKBroker::sendPitchRollMinMaxDelta() {
     
     auto delta = compass.getMinMaxDelta();
   
-    if (LCD_ONLY || !ws_open) return; 
+    if (!WiFi.isConnected() || !ws_open) return; 
 
     static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
 

@@ -62,8 +62,7 @@ void handleStatus() {
   sys = statuses[3];
 
   if (WiFi.isConnected()) {
-    setIPAddrCstr();
-    setRSSICstr();
+    display.setWifiInfo(WiFi.RSSI(), WiFI.localIP());
   } 
 
   HarmonicCoeffs hc = compass.getHarmonicCoeffs();
@@ -72,8 +71,8 @@ void handleStatus() {
   doc["cal_mode"]             = calModeToString(compass.getCalibrationModeRuntime());
   doc["cal_mode_boot"]        = calModeToString(compass.getCalibrationModeBoot());
   doc["fa_left"]              = ms_to_hms_str(compass.getFullAutoLeft());
-  doc["wifi"]                 = IPc;
-  doc["rssi"]                 = RSSIc;
+  doc["wifi"]                 = display.getWifiIPAddress();
+  doc["rssi"]                 = display.getWifiQuality();
   doc["hdg_deg"]              = compass.getHeadingDeg();
   doc["compass_deg"]          = compass.getCompassDeg();
   doc["pitch_deg"]            = compass.getPitchDeg();
@@ -118,7 +117,7 @@ void handleSetOffset() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c", v, 223);
-    updateLCD("INSTALL OFFSET", line2, true);
+    display.showInfoMessage("INSTALL OFFSET", line2, true);
   }
   handleRoot();
 }
@@ -151,7 +150,7 @@ void handleSetDeviations() {
   compass_prefs.saveMeasuredDeviations(measured_deviations);
   compass_prefs.saveHarmonicCoeffs(hc);
 
-  updateLCD("DEVIATION TABLE", "SAVED", true);
+  display.showSuccessMessage("SAVE DEVIATIONS", true, true);
 
   handleRoot();
 }
@@ -178,7 +177,7 @@ void handleSetCalmode() {
     }
 
     compass_prefs.saveCalibrationModeBoot(v);
-    updateLCD("BOOT MODE SAVED", calModeToString(v), true);
+    display.showInfoMessage("BOOT MODE SAVED", calModeToString(v), true);
   }
   handleRoot();
 }
@@ -197,7 +196,7 @@ void handleSetMagvar() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(v), 223, (v >= 0 ? 'E':'W'));
-    updateLCD("MAG VARIATION", line2, true);
+    display.showInfoMessage("MAG VARIATION", line2, true);
   }
   handleRoot();
 }
@@ -213,7 +212,7 @@ void handleSetHeadingMode() {
 
   compass_prefs.saveSendHeadingTrue(send_hdg_true);
 
-  updateLCD("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC", true);
+  display.showInfoMessage("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC", true);
   handleRoot();
 }
 
@@ -587,8 +586,8 @@ void handleRestart() {
   }
 
   char line2[17];
-  snprintf(line2, sizeof(line2), "%5lu ms", (unsigned long)ms);
-  updateLCD("RESTARTING IN", line2, true);
+  snprintf(line2, sizeof(line2), "%5lu MS", (unsigned long)ms);
+  display.showInfoMessage("RESTARTING IN", line2, true);
 
   // Draw HTML page which refreshes to root config page in 30 seconds
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);            
