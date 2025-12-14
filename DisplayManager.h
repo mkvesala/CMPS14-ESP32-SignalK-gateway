@@ -59,4 +59,4 @@ class DisplayManager {
 
     bool lcd_present = false;
 
-}
+};

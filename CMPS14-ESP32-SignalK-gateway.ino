@@ -20,10 +20,10 @@ void setup() {
 
   Wire.begin(I2C_SDA, I2C_SCL);
   delay(47);
+
   Wire.setClock(400000);
   delay(47);
 
-  // Init LCD and LEDs
   display.begin();
   delay(47);
 
@@ -57,7 +57,7 @@ void setup() {
 
   // Execute if WiFi successfully connected
   if (WiFi.isConnected()) {  
-    
+
     display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
     display.showWifiStatus();
     delay(1009);

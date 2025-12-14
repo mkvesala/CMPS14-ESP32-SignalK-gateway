@@ -62,7 +62,7 @@ void handleStatus() {
   sys = statuses[3];
 
   if (WiFi.isConnected()) {
-    display.setWifiInfo(WiFi.RSSI(), WiFI.localIP());
+    display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
   } 
 
   HarmonicCoeffs hc = compass.getHarmonicCoeffs();
