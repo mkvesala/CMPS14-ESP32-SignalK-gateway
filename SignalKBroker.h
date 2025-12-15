@@ -9,7 +9,7 @@ using namespace websockets;
 
 class SignalKBroker {
 public:
-    SignalKBroker(CMPS14Processor &compassref);
+    explicit SignalKBroker(CMPS14Processor &compassref);
 
     bool begin();
     void handleStatus();
@@ -22,9 +22,9 @@ public:
 
 private:
 
+    float computeAngDiffRad(float a, float b);
     void setSignalKURL();
     void setSignalKSource();
-    void handleWebsocketEvents();
     void onMessageCallback(WebsocketsMessage msg);
     void onEventCallback(WebsocketsEvent event, String data);
     void handleVariationDelta();

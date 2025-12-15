@@ -1,5 +1,7 @@
 #include "SignalKBroker.h"
 
+// === P U B L I C ===
+
 // Constructor
 SignalKBroker::SignalKBroker(CMPS14Processor &compassref)
     : compass(compassref) {
@@ -8,9 +10,9 @@ SignalKBroker::SignalKBroker(CMPS14Processor &compassref)
 // Begin
 bool SignalKBroker::begin() {
     if (strlen(SK_HOST)<= 0 || SK_PORT <= 0) return false;
-    setSignalKURL();
-    setSignalKSource();
-    return connectWebsocket();
+    this->setSignalKURL();
+    this->setSignalKSource();
+    return this->connectWebsocket();
 }
 
 // Poll websocket and kill it if wifi has dropped but ws somehow still open
@@ -26,21 +28,6 @@ void SignalKBroker::handleStatus() {
         ws.close();
         ws_open = false;
     }
-}
-
-// Create SignalK server URL for websocket
-void SignalKBroker::setSignalKURL() {
-  if (strlen(SK_TOKEN) > 0)
-    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream?token=%s", SK_HOST, SK_PORT, SK_TOKEN);
-  else
-    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream", SK_HOST, SK_PORT);
-}
-
-// Set ESP32's SignalK source based on ESP32's MAC address tail
-void SignalKBroker::setSignalKSource() {
-  uint8_t m[6];
-  WiFi.macAddress(m);
-  snprintf(SK_SOURCE, sizeof(SK_SOURCE), "esp32.cmps14-%02x%02x%02x", m[3], m[4], m[5]);
 }
 
 // Open Websocket to SignalK server and set callbacks
@@ -63,68 +50,6 @@ void SignalKBroker::closeWebsocket() {
     ws_open = false;
 }
 
-// Callback for onEvent
-void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
-    switch (event) {
-        case WebsocketsEvent::ConnectionOpened: {
-            ws_open = true;
-            handleVariationDelta();
-        }   break;
-        case WebsocketsEvent::ConnectionClosed:
-            ws_open = false;
-            break;
-        case WebsocketsEvent::GotPing:
-            ws.pong();
-            break;
-        case WebsocketsEvent::GotPong:
-        default:
-            break;
-    }
-}
-
-// When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
-void SignalKBroker::handleVariationDelta(){  
-    if (!compass.isSendingHeadingTrue()) return;
-    StaticJsonDocument<256> sub;
-    sub["context"] = "vessels.self";
-    auto subscribe = sub.createNestedArray("subscribe");
-    auto s = subscribe.createNestedObject();
-    s["path"] = "navigation.magneticVariation";
-    s["format"] = "delta";
-    s["policy"] = "ideal";
-    s["period"] = 1000;
-
-    char buf[256];
-    size_t n = serializeJson(sub, buf, sizeof(buf));
-    ws.send(buf, n);
-}
-
-// Callback for onMessage, handle incoming SignalK delta 
-void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
-    if (!compass.isSendingHeadingTrue()) return;
-    if (!msg.isText()) return;
-    StaticJsonDocument<1024> d;
-    if (deserializeJson(d, msg.data())) return;
-    if (!d.containsKey("updates")) return;
-    for (JsonObject up : d["updates"].as<JsonArray>()) {
-        if (!up.containsKey("values")) continue;
-        for (JsonObject v : up["values"].as<JsonArray>()) {
-            if (!v.containsKey("path")) continue;
-            const char* path = v["path"];
-            if (!path) continue;
-            if (strcmp(path, "navigation.magneticVariation") == 0) {
-                if (v["value"].is<float>() || v["value"].is<double>()) {  
-                    float mv = v["value"].as<float>();
-                    if (validf(mv)) { 
-                        compass.setUseManualVariation(false);
-                        compass.setLiveVariation(mv * RAD_TO_DEG);
-                    } else compass.setUseManualVariation(true);
-                }
-            }
-        }
-    }
-}
-
 // Send heading, pitch and roll to SignalK server
 void SignalKBroker::sendHdgPitchRollDelta() {
     auto delta = compass.getHeadingDelta();
@@ -135,7 +60,7 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     static float last_h = NAN, last_p = NAN, last_r = NAN;
     bool changed_h = false, changed_p = false, changed_r = false;
 
-    if (!validf(last_h) || fabsf(ang_diff_rad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
+    if (!validf(last_h) || fabsf(this->computeAngDiffRad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
         changed_h = true;
         last_h = delta.heading_rad;
     }
@@ -228,3 +153,92 @@ void SignalKBroker::sendPitchRollMinMaxDelta() {
     if (ch_rmin) last_sent_roll_min  = delta.roll_min_rad;
     if (ch_rmax) last_sent_roll_max  = delta.roll_max_rad;
 }
+
+// === P R I V A T E ===
+
+// Return shortest arc on 360° (for instance 359° to 001° is 2° not 358°)
+float SignalKBroker::computeAngDiffRad(float a, float b) {
+  float d = a - b;
+  while (d >  M_PI) d -= 2.0f * M_PI;
+  while (d <= -M_PI) d += 2.0f * M_PI;
+  return d;
+}
+
+// Create SignalK server URL for websocket
+void SignalKBroker::setSignalKURL() {
+  if (strlen(SK_TOKEN) > 0)
+    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream?token=%s", SK_HOST, SK_PORT, SK_TOKEN);
+  else
+    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream", SK_HOST, SK_PORT);
+}
+
+// Set ESP32's SignalK source based on ESP32's MAC address tail
+void SignalKBroker::setSignalKSource() {
+  uint8_t m[6];
+  WiFi.macAddress(m);
+  snprintf(SK_SOURCE, sizeof(SK_SOURCE), "esp32.cmps14-%02x%02x%02x", m[3], m[4], m[5]);
+}
+
+// Callback for onMessage, handle incoming SignalK delta 
+void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
+    if (!compass.isSendingHeadingTrue()) return;
+    if (!msg.isText()) return;
+    StaticJsonDocument<1024> d;
+    if (deserializeJson(d, msg.data())) return;
+    if (!d.containsKey("updates")) return;
+    for (JsonObject up : d["updates"].as<JsonArray>()) {
+        if (!up.containsKey("values")) continue;
+        for (JsonObject v : up["values"].as<JsonArray>()) {
+            if (!v.containsKey("path")) continue;
+            const char* path = v["path"];
+            if (!path) continue;
+            if (strcmp(path, "navigation.magneticVariation") == 0) {
+                if (v["value"].is<float>() || v["value"].is<double>()) {  
+                    float mv = v["value"].as<float>();
+                    if (validf(mv)) { 
+                        compass.setUseManualVariation(false);
+                        compass.setLiveVariation(mv * RAD_TO_DEG);
+                    } else compass.setUseManualVariation(true);
+                }
+            }
+        }
+    }
+}
+
+// Callback for onEvent
+void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
+    switch (event) {
+        case WebsocketsEvent::ConnectionOpened: {
+            ws_open = true;
+            this->handleVariationDelta();
+        }   break;
+        case WebsocketsEvent::ConnectionClosed:
+            ws_open = false;
+            break;
+        case WebsocketsEvent::GotPing:
+            ws.pong();
+            break;
+        case WebsocketsEvent::GotPong:
+        default:
+            break;
+    }
+}
+
+// When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
+void SignalKBroker::handleVariationDelta(){  
+    if (!compass.isSendingHeadingTrue()) return;
+    StaticJsonDocument<256> sub;
+    sub["context"] = "vessels.self";
+    auto subscribe = sub.createNestedArray("subscribe");
+    auto s = subscribe.createNestedObject();
+    s["path"] = "navigation.magneticVariation";
+    s["format"] = "delta";
+    s["policy"] = "ideal";
+    s["period"] = 1000;
+
+    char buf[256];
+    size_t n = serializeJson(sub, buf, sizeof(buf));
+    ws.send(buf, n);
+}
+
+

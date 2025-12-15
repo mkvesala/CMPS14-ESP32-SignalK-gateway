@@ -1,5 +1,7 @@
 #include "CMPS14Sensor.h"
 
+// === P U B L I C ===
+
 // Constructor
 CMPS14Sensor::CMPS14Sensor(uint8_t i2c_addr) : addr(i2c_addr), wire(&Wire) {}
 

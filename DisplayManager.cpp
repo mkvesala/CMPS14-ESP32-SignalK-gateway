@@ -25,6 +25,11 @@ void DisplayManager::showInfoMessage(const char* who, const char* what, bool hol
   this->updateLCD(who, what, hold);
 }
 
+// Show IP Address and RSSI descriptor
+void DisplayManager::showWifiStatus(bool hold) {
+  this->updateLCD(IPc, RSSIc, hold);
+}
+
 // Show heading T/M
 void DisplayManager::showHeading() {
   float heading_true_deg = compass.getHeadingTrueDeg();
@@ -50,40 +55,12 @@ void DisplayManager::showConnectionStatus() {
   this->updateGreenLed();
 }
 
-// Show IP Address and RSSI descriptor
-void DisplayManager::showWifiStatus(bool hold) {
-  this->updateLCD(IPc, RSSIc, hold);
-}
-
 void DisplayManager::setWifiInfo(int rssi, IPAddress ip) {
   this->setRSSIc(rssi);
   this->setIPc(ip);
 }
 
 // === P R I V A T E === //
-
-// Helper for safe LCD printing
-void DisplayManager::copy16(char* dst, const char* src) {
-  strncpy(dst, src, 16);   // copy max 16 characters
-  dst[16] = '\0';          // ensure 0 termination
-}
-
-// Initialize LCD screen
-bool DisplayManager::initLCD() {
-  uint8_t addr = 0;
-  if (this->i2cAvailable(LCD_ADDR1)) addr = LCD_ADDR1;
-  else if (this->i2cAvailable(LCD_ADDR2)) addr = LCD_ADDR2;
-
-  if (addr) {
-    lcd = std::make_unique<LiquidCrystal_I2C>(addr, 16, 2);
-    lcd->init();
-    lcd->backlight();
-    lcd_present = true;
-  } else {
-    lcd_present = false;
-  }
-  return lcd_present;
-}
 
 // LCD basic printing on two lines
 void DisplayManager::updateLCD(const char* l1, const char* l2, bool hold) {
@@ -107,6 +84,23 @@ void DisplayManager::updateLCD(const char* l1, const char* l2, bool hold) {
 
   if (hold) lcd_hold_ms = millis();
 
+}
+
+// Initialize LCD screen
+bool DisplayManager::initLCD() {
+  uint8_t addr = 0;
+  if (this->i2cAvailable(LCD_ADDR1)) addr = LCD_ADDR1;
+  else if (this->i2cAvailable(LCD_ADDR2)) addr = LCD_ADDR2;
+
+  if (addr) {
+    lcd = std::make_unique<LiquidCrystal_I2C>(addr, 16, 2);
+    lcd->init();
+    lcd->backlight();
+    lcd_present = true;
+  } else {
+    lcd_present = false;
+  }
+  return lcd_present;
 }
 
 // LED indicator for calibration mode, blue led at GPIO2
@@ -183,6 +177,12 @@ void DisplayManager::updateGreenLed(){
 bool DisplayManager::i2cAvailable(uint8_t addr) {
   Wire.beginTransmission(addr);
   return (Wire.endTransmission() == 0);
+}
+
+// Helper for safe LCD printing
+void DisplayManager::copy16(char* dst, const char* src) {
+  strncpy(dst, src, 16);   // copy max 16 characters
+  dst[16] = '\0';          // ensure 0 termination
 }
 
 // Set RSSI descriptor

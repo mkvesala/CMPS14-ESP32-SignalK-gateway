@@ -1,5 +1,7 @@
 #include "CMPS14Preferences.h"
 
+// === P U B L I C ===
+
 CMPS14Preferences::CMPS14Preferences(CMPS14Processor &compassref) : compass(compassref) {}
 
 // Load all settings to CMPS14Processor
@@ -49,18 +51,21 @@ void CMPS14Preferences::load() {
     prefs.end();
 }
 
+// Save physical installation offset
 void CMPS14Preferences::saveInstallationOffset(float offset) {
     if (!prefs.begin(ns, false)) return;
     prefs.putFloat("offset_deg", offset);
     prefs.end();
 }
 
+// Save manual variation
 void CMPS14Preferences::saveManualVariation(float deg) {
     if (!prefs.begin(ns, false)) return;
     prefs.putFloat("mv_man_deg", deg);
     prefs.end();
 }
 
+// Save measured deviations at 8 cardinal and intercardinal points
 void CMPS14Preferences::saveMeasuredDeviations(const float out[8]) {
     if (!prefs.begin(ns, false)) return;
     for (int i = 0; i < 8; i++) {
@@ -71,6 +76,7 @@ void CMPS14Preferences::saveMeasuredDeviations(const float out[8]) {
     prefs.end();
 }
 
+// Save 5 coeffs of harmonic model
 void CMPS14Preferences::saveHarmonicCoeffs(const HarmonicCoeffs &hc) {
     if (!prefs.begin(ns, false)) return;
     prefs.putFloat("hc_A", hc.A);
@@ -81,18 +87,21 @@ void CMPS14Preferences::saveHarmonicCoeffs(const HarmonicCoeffs &hc) {
     prefs.end();
 }
 
+// Save calibration mode to be selected on boot
 void CMPS14Preferences::saveCalibrationModeBoot(CalMode mode) {
     if (!prefs.begin(ns, false)) return;
     prefs.putUChar("cal_mode_boot", (uint8_t)mode);
     prefs.end();
 }
 
+// Save timeout of FULL AUTO calibration
 void CMPS14Preferences::saveFullAutoTimeout(unsigned long ms) {
     if (!prefs.begin(ns, false)) return;
     prefs.putULong("fastop", ms);
     prefs.end();
 }
 
+// Save send true heading option
 void CMPS14Preferences::saveSendHeadingTrue(bool enable) {
     if (!prefs.begin(ns, false)) return;
     prefs.putBool("send_hdg_true", enable);

@@ -10,7 +10,7 @@ class DisplayManager {
 
   public:
 
-    DisplayManager(CMPS14Processor &compassref, SignalKBroker &signalkref);
+    explicit DisplayManager(CMPS14Processor &compassref, SignalKBroker &signalkref);
 
     bool begin();
     void showSuccessMessage(const char* who, bool success, bool hold = false);
