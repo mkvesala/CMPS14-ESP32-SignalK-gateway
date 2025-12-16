@@ -1,5 +1,6 @@
 #pragma once
 
+#include "globals.h"
 #include "CMPS14Sensor.h"
 #include "CMPS14Processor.h"
 #include "CMPS14Preferences.h"
@@ -7,9 +8,60 @@
 #include "DisplayManager.h"
 #include "WebUiManager.h"
 
-extern CMPS14Sensor sensor;
-extern CMPS14Processor compass;
-extern CMPS14Preferences compass_prefs;
-extern SignalKBroker signalk;
-extern DisplayManager display;
-extern WebUIManager webui;
+class CMPS14Application {
+
+  public:
+  
+    CMPS14Application();
+
+    void begin();
+    bool loop();
+    void status();
+    bool compassOk() const { return compass_ok; }
+
+  private:
+
+    // CMPS14 I2C address
+    static constexpr uint8_t CMPS14_ADDR = 0x60;
+
+    // SH-ESP32 default pins for I2C
+    static constexpr uint8_t I2C_SDA = 16;
+    static constexpr uint8_t I2C_SCL = 17;
+
+    static constexpr unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK
+    static constexpr unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency for pitch/roll maximum values sending
+    static constexpr unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop()
+    static constexpr unsigned long CAL_POLL_MS           = 499;         // Frequency to poll calibration status in loop() 
+    static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
+    static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
+    static constexpr unsigned long WS_RETRY_MAX          = 119993;      // Max reconnect delay for SignalK websocket
+    static constexpr unsigned long LCD_MS                = 1009;        // Frequency to show heading on LCD
+
+    // Timers
+    static unsigned long expn_retry_ms      = WS_RETRY_MS;
+    static unsigned long next_ws_try_ms     = 0;
+    static unsigned long last_tx_ms         = 0;   
+    static unsigned long last_minmax_tx_ms  = 0;         
+    static unsigned long last_read_ms       = 0;
+    static unsigned long last_cal_poll_ms   = 0;                           
+    static unsigned long last_lcd_ms        = 0;
+
+    bool compass_ok = false;
+    bool calmode_ok = false;
+
+    // Core instances for app
+    CMPS14Sensor sensor;
+    CMPS14Processor compass;
+    CMPS14Preferences compass_prefs;
+    SignalKBroker signalk;
+    DisplayManager display;
+    WebUIManager webui;
+
+    // Handlers for loop - timers and operations
+    void handleOTA();
+    void handleWebUI();
+    void handleCompass(unsigned long now);
+    void handleSignalK(unsigned long now);
+    void handleDisplay(unsigned long now);
+
+};

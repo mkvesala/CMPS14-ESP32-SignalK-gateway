@@ -14,3 +14,6 @@ static constexpr float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 };
 
 HarmonicCoeffs computeHarmonicCoeffs(const float* dev_deg);
 float computeDeviation(const HarmonicCoeffs& h, float hdg_deg);
+
+// Return float validity
+inline bool validf(float x) { return !isnan(x) && isfinite(x); }
