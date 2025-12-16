@@ -15,7 +15,7 @@ class CMPS14Application {
     CMPS14Application();
 
     void begin();
-    bool loop();
+    void loop();
     void status();
     bool compassOk() const { return compass_ok; }
 
@@ -38,16 +38,17 @@ class CMPS14Application {
     static constexpr unsigned long LCD_MS                = 1009;        // Frequency to show heading on LCD
 
     // Timers
-    static unsigned long expn_retry_ms      = WS_RETRY_MS;
-    static unsigned long next_ws_try_ms     = 0;
-    static unsigned long last_tx_ms         = 0;   
-    static unsigned long last_minmax_tx_ms  = 0;         
-    static unsigned long last_read_ms       = 0;
-    static unsigned long last_cal_poll_ms   = 0;                           
-    static unsigned long last_lcd_ms        = 0;
+    unsigned long expn_retry_ms      = WS_RETRY_MS;
+    unsigned long next_ws_try_ms     = 0;
+    unsigned long last_tx_ms         = 0;   
+    unsigned long last_minmax_tx_ms  = 0;         
+    unsigned long last_read_ms       = 0;
+    unsigned long last_cal_poll_ms   = 0;                           
+    unsigned long last_lcd_ms        = 0;
 
     bool compass_ok = false;
     bool calmode_ok = false;
+    bool ota_ok = false;
 
     // Core instances for app
     CMPS14Sensor sensor;

@@ -24,7 +24,7 @@ void CMPS14Application::begin() {
   display.begin();
 
   // Init compass
-  compass_ok = compass.begin(Wire));
+  compass_ok = compass.begin(Wire);
 
   // Get saved configuration from ESP32 preferences
   compass_prefs.load();
@@ -54,9 +54,9 @@ void CMPS14Application::begin() {
     ArduinoOTA.setHostname(signalk.getSignalKSource());
     ArduinoOTA.setPassword(WIFI_PASS);
     ArduinoOTA.onStart([](){});
-    ArduinoOTA.onEnd([]() { ota_ok = true; });
+    ArduinoOTA.onEnd([this]() { ota_ok = true; });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});
-    ArduinoOTA.onError([] (ota_error_t error) { ota_ok = false; });
+    ArduinoOTA.onError([this] (ota_error_t error) { ota_ok = false; });
     ArduinoOTA.begin();
 
     // Webserver handlers
@@ -116,7 +116,7 @@ void CMPS14Application::handleWebUI() {
 }
 
 // Compass
-void CMPS14Application::handleCompass() {
+void CMPS14Application::handleCompass(unsigned long now) {
   
   if ((long)(now - last_read_ms) >= READ_MS) {
     last_read_ms = now; 
@@ -171,7 +171,7 @@ void CMPS14Application::handleSignalK(unsigned long now) {
 }
 
 // LCD and LEDs
-void CMPS14Application::handleDisplay() {
+void CMPS14Application::handleDisplay(unsigned long now) {
   
   // Display heading (T or M) on LCD
   if ((long)(now - last_lcd_ms) >= LCD_MS) {                      
