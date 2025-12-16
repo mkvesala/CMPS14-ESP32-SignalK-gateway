@@ -19,6 +19,11 @@ void WebUIManager::begin() {
   server.begin();
 }
 
+// Handle client request
+void WebUIManager::handleRequest() {
+  server.handleClient();
+}
+
 // === P R I V A T E ===
 
 // Set the handlers for webserver endpoints
