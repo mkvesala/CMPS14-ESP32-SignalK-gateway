@@ -25,6 +25,51 @@ Led indicators for calibration mode and connection status (two leds).
 2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
 3. Refresh my vague C/C++ skills as I have not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
+This is not SensESP/PlatformIO project. Why? 
+
+Well, this started Arduino-style by copying code from my previous project with Victron SmartShunt VEDirect reader. Then, I just wanted keep playing around with Arduino. However, my next project will be most likely based on SensESP just to keep things less complicated for myself.
+
+## Release history
+
+```
+Release            Branch                           Comment
+
+v1.0.0             main                             Latest release. Refactored into classes.
+v0.5.1             legacy/procedural-0.5.x          Last fully procedural version.
+```
+## Class CMPS14Sensor
+
+The heart of the project is the modest librarish class `CMPS14Sensor` that communicates with the CMPS14 device. It has the following public API:
+
+```
+bool begin(TwoWire &wirePort) 
+bool available()
+bool read(float &angle_deg, float &pitch_deg, float &roll_deg)
+bool sendCommand(uint8_t cmd)
+uint8_t readRegister(uint8_t reg)
+bool isAck(uint8_t byte)
+bool isNack(uint8_t byte)
+```
+The simple usage of CMPS14Sensor could be:
+
+```
+#include <Arduino.h>
+#include <Wire.h>
+#include "CMPS14Sensor.h"
+
+CMPS14Sensor sensor(0x60);
+
+void setup() {
+   Wire.begin(16, 17);
+   sensor.begin(Wire);
+}
+
+void loop() {
+   float angle_deg, pitch_deg, roll_deg;
+   sensor.read(angle_deg, pitch_deg, roll_deg);
+}
+
+```
 ## Features
 
 ### Compass and attitude
