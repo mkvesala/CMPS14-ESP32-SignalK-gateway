@@ -8,5 +8,5 @@ const uint8_t I2C_SDA = 16;
 const uint8_t I2C_SCL = 17;
 
 // Webserver
-WebServer server(80);
+// WebServer server(80);
 

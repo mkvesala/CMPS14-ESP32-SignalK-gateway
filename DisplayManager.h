@@ -3,7 +3,6 @@
 #include <memory>
 #include "globals.h"
 #include "CMPS14Processor.h"
-#include "CalMode.h"
 #include "SignalKBroker.h"
 
 class DisplayManager {
@@ -43,6 +42,10 @@ class DisplayManager {
 
     CMPS14Processor &compass;
     SignalKBroker &signalk;
+
+    // I had strange issues with LCD I2C in my other boat project,
+    // which disappeared after using LCD via unique_ptr/make_unique.
+    // I copied the same here, but LiquidCrystal_I2C lcd; might work as well.
     std::unique_ptr<LiquidCrystal_I2C> lcd;
 
     static constexpr uint8_t LED_PIN_BL = 2;

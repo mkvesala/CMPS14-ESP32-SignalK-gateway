@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ArduinoWebsockets.h>
-#include <ArduinoJson.h>
 #include "globals.h"
 #include "CMPS14Processor.h"
 

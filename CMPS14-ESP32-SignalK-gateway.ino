@@ -1,7 +1,5 @@
 #include "globals.h"
 #include "CMPS14Instances.h"
-#include "webui.h"
-#include "CalMode.h"
 
 static constexpr unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK
 static constexpr unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency for pitch/roll maximum values sending
@@ -69,13 +67,19 @@ void setup() {
     ArduinoOTA.setHostname(signalk.getSignalKSource());
     ArduinoOTA.setPassword(WIFI_PASS);
     ArduinoOTA.onStart([](){});
-    ArduinoOTA.onEnd([]() {});
-    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});
-    ArduinoOTA.onError([] (ota_error_t error) {});
+    ArduinoOTA.onEnd([]() {
+      display.showSuccessMessage("OTA UPDATE", true);
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){
+      display.showInfoMessage("OTA UPDATE", "UPLOADING");
+    });
+    ArduinoOTA.onError([] (ota_error_t error) {
+      display.showSuccessMessage("OTA UPDATE", false);
+    });
     ArduinoOTA.begin();
 
     // Webserver handlers
-    setupWebserverCallbacks();
+    webui.begin();
 
   // No WiFi connection, use only LCD output and power off WiFi 
   } else {  
@@ -108,7 +112,7 @@ void loop() {
     
     // Webserver
     // Todo: consider moving from loop to separate task
-    server.handleClient();   
+    webui.handleRequest();   
 
     // Websocket
     // Todo: consider moving from loop to separate task

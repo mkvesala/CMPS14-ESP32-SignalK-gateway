@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
@@ -9,6 +10,8 @@
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <esp_system.h>
+#include "CalMode.h"
+#include "harmonic.h"
 #include "secrets.h"
 
 using namespace websockets;
@@ -20,7 +23,7 @@ extern const uint8_t I2C_SDA;
 extern const uint8_t I2C_SCL;
 
 // Webserver
-extern WebServer server;
+// extern WebServer server;
 
 // Return float validity
 inline bool validf(float x) { return !isnan(x) && isfinite(x); }

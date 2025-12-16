@@ -1,9 +1,7 @@
 #pragma once
 
-#include <Preferences.h>
+#include "globals.h"
 #include "CMPS14Processor.h"
-#include "CalMode.h"
-#include "harmonic.h"
 
 // Preferences subsystem for CMPS14Processor
 class CMPS14Preferences {

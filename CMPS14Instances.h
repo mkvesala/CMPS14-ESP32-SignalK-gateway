@@ -5,9 +5,11 @@
 #include "CMPS14Preferences.h"
 #include "SignalKBroker.h"
 #include "DisplayManager.h"
+#include "WebUiManager.h"
 
 extern CMPS14Sensor sensor;
 extern CMPS14Processor compass;
 extern CMPS14Preferences compass_prefs;
 extern SignalKBroker signalk;
 extern DisplayManager display;
+extern WebUIManager webui;

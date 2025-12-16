@@ -1,57 +1,103 @@
-#include "webui.h"
+#include "WebUIManager.h"
 
-// Set up webserver to call the handlers
-void setupWebserverCallbacks() {
-  server.on("/", handleRoot);
-  server.on("/status", handleStatus);
-  server.on("/cal/on", handleStartCalibration);
-  server.on("/cal/off", handleStopCalibration);
-  server.on("/store/on", handleSaveCalibration);
-  server.on("/reset/on", handleReset);
-  server.on("/offset/set", handleSetOffset);
-  server.on("/dev8/set", handleSetDeviations);
-  server.on("/calmode/set", handleSetCalmode);
-  server.on("/magvar/set", handleSetMagvar);
-  server.on("/heading/mode", handleSetHeadingMode);
-  server.on("/restart", handleRestart);
-  server.on("/deviationdetails", handleDeviationTable);
+// === P U B L I C ===
+
+WebUIManager::WebUIManager(
+    CMPS14Processor &compassref,
+    CMPS14Preferences &prefsref,
+    SignalKBroker &signalkref,
+    DisplayManager &displayref
+    ) : server(80),
+        compass(compassref),
+        prefs(prefsref), 
+        signalk(signalkref),
+        display(displayref) {}
+
+// Init the webserver
+void WebUIManager::begin() {
+  this->setupRoutes();
   server.begin();
 }
 
+// === P R I V A T E ===
+
+// Set the handlers for webserver endpoints
+void WebUIManager::setupRoutes() {
+  server.on("/", HTTP_GET, [this]() {
+        this->handleRoot();
+    });
+  server.on("/status", HTTP_GET, [this]() {
+        this->handleStatus();
+    });
+  server.on("/cal/on", HTTP_GET, [this]() {
+        this->handleStartCalibration();
+    });
+  server.on("/cal/off", HTTP_GET, [this]() {
+        this->handleStopCalibration();
+    });
+  server.on("/store/on", HTTP_GET, [this]() {
+        this->handleSaveCalibration();
+    });
+  server.on("/reset/on", HTTP_GET, [this]() {
+        this->handleReset();
+    });
+  server.on("/offset/set", HTTP_GET, [this]() {
+        this->handleSetOffset();
+    });
+  server.on("/dev8/set", HTTP_GET, [this]() {
+        this->handleSetDeviations();
+    });
+  server.on("/calmode/set", HTTP_GET, [this]() {
+        this->handleSetCalmode();
+    });
+  server.on("/magvar/set", HTTP_GET, [this]() {
+        this->handleSetMagvar();
+    });
+  server.on("/heading/mode", HTTP_GET, [this]() {
+        this->handleSetHeadingMode();
+    });
+  server.on("/restart", HTTP_GET, [this]() {
+        this->handleRestart();
+    });
+  server.on("/deviationdetails", HTTP_GET, [this]() {
+        this->handleDeviationTable();
+    });
+}
+
 // Web UI handler for CALIBRATE button
-void handleStartCalibration(){
+void WebUIManager::handleStartCalibration(){
   if (compass.startCalibration(CAL_MANUAL)) {
     // ok
   }
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler for STOP button
-void handleStopCalibration(){
+void WebUIManager::handleStopCalibration(){
   if (compass.stopCalibration()) {
     // ok
   }
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler for SAVE button
-void handleSaveCalibration(){
+void WebUIManager::handleSaveCalibration(){
   if (compass.saveCalibrationProfile()) {
     // ok
   }
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler for RESET button
-void handleReset(){
+void WebUIManager::handleReset(){
   if (compass.reset()) {
     // ok
   }
-  handleRoot(); 
+  this->handleRoot(); 
 }
 
 // Web UI handler for status block, build json with appropriate data
-void handleStatus() {
+void WebUIManager::handleStatus() {
   
   uint8_t mag = 255, acc = 255, gyr = 255, sys = 255;
   uint8_t statuses[4];
@@ -70,7 +116,7 @@ void handleStatus() {
 
   doc["cal_mode"]             = calModeToString(compass.getCalibrationModeRuntime());
   doc["cal_mode_boot"]        = calModeToString(compass.getCalibrationModeBoot());
-  doc["fa_left"]              = ms_to_hms_str(compass.getFullAutoLeft());
+  doc["fa_left"]              = this->ms_to_hms_str(compass.getFullAutoLeft());
   doc["wifi"]                 = display.getWifiIPAddress();
   doc["rssi"]                 = display.getWifiQuality();
   doc["hdg_deg"]              = compass.getHeadingDeg();
@@ -103,7 +149,7 @@ void handleStatus() {
 }
 
 // Web UI handler for installation offset, to correct raw compass heading
-void handleSetOffset() {
+void WebUIManager::handleSetOffset() {
   if (server.hasArg("v")) {
     float v = server.arg("v").toFloat();
     if (!validf(v)) v = 0.0f;
@@ -119,11 +165,11 @@ void handleSetOffset() {
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c", v, 223);
     display.showInfoMessage("INSTALL OFFSET", line2, true);
   }
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler for 8 measured deviation values, to correct raw compass heading --> navigation.headingMagnetic
-void handleSetDeviations() {
+void WebUIManager::handleSetDeviations() {
   auto getf = [&](const char* k) -> float {
     if (!server.hasArg(k)) return 0.0f;
     float v = server.arg(k).toFloat();
@@ -152,11 +198,11 @@ void handleSetDeviations() {
 
   display.showSuccessMessage("SAVE DEVIATIONS", true, true);
 
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler to choose calibration mode on boot
-void handleSetCalmode() {
+void WebUIManager::handleSetCalmode() {
   if (server.hasArg("calmode") && server.hasArg("fastop")) {
     
     String m = server.arg("calmode");
@@ -179,11 +225,11 @@ void handleSetCalmode() {
     compass_prefs.saveCalibrationModeBoot(v);
     display.showInfoMessage("BOOT MODE SAVED", calModeToString(v), true);
   }
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler to set magnetic variation manually.
-void handleSetMagvar() {
+void WebUIManager::handleSetMagvar() {
   
   if (server.hasArg("v")) {
     float v = server.arg("v").toFloat();
@@ -198,11 +244,11 @@ void handleSetMagvar() {
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(v), 223, (v >= 0 ? 'E':'W'));
     display.showInfoMessage("MAG VARIATION", line2, true);
   }
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler to set heading mode TRUE or MAGNETIC
-void handleSetHeadingMode() {
+void WebUIManager::handleSetHeadingMode() {
   bool send_hdg_true;
   if (server.hasArg("mode")) {
     String mode = server.arg("mode");
@@ -213,11 +259,11 @@ void handleSetHeadingMode() {
   compass_prefs.saveSendHeadingTrue(send_hdg_true);
 
   display.showInfoMessage("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC", true);
-  handleRoot();
+  this->handleRoot();
 }
 
 // Web UI handler for the configuration HTML page 
-void handleRoot() {
+void WebUIManager::handleRoot() {
 
   CalMode mode_runtime = compass.getCalibrationModeRuntime();
   CalMode mode_boot = compass.getCalibrationModeBoot();
@@ -254,7 +300,7 @@ void handleRoot() {
     <div class='card' id='controls'>)");
   if (mode_runtime == CAL_FULL_AUTO) {
     char buf[128];
-    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(mode_runtime), ms_to_hms_str(compass.getFullAutoLeft()));
+    snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(mode_runtime), this->ms_to_hms_str(compass.getFullAutoLeft()));
     server.sendContent(buf);
   } else {
     char buf[64];
@@ -462,7 +508,7 @@ void handleRoot() {
 }
 
 // WebUI handler to draw deviation table and deviation curve
-void handleDeviationTable(){
+void WebUIManager::handleDeviationTable(){
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.sendHeader("Connection", "close");
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -578,7 +624,7 @@ void handleDeviationTable(){
 }
 
 // Web UI handler for software restart of ESP32
-void handleRestart() {
+void WebUIManager::handleRestart() {
   uint32_t ms = 2999;
   if (server.hasArg("ms")){
     long v = server.arg("ms").toInt();

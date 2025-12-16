@@ -87,6 +87,9 @@ void DisplayManager::updateLCD(const char* l1, const char* l2, bool hold) {
 }
 
 // Initialize LCD screen
+// I had strange issues with LCD I2C in my other boat project,
+// which disappeared after using LCD via unique_ptr/make_unique.
+// I copied the same here, but LiquidCrystal_I2C(addr, 16, 2); might work as well.
 bool DisplayManager::initLCD() {
   uint8_t addr = 0;
   if (this->i2cAvailable(LCD_ADDR1)) addr = LCD_ADDR1;

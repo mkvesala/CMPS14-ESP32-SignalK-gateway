@@ -1,8 +1,6 @@
 #pragma once
 
-#include "harmonic.h"
 #include "globals.h"
-#include "CalMode.h"
 #include "CMPS14Sensor.h"
 
 class CMPS14Processor {
