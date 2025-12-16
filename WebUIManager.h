@@ -10,16 +10,16 @@ class WebUIManager {
 
 public:
 
-  explicit WebUIManager(CMPS14Processor &compassref, CMPS14Preferences &prefsref, SignalKBroker &signalkref, DisplayManager &displayref);
+  explicit WebUIManager(CMPS14Processor &compassref, CMPS14Preferences &compass_prefsref, SignalKBroker &signalkref, DisplayManager &displayref);
 
-  bool begin();
+  void begin();
   void handleRequest();
 
 private:
   
-  WebServer &server;
+  WebServer server;
   CMPS14Processor &compass;
-  CMPS14Preferences &prefs;
+  CMPS14Preferences &compass_prefs;
   SignalKBroker &signalk;
   DisplayManager &display;
 

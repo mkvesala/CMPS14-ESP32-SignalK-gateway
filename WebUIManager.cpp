@@ -4,12 +4,12 @@
 
 WebUIManager::WebUIManager(
     CMPS14Processor &compassref,
-    CMPS14Preferences &prefsref,
+    CMPS14Preferences &compass_prefsref,
     SignalKBroker &signalkref,
     DisplayManager &displayref
     ) : server(80),
         compass(compassref),
-        prefs(prefsref), 
+        compass_prefs(compass_prefsref), 
         signalk(signalkref),
         display(displayref) {}
 
