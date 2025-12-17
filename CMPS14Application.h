@@ -48,7 +48,6 @@ class CMPS14Application {
 
     bool compass_ok = false;
     bool calmode_ok = false;
-    bool ota_ok = false;
 
     // Core instances for app
     CMPS14Sensor sensor;

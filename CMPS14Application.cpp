@@ -79,7 +79,7 @@ void CMPS14Application::status() {
   delay(1009);
   display.showSuccessMessage("WIFI CONNECT", WiFi.isConnected());
   delay(1009);
-  display.showWifiStatus();
+  if (WiFi.isConnected()) display.showWifiStatus();
   delay(1009);
   display.showSuccessMessage("SK WEBSOCKET", signalk.isOpen());
   delay(1009);
@@ -116,7 +116,10 @@ void CMPS14Application::handleWebUI() {
 
 // Websocket poll and reconnect
 void CMPS14Application::handleWebsocket(unsigned long now) {
-  if (!WiFi.isConnected()) return;
+  if (!WiFi.isConnected()) {
+    compass.setUseManualVariation(true);
+    return;
+  }
   signalk.handleStatus();
   
   if (!signalk.isOpen() && (long)(now - next_ws_try_ms) >= 0){ 
