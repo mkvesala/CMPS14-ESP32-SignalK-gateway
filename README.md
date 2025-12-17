@@ -2,7 +2,7 @@
 
 # CMPS14-ESP32-SignalK Gateway
 
-[![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue)](https://www.espressif.com/en/products/socs/esp32)
+[![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue)](https://www.espressif.com/en/sdks/esp-arduino)
 [![Sensor: CMPS14](https://img.shields.io/badge/Sensor-CMPS14-lightgrey)](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 [![Protocol: Signal K](https://img.shields.io/badge/Protocol-Signal%20K-orange)](https://signalk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -150,6 +150,8 @@ When calibration is running, *SYS*, *ACC* and *MAG* indicators are monitored at 
 
 ### Web UI (ESP32 Webserver)
 
+<img src="ui1.jpeg" width="120"> <img src="ui2.jpeg" width="120"> <img src="ui3.jpeg" width="120"> <img src="ui4.jpeg" width="120">
+
 Webserver provides simple HTML/JS user interface for user to configure:
 
 1. Calibration mode on boot and optional *FULL AUTO* timeout (mins)
@@ -160,7 +162,7 @@ Webserver provides simple HTML/JS user interface for user to configure:
    - Negative offset corrects the heading *towards* port side, meaning that the compass mounting is tilted starboard
    - Effective immediately
 4. Measured deviations at 8 cardinal and intercardinal directions (degrees)
-   - Assumes the user to measure deviations with normal routine of
+   - Assumes the user has measured deviations with the standard routine:
      ```
      HDG (C) | Dev | HDG (M) | Var | HDG (T)
      ```
@@ -219,10 +221,9 @@ Path                  Description               Parameters
 ### LCD 16x2
 
 1. Shows heading (true or magnetic) at ~1 Hz frequency
-2. Shows messages of `setup()` on boot
-3. Shows info messages on the way, related to calibration status, user interaction on web UI, OTA update progress etc. 
+2. Shows info messages on the way, related to calibration status, user interaction on web UI, OTA update progress etc. 
    - Info messages are visible for ~1 second before replaced by heading again
-4. To avoid unnecessary blinking the LCD will refresh only if the content to be shown is different from what's already on the display.
+3. To avoid unnecessary blinking the LCD will refresh only if the content to be shown is different from what's already on the display.
 
 ### Two led indicators
 
@@ -241,14 +242,17 @@ Path                  Description               Parameters
 
 ```
 /
-- CMPS14-ESP32-SignalK-gateway.ino       // setup() and loop()
-- globals.h  | globals.cpp               // constants and other globals
-- cmps14.h   | cmps14.cpp                // read from and write commands to CMPS14
-- signalk.h  | signalk.cpp               // websocket connectivity to SignalK and delta handling with json
-- webui.h    | webui.cpp                 // webserver to provide HTML/JS UI and handlers
-- display.h  | display.cpp               // LCD 16x2 and led indicators
-- harmonic.h | harmonic.cpp              // harmonic model to compute deviation
-- OTA.h      | OTA.cpp                   // OTA updates
+- CMPS14-ESP32-SignalK-gateway.ino                 // Create CMPS14Application app, setup(), loop()
+- globals.h                                        // Library includes
+- CalMode.h                                        // Struct for CMPS14 calibration modes
+- harmonic.h             | harmonic.cpp            // Harmonic model to compute deviation
+- CMPS14Sensor.h         | CMPS14Sensor.cpp        // Class CMPS14Sensor, the "sensor"
+- CMPS14Processor.h      | CMPS14Processor.cpp     // Class CMPSProcessor, the "compass"
+- CMPS14Preferences.h    | CMPS14Preferences.cpp   // Class CMPS14Preferences, the "compass_prefs"
+- SignalKBroker.h        | SignalKBroker.cpp       // Class SignalKBroker, the "signalk"
+- DisplayManager.h       | DisplayManager.cpp      // Class DisplayManager, the "display"
+- WebUIManager.h         | WebUIManager.cpp        // Class WebUIManager, the "webui"
+- CMPS14Application.h    | CMPS14Application.cpp   // Class CMPS14Application, the "app"
 ```
 
 ## Hardware used
@@ -258,24 +262,25 @@ Path                  Description               Parameters
 3. LCD 16x2 module(with I2C backpack) connected with 1.2 m CAT5E network cable
 4. LEDs
    - blue led at GPIO2 (built in led of SH-ESP32)
-   - green led at GPIO13 with 330 ohm resistor in series
-5. Wifi router to provide wireless LAN AP
-6. Device in LAN running SignalK server
-7. Sparkfun bi-directional [logic level converter](https://www.sparkfun.com/sparkfun-logic-level-converter-bi-directional.html)
+   - green led at GPIO13 in series with 330 ohm resistor
+5. Sparkfun bi-directional [logic level converter](https://www.sparkfun.com/sparkfun-logic-level-converter-bi-directional.html)
    - SH-ESP32 runs 3.3 V internally
    - CMPS14 accepts both 3.3 V and 5 V
    - LCD accepts both 3.3 V and 5 V but is brighter with 5 V
    - Soldered logic level converter onto the board and used 5 V both for CMPS14 and LCD
-8. Joy-IT step-down [voltage converter](https://joy-it.net/en/products/SBC-Buck04-5V)
+6. Joy-IT step-down [voltage converter](https://joy-it.net/en/products/SBC-Buck04-5V)
    - SH-ESP32 accepts 8 - 32 V, this is step-down to 5 V for CMPS14 and LCD
-9. IP67 enclosures for CMPS14 and SH-ESP32, cable clands and SP13 connectors
-10. 3D printed [panel mount bezel](https://www.printables.com/model/158413-panel-mount-16x2-lcd-bezel) for LCD 16x2
+7. IP67 enclosures for CMPS14 and SH-ESP32, cable clands and SP13 connectors
+8. 3D printed [panel mount bezel](https://www.printables.com/model/158413-panel-mount-16x2-lcd-bezel) for LCD 16x2 (temporarily a black 2 x 4 x 1 inch plastic box with a cut hole)
+9. Wifi router providing wireless LAN AP
+10. MacOS laptop in LAN running SignalK server
+11. Jumper wires, male row headers (2.54 mm)
 
 **No paid partnerships.**
 
 ## Software used
 
-1. Arduino IDE 2.x or similar
+1. Arduino IDE 2.3.6
 2. ESP32 board package
 3. Libraries:
    ```
@@ -298,7 +303,7 @@ Path                  Description               Parameters
    git clone https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway.git
    ```
 2. Alternatively, download the code as zip
-3. Set up your credentials in `secrets.h` (first by renaming the `secrets.example.h`)
+3. Set up your credentials in `secrets.h` (first by renaming the `secrets.example.h` to `secrets.h`)
    ```
    #define WIFI_SSID   "your_wifi"
    #define WIFI_PASS   "your_pass"
@@ -307,9 +312,7 @@ Path                  Description               Parameters
    #define SK_TOKEN    "your_token"
    ```
 4. Compile and upload
-5. Open browser --> navigate to ESP32 ip-address for configuration page
-
-ESP32 allows credentials to be set also via ESP32's AP. While doing this, edit the relevant parts of the source code.
+5. Open browser --> navigate to ESP32 ip-address for configuration page (make sure you are in the same network with the ESP32).
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
@@ -329,9 +332,7 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT Plus 5. ChatGPT was used in the project mainly as a sparring partner with whom to discuss ideas. ChatGPT was also my personal trainer in C/C++ and provided me with source code skeletons based chosen ideas. ChatGPT also assisted me in debugging. Some mathematical stuff and other functions beyond my skills were also provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
-
-The code is not object oriented. I might change that. Or maybe I wont. [SensESP](https://signalk.org/SensESP/) does the stuff and I will most likely implement the next project on SensESP and PlatformIO.
+Developed by Matti Vesala in collaboration with ChatGPT Business 5 and 5.1. ChatGPT was used in the project as a sparring partner to discuss ideas. ChatGPT was also my personal trainer in C/C++ and helped me to generate source code skeletons based on refined ideas. ChatGPT also assisted me in testing and debugging. Some mathematical stuff and other functions beyond my skills were provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
 
 
 
