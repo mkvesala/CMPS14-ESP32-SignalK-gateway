@@ -54,9 +54,11 @@ void CMPS14Application::begin() {
     ArduinoOTA.setHostname(signalk.getSignalKSource());
     ArduinoOTA.setPassword(WIFI_PASS);
     ArduinoOTA.onStart([](){});
-    ArduinoOTA.onEnd([this]() { ota_ok = true; });
-    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});
-    ArduinoOTA.onError([this] (ota_error_t error) { ota_ok = false; });
+    ArduinoOTA.onEnd([]() {});
+    ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total){
+      display.showInfoMessage("OTA UPDATE", "UPLOADING");
+    });
+    ArduinoOTA.onError([] (ota_error_t error) {});
     ArduinoOTA.begin();
 
     // Webserver handlers
@@ -73,8 +75,6 @@ void CMPS14Application::begin() {
 // Heavily blocking status update
 // Todo: implement message queue in DisplayManager
 void CMPS14Application::status() {
-  display.showSuccessMessage("CAL MODE INIT", calmode_ok);
-  delay(1009);
   if (calmode_ok) display.showInfoMessage("CAL MODE INIT", calModeToString(compass.getCalibrationModeRuntime()));
   delay(1009);
   display.showSuccessMessage("WIFI CONNECT", WiFi.isConnected());
@@ -82,8 +82,6 @@ void CMPS14Application::status() {
   display.showWifiStatus();
   delay(1009);
   display.showSuccessMessage("SK WEBSOCKET", signalk.isOpen());
-  delay(1009);
-  display.showSuccessMessage("OTA INIT", ota_ok);
   delay(1009);
   display.showSuccessMessage("CMPS14 INIT", compass_ok);
   delay(1009);
@@ -95,6 +93,7 @@ void CMPS14Application::loop() {
   const unsigned long now = millis();
   this->handleOTA();
   this->handleWebUI();
+  this->handleWebsocket(now);
   this->handleCompass(now);
   this->handleSignalK(now);
   this->handleDisplay(now);
@@ -113,6 +112,21 @@ void CMPS14Application::handleOTA() {
 void CMPS14Application::handleWebUI() {
   if (!WiFi.isConnected()) return;
   webui.handleRequest();
+}
+
+// Websocket poll and reconnect
+void CMPS14Application::handleWebsocket(unsigned long now) {
+  if (!WiFi.isConnected()) return;
+  signalk.handleStatus();
+  
+  if (!signalk.isOpen() && (long)(now - next_ws_try_ms) >= 0){ 
+      display.showInfoMessage("SK WEBSOCKET", "CONNECTING");
+      signalk.connectWebsocket();
+      next_ws_try_ms = now + expn_retry_ms;
+      expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
+  }
+  if (signalk.isOpen()) expn_retry_ms = WS_RETRY_MS;
+  else compass.setUseManualVariation(true);
 }
 
 // Compass
@@ -141,20 +155,9 @@ void CMPS14Application::handleCompass(unsigned long now) {
 
 }
 
-// SignalK websocket
+// SignalK delta sending
 void CMPS14Application::handleSignalK(unsigned long now) {
   if (!WiFi.isConnected()) return;
-  
-  signalk.handleStatus();
-  
-  if (!signalk.isOpen() && (long)(now - next_ws_try_ms) >= 0){ 
-      display.showInfoMessage("SK WEBSOCKET", "CONNECTING");
-      signalk.connectWebsocket();
-      next_ws_try_ms = now + expn_retry_ms;
-      expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
-  }
-  if (signalk.isOpen()) expn_retry_ms = WS_RETRY_MS;
-  else compass.setUseManualVariation(true);
 
   // Send heading, pitch and roll to SignalK server
   if ((long)(now - last_tx_ms) >= MIN_TX_INTERVAL_MS) {

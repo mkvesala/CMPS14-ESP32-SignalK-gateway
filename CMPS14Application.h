@@ -61,6 +61,7 @@ class CMPS14Application {
     // Handlers for loop - timers and operations
     void handleOTA();
     void handleWebUI();
+    void handleWebsocket(unsigned long now);
     void handleCompass(unsigned long now);
     void handleSignalK(unsigned long now);
     void handleDisplay(unsigned long now);
