@@ -58,13 +58,18 @@ The simple usage of CMPS14Sensor could be:
 CMPS14Sensor sensor(0x60);
 
 void setup() {
+   Serial.begin(115200);
    Wire.begin(16, 17);
+   delay(100);
    sensor.begin(Wire);
 }
 
 void loop() {
    float angle_deg, pitch_deg, roll_deg;
    sensor.read(angle_deg, pitch_deg, roll_deg);
+   Serial.println(angle_deg);
+   Serial.println(pitch_deg);
+   Serial.println(roll_deg);
 }
 
 ```
@@ -310,7 +315,7 @@ Path                  Description               Parameters
    #define SK_TOKEN    "your_token"
    ```
 4. Connect and power up the device with the USB cable
-5. Compile and upload with Arduino IDE
+5. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
 6. Open browser --> navigate to ESP32 ip-address for configuration page (make sure you are in the same network with the ESP32).
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
