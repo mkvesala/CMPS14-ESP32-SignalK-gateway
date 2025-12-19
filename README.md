@@ -212,11 +212,11 @@ Path                  Description               Parameters
 /cal/off              Stop calibration          none
 /store/on             Save calibration profile  none
 /reset/on             Reset CMPS14              none
-/calmode/set          Save calibration mode     ?calmode=<full|semi|use>&fastop=<0-60>
-/offset/set           Installation offset       ?v=<-180-180>
+/calmode/set          Save calibration mode     ?calmode=<full|semi|use>&fastop=<0...60>
+/offset/set           Installation offset       ?v=<-180...180>
 /dev8/set             Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>
 /deviationdetails     Deviation curve and table none
-/magvar/set           Manual variation          ?v=<-180-180>
+/magvar/set           Manual variation          ?v=<-180...180>
 /heading/mode         Heading mode              ?mode=<true|mag>
 /status               Status block              none
 /restart              Restart ESP32             ?ms=5003
@@ -231,7 +231,7 @@ Path                  Description               Parameters
 
 ### Two led indicators
 
-1. GPIO2 blue led indicator (built in led of SH-ESP32 board)
+1. GPIO2 blue led indicator (built in led on SH-ESP32 board)
    - Solid state: *USE* mode
    - Fast ~5 Hz blinking: *AUTO* or *MANUAL* calibration mode active
    - Slow ~0.5 Hz blinking: *FULL AUTO* calibration mode active
@@ -239,7 +239,7 @@ Path                  Description               Parameters
 2. GPIO13 green led indicator (additional led soldered onto the board)
    - Solid state: websocket connection to SignalK server is open
    - Fast ~5 Hz blinking: wifi is connected but websocket connection to SignalK server is down
-   - Slow ~0.5 Hz blinking: no networking, running *LCD ONLY* mode
+   - Slow ~0.5 Hz blinking: no network connection
    - Off: I have a bad feeling about this.
   
 ## Project structure
@@ -251,7 +251,7 @@ Path                  Description               Parameters
 - CalMode.h                                        // Struct for CMPS14 calibration modes
 - harmonic.h             | harmonic.cpp            // Harmonic model to compute deviation
 - CMPS14Sensor.h         | CMPS14Sensor.cpp        // Class CMPS14Sensor, the "sensor"
-- CMPS14Processor.h      | CMPS14Processor.cpp     // Class CMPSProcessor, the "compass"
+- CMPS14Processor.h      | CMPS14Processor.cpp     // Class CMPS14Processor, the "compass"
 - CMPS14Preferences.h    | CMPS14Preferences.cpp   // Class CMPS14Preferences, the "compass_prefs"
 - SignalKBroker.h        | SignalKBroker.cpp       // Class SignalKBroker, the "signalk"
 - DisplayManager.h       | DisplayManager.cpp      // Class DisplayManager, the "display"
