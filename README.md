@@ -4,18 +4,18 @@
 
 [![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue)](https://www.espressif.com/en/sdks/esp-arduino)
 [![Sensor: CMPS14](https://img.shields.io/badge/Sensor-CMPS14-lightgrey)](https://www.robot-electronics.co.uk/files/cmps14.pdf)
-[![Protocol: Signal K](https://img.shields.io/badge/Protocol-Signal%20K-orange)](https://signalk.org)
+[![Protocol: SignalK](https://img.shields.io/badge/Protocol-Signal%20K-orange)](https://signalk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json.
 
 Applies installation offset, deviation and magnetic variation to raw angle to determine compass heading, magnetic heading and optionally true heading. Uses harmonic model to compute deviation at any given compass heading, based on user-measured deviations at 8 cardinal and intercardinal directions. Subscribes magnetic variation from SignalK server. This is prioritized over manually entered variation to determine true heading.
 
-Uses LCD 16x2 to show status messages and heading. If no wifi around, runs on LCD only mode.
+Uses LCD 16x2 to show status messages and heading. If no wifi around, runs on LCD only.
 
-Runs a webserver to provide configuration web UI. Configurable parameters: calibration mode (full auto, auto, manual), installation offset, measured deviations, manual variation and heading mode (true, magnetic).
+Runs a webserver to provide web UI for CMPS14 configuration. Configurable parameters: calibration mode (full auto, auto, manual), installation offset, measured deviations, manual variation and heading mode (true, magnetic).
 
-OTA updates and persistent storage of configuration in ESP32 preferences are enabled.
+OTA updates and persistent storage of configuration in ESP32 NVS are enabled.
 
 Led indicators for calibration mode and connection status (two leds).
 
@@ -25,9 +25,7 @@ Led indicators for calibration mode and connection status (two leds).
 2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
 3. Refresh my vague C/C++ skills as I have not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
-This is not SensESP/PlatformIO project. Why? 
-
-Well, this started Arduino-style by copying code from my previous project with Victron SmartShunt VEDirect reader. Then, I just wanted keep playing around with Arduino. However, my next project will be most likely based on SensESP just to keep things less complicated for myself.
+I started the project Arduino-style by copying code from my previous project (ESP32 Victron SmartShunt VEDirect reader). Then, I just wanted keep playing around with Arduino. However, my next project will be most likely based on SensESP just to keep things less complicated for myself.
 
 ## Release history
 
@@ -39,16 +37,16 @@ v0.5.1             legacy/procedural-0.5.x          Last fully procedural versio
 ```
 ## Class CMPS14Sensor
 
-The heart of the project is the modest librarish class `CMPS14Sensor` that communicates with the CMPS14 device. It has the following public API:
+The heart of the project is the modest librarish class `CMPS14Sensor` which communicates with the CMPS14 device. It has the following public API:
 
 ```
-bool begin(TwoWire &wirePort) 
-bool available()
-bool read(float &angle_deg, float &pitch_deg, float &roll_deg)
-bool sendCommand(uint8_t cmd)
+bool    begin(TwoWire &wirePort) 
+bool    available()
+bool    read(float &angle_deg, float &pitch_deg, float &roll_deg)
+bool    sendCommand(uint8_t cmd)
 uint8_t readRegister(uint8_t reg)
-bool isAck(uint8_t byte)
-bool isNack(uint8_t byte)
+bool    isAck(uint8_t byte)
+bool    isNack(uint8_t byte)
 ```
 The simple usage of CMPS14Sensor could be:
 
@@ -81,7 +79,7 @@ void loop() {
 5. Computes true heading (optional), using either
    - Live *navigation.magneticVariation* received from SignalK (prioritized over user input)
    - Manual variation from user input on web UI (used automatically whenever *navigation.magneticVariation* is not available)
-6. Installation offset and selected heading mode are stored persistently in ESP32 preferences
+6. Installation offset and selected heading mode are stored persistently in ESP32 NVS
 
 ### Deviation
 
@@ -90,7 +88,7 @@ void loop() {
    ```
    dev(hdg) = A + Bsin(hdg) + Ccos(hdg) + Dsin(2hdg) + Ecos(2hdg)
    ```
-4. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 preferences
+4. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 NVS
 5. Full deviation curve and deviation table available on web UI
    - Deviation curve as SVG graph
    - Deviation table with 10° steps
@@ -101,7 +99,7 @@ void loop() {
 
 1. Subscribes *navigation.magneticVariation* path from SignalK server at ~1 Hz cycles. This is treated as primary and the most trusted source of magnetic variation.
 2. User may enter magnetic variation manually on the web UI. This is a backup and the value will be used automatically if variation is not available at SignalK path.
-3. User-defined manual variation is persistently stored in ESP32 preferences.
+3. User-defined manual variation is persistently stored in ESP32 NVS.
 4. Magnetic variation is used for computing true heading on magnetic heading.
 
 **Note that when the SignalK connection is open, the magnetic heading will always be sent to SignalK *navigation.headingMagnetic* path regardless of the active heading mode (true/magnetic). It is a standard practise to compute true heading on server side using SignalK [Derived Data](https://github.com/SignalK/signalk-derived-data) plugin or similar, or on other clients such as [OpenCPN](https://opencpn.org) that utilize [WMM](https://www.ncei.noaa.gov/products/world-magnetic-model).**
@@ -127,7 +125,7 @@ ws://<server>:<port>/signalk/v1/stream?token=<optional>
 3. *navigation.attitude.roll.max*
 4. *navigation.attitude.roll.min*
 
-The min and max values reset to zero on ESP32 restart and they are *not* persistently stored in ESP32 preferences.
+The min and max values reset to zero on ESP32 restart and they are *not* persistently stored in ESP32 NVS.
 
 **Receives** at ~1 Hz frequency, in radians:
 
@@ -142,9 +140,9 @@ Three supported calibration modes and use-mode for normal operation:
 3. *MANUAL* - user-triggered calibration with manual save/replace
 4. In *USE* mode the CMPS14 operates normally based on saved calibration profile (no calibration is running).
 
-The desired calibration mode (including optional *FULL AUTO* timeout) is stored persistently in ESP32 preferences.
+The desired calibration mode (including optional *FULL AUTO* timeout) is stored persistently in ESP32 NVS.
 
-When calibration is running, *SYS*, *ACC* and *MAG* indicators are monitored at ~2 Hz frequency. In *AUTO* mode the calibration profile will be saved when all three indicators equal 3 (the best) over three consecutive cycles. In *MANUAL* mode user may decide when to save by monitoring the values on web UI status block. The calibration profile is saved on CMPS14 itself, *not* in ESP32 preferences.
+When calibration is running, *SYS*, *ACC* and *MAG* indicators are monitored at ~2 Hz frequency. In *AUTO* mode the calibration profile will be saved when all three indicators equal 3 (the best) over three consecutive cycles. In *MANUAL* mode user may decide when to save by monitoring the values on web UI status block. The calibration profile is saved on CMPS14 itself, *not* in ESP32 NVS.
 
 **Note that the *GYR* indicator for gyro is not monitored. There is a reported firmware bug in CMPS14 that makes *GYR* indicator unreliable.**
 
@@ -175,7 +173,7 @@ Webserver provides simple HTML/JS user interface for user to configure:
    - Magnetic heading will always be sent to SignalK *navigation.headingMagnetic* path, also when True is selected
    - Effective immediately
   
-All above are stored persistently in ESP32 preferences and will be automatically retrieved on ESP32 boot.
+All above are stored persistently in ESP32 NVS and will be automatically retrieved on ESP32 boot.
 
 Additionally the user may:
 
@@ -261,7 +259,7 @@ Path                  Description               Parameters
 2. CMPS14 sensor (I2C mode) connected with 1.2 m CAT5E network cable
 3. LCD 16x2 module(with I2C backpack) connected with 1.2 m CAT5E network cable
 4. LEDs
-   - blue led at GPIO2 (built in led of SH-ESP32)
+   - blue led at GPIO2 (built in led on SH-ESP32 board)
    - green led at GPIO13 in series with 330 ohm resistor
 5. Sparkfun bi-directional [logic level converter](https://www.sparkfun.com/sparkfun-logic-level-converter-bi-directional.html)
    - SH-ESP32 runs 3.3 V internally
@@ -311,8 +309,9 @@ Path                  Description               Parameters
    #define SK_PORT     3000 or whatever you have defined on SignalK server
    #define SK_TOKEN    "your_token"
    ```
-4. Compile and upload
-5. Open browser --> navigate to ESP32 ip-address for configuration page (make sure you are in the same network with the ESP32).
+4. Connect and power up the device with the USB cable
+5. Compile and upload with Arduino IDE
+6. Open browser --> navigate to ESP32 ip-address for configuration page (make sure you are in the same network with the ESP32).
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
@@ -322,7 +321,7 @@ Developed and tested using:
 
 - SH-ESP32 board
 - ESP32 platform on Arduino IDE 2.3.6
-- CMPS14 documentation
+- CMPS14 datasheet
 - SignalK specification
 - OpenCPN and [KIP](https://github.com/mxtommy/Kip) for visualization
 
@@ -332,7 +331,7 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT Business 5 and 5.1. ChatGPT was used in the project as a sparring partner to discuss ideas. ChatGPT was also my personal trainer in C/C++ and helped me to generate source code skeletons based on refined ideas. ChatGPT also assisted me in testing and debugging. Some mathematical stuff and other functions beyond my skills were provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
+Developed by Matti Vesala in collaboration with ChatGPT Business 5 and 5.1. ChatGPT was used as sparring partner to discuss ideas and to generate source code skeletons based on validated ideas. ChatGPT was also my personal trainer in C/C++ helping me to get into speed again. Some mathematical stuff and other functions beyond my skills were provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
 
 
 
