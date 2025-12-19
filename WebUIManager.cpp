@@ -68,6 +68,9 @@ void WebUIManager::setupRoutes() {
   server.on("/deviationdetails", HTTP_GET, [this]() {
         this->handleDeviationTable();
     });
+  server.on("/level", HTTP_GET, [this]() {
+        this->handleLevel();
+    });
 }
 
 // Web UI handler for CALIBRATE button
@@ -102,6 +105,12 @@ void WebUIManager::handleReset(){
   this->handleRoot(); 
 }
 
+// Web UI handler for LEVEL CMPS14 button
+void WebUIManager::handleLevel(){
+  compass.level();
+  this->handleRoot(); 
+}
+
 // Web UI handler for status block, build json with appropriate data
 void WebUIManager::handleStatus() {
   
@@ -129,6 +138,8 @@ void WebUIManager::handleStatus() {
   doc["compass_deg"]          = compass.getCompassDeg();
   doc["pitch_deg"]            = compass.getPitchDeg();
   doc["roll_deg"]             = compass.getRollDeg();
+  doc["pitch_level"]          = compass.getPitchLevel();
+  doc["roll_level"]           = compass.getRollLevel();
   doc["offset"]               = compass.getInstallationOffset();
   doc["dev"]                  = compass.getDeviation();
   doc["variation"]            = compass.getVariation();
@@ -491,6 +502,7 @@ void WebUIManager::handleRoot() {
             'Variation: '+fmt0(j.variation)+'\u00B0',
             'Heading (T): '+fmt0(j.heading_true_deg)+'\u00B0',
             'Pitch: '+fmt1(j.pitch_deg)+'\u00B0'+' Roll: '+fmt1(j.roll_deg)+'\u00B0',
+            'PLevel: '+fmt1(j.pitch_level)+'\u00B0'+' RLevel: '+fmt1(j.roll_level)+'\u00B0',
             'Acc: '+j.acc+', Mag: '+j.mag+', Sys: '+j.sys,
             'HcA: '+fmt1(j.hca)+', HcB: '+fmt1(j.hcb)+', HcC: '+fmt1(j.hcc)+', HcD: '+fmt1(j.hcd)+', HcE: '+fmt1(j.hce),
             'WiFi: '+j.wifi+' ('+j.rssi+')'
@@ -507,6 +519,7 @@ void WebUIManager::handleRoot() {
     </script>)");
   server.sendContent_P(R"(
     <div class='card'>
+    <a href="/level"><button class="button">LEVEL CMPS14</button></a>
     <a href="/restart?ms=5003"><button class="button button2">RESTART ESP32</button></a></div>
     </body>
     </html>)");

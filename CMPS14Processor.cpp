@@ -11,6 +11,14 @@ bool CMPS14Processor::begin(TwoWire &wirePort) {
     return sensor.begin(wirePort);
 }
 
+// Level pitch and roll
+void CMPS14Processor::level() {
+    if (validf(pitch_deg) && validf(roll_deg)) {
+        pitch_level = -pitch_deg;
+        roll_level = -roll_deg;
+    }
+}
+
 // Process the values received from CMPS14Sensor::read(...)
 bool CMPS14Processor::update() {
     float raw_deg, pitch_raw, roll_raw;
@@ -43,8 +51,8 @@ bool CMPS14Processor::update() {
     if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
     if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
 
-    pitch_deg = pitch_raw;
-    roll_deg  = roll_raw;
+    pitch_deg = pitch_raw + pitch_level;
+    roll_deg  = roll_raw + roll_level;
 
     // Radians for SignalK
     this->updateHeadingDelta();

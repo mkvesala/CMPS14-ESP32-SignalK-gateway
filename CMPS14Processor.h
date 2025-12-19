@@ -9,6 +9,7 @@ public:
 
     bool begin(TwoWire &wirePort);
     bool update();
+    void level();
 
     // Calibration
     bool reset();
@@ -25,6 +26,8 @@ public:
     float getHeadingTrueDeg() const { return heading_true_deg; }
     float getPitchDeg() const { return pitch_deg; }
     float getRollDeg() const { return roll_deg; }
+    float getPitchLevel() const { return pitch_level; }
+    float getRollLevel() const { return roll_level; }
     float getInstallationOffset() const { return installation_offset_deg; }
     float getDeviation() const { return dev_deg; }
     float getVariation() const {return use_manual_magvar ? magvar_manual_deg : magvar_live_deg; }
@@ -77,6 +80,8 @@ private:
     float dev_deg = 0.0f;                       // Deviation calculated by harmonic model
     float magvar_manual_deg = 0.0f;             // Variation that is set manually from web UI
     float magvar_live_deg = 0.0f;               // Variation from SignalK navigation.magneticVariation path
+    float pitch_level = 0.0f;                   // Leveling of pitch
+    float roll_level = 0.0f;                    // Leveling of roll
     bool use_manual_magvar = true;              // Use magvar_manual_deg if true
     bool cal_profile_stored = false;            // Calibration profile saved if true
     bool send_hdg_true = true;                  // Send also true heading

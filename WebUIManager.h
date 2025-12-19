@@ -38,6 +38,7 @@ private:
   void handleStopCalibration();
   void handleSaveCalibration();
   void handleReset();
+  void handleLevel();
 
   // Milliseconds to hh:mm:ss
   const char* ms_to_hms_str(unsigned long ms) {
