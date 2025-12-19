@@ -4,7 +4,7 @@
 
 [![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue)](https://www.espressif.com/en/sdks/esp-arduino)
 [![Sensor: CMPS14](https://img.shields.io/badge/Sensor-CMPS14-lightgrey)](https://www.robot-electronics.co.uk/files/cmps14.pdf)
-[![Protocol: SignalK](https://img.shields.io/badge/Protocol-SignalK-orange)](https://signalk.org)
+[![Server: SignalK](https://img.shields.io/badge/Server-SignalK-orange)](https://signalk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json.
@@ -21,11 +21,11 @@ Led indicators for calibration mode and connection status (two leds).
 
 ## Purpose of the project
 
-1. Need to get a reliable low-cost digital compass that can be connected to SignalK server of my vessel
-2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. Refresh my vague C/C++ skills as I have not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
+1. Needed a reliable low-cost digital compass that could be connected to SignalK server of my vessel
+2. Wanted to learn ESP32 capabilities for other digital boat projects that are on my backlog
+3. Tried to refresh my vague C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
-I started the project Arduino-style by copying code from my previous project (ESP32 Victron SmartShunt VEDirect reader). Then, I just wanted keep playing around with Arduino. However, my next project will be most likely based on SensESP just to keep things less complicated for myself.
+Started the project Arduino-style by copying code from my previous project (VEDirect-ESP32-SignalK-gateway). Then, just wanted keep playing around with Arduino. However, my next project will be most likely based on SensESP just to keep things less complicated for myself.
 
 ## Release history
 
@@ -66,10 +66,11 @@ void setup() {
 
 void loop() {
    float angle_deg, pitch_deg, roll_deg;
-   sensor.read(angle_deg, pitch_deg, roll_deg);
-   Serial.println(angle_deg);
-   Serial.println(pitch_deg);
-   Serial.println(roll_deg);
+   if (sensor.available() && sensor.read(angle_deg, pitch_deg, roll_deg)) {
+      Serial.println(angle_deg);
+      Serial.println(pitch_deg);
+      Serial.println(roll_deg);
+   }
 }
 
 ```
@@ -319,6 +320,10 @@ Path                  Description               Parameters
 6. Open browser --> navigate to ESP32 ip-address for configuration page (make sure you are in the same network with the ESP32).
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
+
+## Todo
+
+- Replace the timers within `loop()` with separate tasks on core 0 and 1
 
 ## Credits
 
