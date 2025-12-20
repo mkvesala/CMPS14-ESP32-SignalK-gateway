@@ -23,7 +23,7 @@ Led indicators for calibration mode and connection status (two leds).
 
 1. Needed a reliable low-cost digital compass that could be connected to SignalK server of my vessel
 2. Wanted to learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. Tried to refresh my vague C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
+3. Tried to refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
 Started the project Arduino-style by copying code from my previous project (VEDirect-ESP32-SignalK-gateway). Then, just wanted keep playing around with Arduino. However, my next project will be most likely based on SensESP just to keep things less complicated for myself.
 
@@ -85,7 +85,8 @@ void loop() {
 5. Computes true heading (optional), using either
    - Live *navigation.magneticVariation* received from SignalK (prioritized over user input)
    - Manual variation from user input on web UI (used automatically whenever *navigation.magneticVariation* is not available)
-6. Installation offset and selected heading mode are stored persistently in ESP32 NVS
+6. Applies leveling to pitch and roll
+7. Installation offset and selected heading mode are stored persistently in ESP32 NVS, leveling of pitch and roll is not
 
 ### Deviation
 
@@ -194,11 +195,16 @@ Additionally the user may:
    - Opens a new page with a back-button pointing to the configuration page
    - SVG graph drawn by calculating deviation 0...360° with 001° resolution
    - Deviation table presented 0...360° with 010° resolution
-6. Restart ESP32
+6. Level the attitude to zero
+   - Takes the negation of the latest pitch and roll to capture the leveling factors for attitude
+   - Leveling factors are applied to the raw pitch and roll
+   - Thus, user may reset the attitude to zero at any vessel position to start using proportional pitch and roll
+   - Leveling is not incremental and the leveling factors are *not* stored persistently in ESP32 NVS
+8. Restart ESP32
    - Opens a temporary page which will refresh back to the configuration page after 30 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
    - Calls `ESP.restart()` of `esp_system`
-7. View the parameters on status block
+9. View the parameters on status block
    - JS generated block that updates at ~1 Hz cycles
    - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch, roll, 3 calibration status indicators, 5 coeffs of harmonic model, IP address and wifi signal level description
 
@@ -220,7 +226,9 @@ Path                  Description               Parameters
 /heading/mode         Heading mode              ?mode=<true|mag>
 /status               Status block              none
 /restart              Restart ESP32             ?ms=5003
+/level                Level CMPS14 attitude     none
 ```
+Endpoints can of course be used by any http-request. Thus, should one want to add leveling to, let's say, a KIP dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauge widgets on the dashboard.
 
 ### LCD 16x2
 
