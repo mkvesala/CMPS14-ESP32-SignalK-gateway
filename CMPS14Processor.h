@@ -82,6 +82,8 @@ private:
     float magvar_live_deg = 0.0f;               // Variation from SignalK navigation.magneticVariation path
     float pitch_level = 0.0f;                   // Leveling of pitch
     float roll_level = 0.0f;                    // Leveling of roll
+    float pitch_level_raw = NAN;                // Leveling of pitch
+    float roll_level_raw = NAN;                // Leveling of roll
     bool use_manual_magvar = true;              // Use magvar_manual_deg if true
     bool cal_profile_stored = false;            // Calibration profile saved if true
     bool send_hdg_true = true;                  // Send also true heading

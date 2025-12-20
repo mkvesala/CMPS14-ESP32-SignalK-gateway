@@ -108,6 +108,9 @@ void WebUIManager::handleReset(){
 // Web UI handler for LEVEL CMPS14 button
 void WebUIManager::handleLevel(){
   compass.level();
+  char line2[17];
+  snprintf(line2, sizeof(line2), "P:%5.1f R:%5.1f", compass.getPitchLevel(), compass.getRollLevel());
+  display.showInfoMessage("LEVEL CMPS14", line2, true);
   this->handleRoot(); 
 }
 
@@ -502,7 +505,7 @@ void WebUIManager::handleRoot() {
             'Variation: '+fmt0(j.variation)+'\u00B0',
             'Heading (T): '+fmt0(j.heading_true_deg)+'\u00B0',
             'Pitch: '+fmt1(j.pitch_deg)+'\u00B0'+' Roll: '+fmt1(j.roll_deg)+'\u00B0',
-            'PLevel: '+fmt1(j.pitch_level)+'\u00B0'+' RLevel: '+fmt1(j.roll_level)+'\u00B0',
+            'Pitch leveling: '+fmt1(j.pitch_level)+'\u00B0'+' Roll leveling: '+fmt1(j.roll_level)+'\u00B0',
             'Acc: '+j.acc+', Mag: '+j.mag+', Sys: '+j.sys,
             'HcA: '+fmt1(j.hca)+', HcB: '+fmt1(j.hcb)+', HcC: '+fmt1(j.hcc)+', HcD: '+fmt1(j.hcd)+', HcE: '+fmt1(j.hce),
             'WiFi: '+j.wifi+' ('+j.rssi+')'

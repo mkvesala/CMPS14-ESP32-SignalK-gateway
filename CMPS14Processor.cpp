@@ -13,9 +13,9 @@ bool CMPS14Processor::begin(TwoWire &wirePort) {
 
 // Level pitch and roll
 void CMPS14Processor::level() {
-    if (validf(pitch_deg) && validf(roll_deg)) {
-        pitch_level = -pitch_deg;
-        roll_level = -roll_deg;
+    if (validf(pitch_level_raw) && validf(roll_level_raw)) {
+        pitch_level = -pitch_level_raw;
+        roll_level = -roll_level_raw;
     }
 }
 
@@ -50,6 +50,9 @@ bool CMPS14Processor::update() {
     heading_true_deg = heading_deg + this->getVariation();
     if (heading_true_deg >= 360.0f) heading_true_deg -= 360.0f;
     if (heading_true_deg < 0.0f) heading_true_deg += 360.0f;
+
+    pitch_level_raw = pitch_raw;
+    roll_level_raw = roll_raw;
 
     pitch_deg = pitch_raw + pitch_level;
     roll_deg  = roll_raw + roll_level;
