@@ -218,12 +218,12 @@ Path                  Description               Parameters
 /cal/off              Stop calibration          none
 /store/on             Save calibration profile  none
 /reset/on             Reset CMPS14              none
-/calmode/set          Save calibration mode     ?calmode=<full|semi|use>&fastop=<0...60>
+/calmode/set          Save calibration mode     ?c=<0|1|2>&t=<0...60> // 0 = FULL AUTO, 1 = AUTO, 2 = USE
 /offset/set           Installation offset       ?v=<-180...180>
 /dev8/set             Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>
 /deviationdetails     Deviation curve and table none
 /magvar/set           Manual variation          ?v=<-180...180>
-/heading/mode         Heading mode              ?mode=<true|mag>
+/heading/mode         Heading mode              ?m=<1|0> // 1 = HDG(T), 0 = HDG(M)
 /status               Status block              none
 /restart              Restart ESP32             ?ms=5003
 /level                Level CMPS14 attitude     none

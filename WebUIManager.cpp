@@ -223,21 +223,21 @@ void WebUIManager::handleSetDeviations() {
 
 // Web UI handler to choose calibration mode on boot
 void WebUIManager::handleSetCalmode() {
-  if (server.hasArg("calmode") && server.hasArg("fastop")) {
+  if (server.hasArg("c") && server.hasArg("t")) { 
     
-    const char* m = server.arg("calmode").c_str();
+    char c = server.arg("c").charAt(0);
     CalMode v = CAL_USE;
-    if (strcmp(m, "full") == 0)        v = CAL_FULL_AUTO;
-    else if (strcmp(m, "semi") == 0)   v = CAL_SEMI_AUTO;
-    else if (strcmp(m, "manual") == 0) v = CAL_MANUAL;
-    else                               v = CAL_USE;
+    if (c == '0') v = CAL_FULL_AUTO;
+    else if (c == '1') v = CAL_SEMI_AUTO;
+    else if (c == '2') v = CAL_MANUAL;
+    else v = CAL_USE;
     compass.setCalibrationModeBoot(v);
    
     if (!(compass.getCalibrationModeRuntime() == CAL_FULL_AUTO)) {
-      long to = server.arg("fastop").toInt();
-      if (to <= 0) to = 0;
-      if (to > 60) to = 60;
-      unsigned long full_auto_stop_ms = 60 * 1000 * to;
+      long t = server.arg("t").toInt();
+      if (t <= 0) t = 0;
+      if (t > 60) t = 60;
+      unsigned long full_auto_stop_ms = 60 * 1000 * t;
       compass.setFullAutoTimeout(full_auto_stop_ms);
       compass_prefs.saveFullAutoTimeout(full_auto_stop_ms);
     }
@@ -269,10 +269,10 @@ void WebUIManager::handleSetMagvar() {
 
 // Web UI handler to set heading mode TRUE or MAGNETIC
 void WebUIManager::handleSetHeadingMode() {
-  bool send_hdg_true;
-  if (server.hasArg("mode")) {
-    const char* mode = server.arg("mode").c_str();
-    send_hdg_true = (strcmp(mode, "true") == 0);
+  bool send_hdg_true = false;
+  if (server.hasArg("m")) {
+    char m = server.arg("m").charAt(0);
+    send_hdg_true = (m == '1');
   }
   compass.setSendHeadingTrue(send_hdg_true);
 
@@ -347,17 +347,17 @@ void WebUIManager::handleRoot() {
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/calmode/set" method="get">
-    <label>Boot mode </label><label><input type="radio" name="calmode" value="full")");
+    <label>Boot mode </label><label><input type="radio" name="c" value="0")");
   if (mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Full auto </label><label>
-    <input type="radio" name="calmode" value="semi")");
+    <input type="radio" name="c" value="1")");
   if (mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Auto </label><label>
-    <input type="radio" name="calmode" value="use")");
+    <input type="radio" name="c" value="2")");
   if (mode_boot == CAL_USE) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Use/Manual</label><br>
     <label>Full auto stops in </label>
-    <input type="number" name="fastop" step="1" min="0" max="60" value=")");
+    <input type="number" name="t" step="1" min="0" max="60" value=")");
   float to = (float)(compass.getFullAutoTimeout()/1000/60);
   snprintf(buf, sizeof(buf), "%.0f", to);
   server.sendContent(buf);
@@ -431,10 +431,10 @@ void WebUIManager::handleRoot() {
   server.sendContent_P(R"(
     <div class='card'>
     <form action="/heading/mode" method="get">
-    <label>Heading </label><label><input type="radio" name="mode" value="true")");
+    <label>Heading </label><label><input type="radio" name="m" value="1")");
     if (send_hdg_true) server.sendContent_P(R"( checked)");
     server.sendContent_P(R"(>True</label><label>
-    <input type="radio" name="mode" value="mag")");
+    <input type="radio" name="m" value="0")");
     if (!send_hdg_true) server.sendContent_P(R"( checked)");
     server.sendContent_P(R"(>Magnetic</label>
     <input type="submit" class="button" value="SAVE"></form></div>)");
