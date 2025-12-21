@@ -18,9 +18,9 @@ void DisplayManager::handle() {
   const unsigned long now = millis();
   if ((long)now - last_lcd_ms >= LCD_MS) {
     last_lcd_ms = now;
-    if (this->fifoIsEmpty()) this->showHeading();
     MsgItem msg;
     if (this->popMsgItem(msg)) this->updateLCD(msg.l1, msg.l2);
+    else this->showHeading();
   }
   this->updateBlueLed();
   this->updateGreenLed();
@@ -64,17 +64,11 @@ void DisplayManager::showHeading() {
   if (compass.isSendingHeadingTrue() && validf(heading_true_deg)) {
     char buf[17];
     snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
-    MsgItem msg;
-    this->copy16(msg.l1, "  HEADING (T):");
-    this->copy16(msg.l2, buf);
-    this->pushMsgItem(msg);
+    this->updateLCD("  HEADING (T):", buf);
   } else if (validf(heading_deg)) {
     char buf[17];
     snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
-    MsgItem msg;
-    this->copy16(msg.l1, "  HEADING (M):");
-    this->copy16(msg.l2, buf);
-    this->pushMsgItem(msg);
+    this->updateLCD("  HEADING (M):", buf);
   }
 }
 
@@ -98,7 +92,7 @@ bool DisplayManager::pushMsgItem(const auto &msg) {
 bool DisplayManager::popMsgItem(auto &msg) {
   if (this->fifoIsEmpty()) return false;
   msg = fifo[tail];
-  tail = (tail - 1) % FIFO_SIZE;
+  tail = (tail + 1) % FIFO_SIZE;
   count--;
   return true;
 }
