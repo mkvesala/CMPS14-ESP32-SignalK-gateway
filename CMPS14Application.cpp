@@ -72,19 +72,13 @@ void CMPS14Application::begin() {
 
 }
 
-// Heavily blocking status update
-// Todo: implement message queue in DisplayManager
+// Debug status update
 void CMPS14Application::status() {
   if (calmode_ok) display.showInfoMessage("CAL MODE INIT", calModeToString(compass.getCalibrationModeRuntime()));
-  delay(1009);
   display.showSuccessMessage("WIFI CONNECT", WiFi.isConnected());
-  delay(1009);
   if (WiFi.isConnected()) display.showWifiStatus();
-  delay(1009);
   display.showSuccessMessage("SK WEBSOCKET", signalk.isOpen());
-  delay(1009);
   display.showSuccessMessage("CMPS14 INIT", compass_ok);
-  delay(1009);
 }
 
 // Repeat stuff
@@ -96,7 +90,7 @@ void CMPS14Application::loop() {
   this->handleWebsocket(now);
   this->handleCompass(now);
   this->handleSignalK(now);
-  this->handleDisplay(now);
+  this->handleDisplay();
 
 }
 
@@ -150,7 +144,7 @@ void CMPS14Application::handleCompass(unsigned long now) {
   if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO && compass.getFullAutoTimeout() > 0) { 
     long left = compass.getFullAutoTimeout() - (now - compass.getFullAutoStart());
     if (left <= 0) {
-      if (compass.stopCalibration()) display.showInfoMessage("FULL AUTO", "TIMEOUT", true);
+      if (compass.stopCalibration()) display.showInfoMessage("FULL AUTO", "TIMEOUT");
       left = 0;
     }
     compass.setFullAutoLeft(left);
@@ -177,18 +171,8 @@ void CMPS14Application::handleSignalK(unsigned long now) {
 }
 
 // LCD and LEDs
-void CMPS14Application::handleDisplay(unsigned long now) {
-  
-  // Display heading (T or M) on LCD
-  if ((long)(now - last_lcd_ms) >= LCD_MS) {                      
-    last_lcd_ms = now;
-    if (now >= display.getTimeToShow() + LCD_MS) {
-      display.showHeading();
-    }
-  }
+void CMPS14Application::handleDisplay() {
 
-  // Led indicators
-  display.showCalibrationStatus();
-  display.showConnectionStatus();  
+  display.handle();
   
 }

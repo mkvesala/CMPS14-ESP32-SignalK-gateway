@@ -110,7 +110,7 @@ void WebUIManager::handleLevel(){
   compass.level();
   char line2[17];
   snprintf(line2, sizeof(line2), "P:%5.1f R:%5.1f", compass.getPitchLevel(), compass.getRollLevel());
-  display.showInfoMessage("LEVEL CMPS14", line2, true);
+  display.showInfoMessage("LEVEL CMPS14", line2);
   this->handleRoot(); 
 }
 
@@ -183,7 +183,7 @@ void WebUIManager::handleSetOffset() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c", v, 223);
-    display.showInfoMessage("INSTALL OFFSET", line2, true);
+    display.showInfoMessage("INSTALL OFFSET", line2);
   }
   this->handleRoot();
 }
@@ -216,7 +216,7 @@ void WebUIManager::handleSetDeviations() {
   compass_prefs.saveMeasuredDeviations(measured_deviations);
   compass_prefs.saveHarmonicCoeffs(hc);
 
-  display.showSuccessMessage("SAVE DEVIATIONS", true, true);
+  display.showSuccessMessage("SAVE DEVIATIONS", true);
 
   this->handleRoot();
 }
@@ -243,7 +243,7 @@ void WebUIManager::handleSetCalmode() {
     }
 
     compass_prefs.saveCalibrationModeBoot(v);
-    display.showInfoMessage("BOOT MODE SAVED", calModeToString(v), true);
+    display.showInfoMessage("BOOT MODE SAVED", calModeToString(v));
   }
   this->handleRoot();
 }
@@ -262,7 +262,7 @@ void WebUIManager::handleSetMagvar() {
 
     char line2[17];
     snprintf(line2, sizeof(line2), "SAVED %5.0f%c %c", fabs(v), 223, (v >= 0 ? 'E':'W'));
-    display.showInfoMessage("MAG VARIATION", line2, true);
+    display.showInfoMessage("MAG VARIATION", line2);
   }
   this->handleRoot();
 }
@@ -278,7 +278,7 @@ void WebUIManager::handleSetHeadingMode() {
 
   compass_prefs.saveSendHeadingTrue(send_hdg_true);
 
-  display.showInfoMessage("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC", true);
+  display.showInfoMessage("HDG MODE SAVED", send_hdg_true ? "TRUE" : "MAGNETIC");
   this->handleRoot();
 }
 
@@ -655,7 +655,7 @@ void WebUIManager::handleRestart() {
 
   char line2[17];
   snprintf(line2, sizeof(line2), "%5lu MS", (unsigned long)ms);
-  display.showInfoMessage("RESTARTING IN", line2, true);
+  display.showInfoMessage("RESTARTING IN", line2);
 
   // Draw HTML page which refreshes to root config page in 30 seconds
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);            

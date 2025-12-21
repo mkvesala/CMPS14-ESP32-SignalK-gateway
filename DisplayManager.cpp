@@ -14,20 +14,47 @@ bool DisplayManager::begin() {
   return this->initLCD();
 }
 
+void DisplayManager::handle() {
+  const unsigned long now = millis();
+  if ((long)now - last_lcd_ms >= LCD_MS) {
+    last_lcd_ms = now;
+    if (this->fifoIsEmpty()) this->showHeading();
+    MsgItem msg;
+    if (this->popMsgItem(msg)) this->updateLCD(msg.l1, msg.l2);
+  }
+  this->updateBlueLed();
+  this->updateGreenLed();
+}
+
 // Show generic OK/FAILED message
-void DisplayManager::showSuccessMessage(const char* who, bool success, bool hold) {
-  if (success) this->updateLCD(who, "OK", hold);
-  else this->updateLCD(who, "FAIL", hold);
+void DisplayManager::showSuccessMessage(const char* who, bool success) {
+  MsgItem msg;
+  if (success) {
+    this->copy16(msg.l1, who);
+    this->copy16(msg.l2, "OK");
+    this->pushMsgItem(msg);
+  }
+  else {
+    this->copy16(msg.l1, who);
+    this->copy16(msg.l2, "FAIL");
+    this->pushMsgItem(msg);
+  }
 }
 
 // Show generic status message
-void DisplayManager::showInfoMessage(const char* who, const char* what, bool hold) {
-  this->updateLCD(who, what, hold);
+void DisplayManager::showInfoMessage(const char* who, const char* what) {
+  MsgItem msg;
+  this->copy16(msg.l1, who);
+  this->copy16(msg.l2, what);
+  this->pushMsgItem(msg);
 }
 
 // Show IP Address and RSSI descriptor
-void DisplayManager::showWifiStatus(bool hold) {
-  this->updateLCD(IPc, RSSIc, hold);
+void DisplayManager::showWifiStatus() {
+  MsgItem msg;
+  this->copy16(msg.l1, IPc);
+  this->copy16(msg.l2, RSSIc);
+  this->pushMsgItem(msg);
 }
 
 // Show heading T/M
@@ -37,22 +64,18 @@ void DisplayManager::showHeading() {
   if (compass.isSendingHeadingTrue() && validf(heading_true_deg)) {
     char buf[17];
     snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
-    this->updateLCD("  HEADING (T):", buf);
+    MsgItem msg;
+    this->copy16(msg.l1, "  HEADING (T):");
+    this->copy16(msg.l2, buf);
+    this->pushMsgItem(msg);
   } else if (validf(heading_deg)) {
     char buf[17];
     snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
-    this->updateLCD("  HEADING (M):", buf);
+    MsgItem msg;
+    this->copy16(msg.l1, "  HEADING (M):");
+    this->copy16(msg.l2, buf);
+    this->pushMsgItem(msg);
   }
-}
-
-// Show calibration status
-void DisplayManager::showCalibrationStatus() {
-  this->updateBlueLed();
-}
-
-// Show connection status
-void DisplayManager::showConnectionStatus() {
-  this->updateGreenLed();
 }
 
 void DisplayManager::setWifiInfo(int rssi, IPAddress ip) {
@@ -62,8 +85,26 @@ void DisplayManager::setWifiInfo(int rssi, IPAddress ip) {
 
 // === P R I V A T E === //
 
+// Push a message for LCD printing to FIFO queue
+bool DisplayManager::pushMsgItem(const auto &msg) {
+  if (this->fifoIsFull()) return false;
+  fifo[head] = msg;
+  head = (head + 1) % FIFO_SIZE;
+  count++;
+  return true;
+}
+
+// Pop a message for LCD printing from FIFO queue
+bool DisplayManager::popMsgItem(auto &msg) {
+  if (this->fifoIsEmpty()) return false;
+  msg = fifo[tail];
+  tail = (tail - 1) % FIFO_SIZE;
+  count--;
+  return true;
+}
+
 // LCD basic printing on two lines
-void DisplayManager::updateLCD(const char* l1, const char* l2, bool hold) {
+void DisplayManager::updateLCD(const char* l1, const char* l2) {
   if (!lcd_present) return;
   if (!strcmp(prev_top, l1) && !strcmp(prev_bot, l2)) return;
 
@@ -82,14 +123,12 @@ void DisplayManager::updateLCD(const char* l1, const char* l2, bool hold) {
   this->copy16(prev_top, t);
   this->copy16(prev_bot, b);
 
-  if (hold) lcd_hold_ms = millis();
-
 }
 
 // Initialize LCD screen
-// I had strange issues with LCD I2C in my other boat project,
-// which disappeared after using LCD via unique_ptr/make_unique.
-// I copied the same here, but LiquidCrystal_I2C(addr, 16, 2); might work as well.
+// Had strange issues with LCD in my previous project
+// which disappeared with unique_ptr/make_unique
+// so copied that to here as well.
 bool DisplayManager::initLCD() {
   uint8_t addr = 0;
   if (this->i2cAvailable(LCD_ADDR1)) addr = LCD_ADDR1;

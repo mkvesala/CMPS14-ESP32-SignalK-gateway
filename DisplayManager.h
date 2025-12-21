@@ -12,24 +12,21 @@ class DisplayManager {
     explicit DisplayManager(CMPS14Processor &compassref, SignalKBroker &signalkref);
 
     bool begin();
-    void showSuccessMessage(const char* who, bool success, bool hold = false);
-    void showInfoMessage(const char* who, const char* what, bool hold = false);
-    void showWifiStatus(bool hold = false);
-    void showHeading();
-    void showCalibrationStatus();
-    void showConnectionStatus();
-
-    void setTimeToShow(unsigned long ms) { lcd_hold_ms = ms; }
+    void handle();
+    void showSuccessMessage(const char* who, bool success);
+    void showInfoMessage(const char* who, const char* what);
+    void showWifiStatus();
+    
     void setWifiInfo(int rssi, IPAddress ip);
 
-    unsigned long getTimeToShow() const { return lcd_hold_ms; }
     const char* getWifiQuality() const { return RSSIc; }
     const char* getWifiIPAddress() const { return IPc; }
 
   private:
 
-    void updateLCD(const char* l1, const char* l2, bool hold = false);
+    void updateLCD(const char* l1, const char* l2);
     bool initLCD();
+    void showHeading();
     void updateBlueLed();
     void updateGreenLed();
     bool i2cAvailable(uint8_t addr);
@@ -38,22 +35,38 @@ class DisplayManager {
     void setRSSIc(int rssi);
     void setIPc(IPAddress ip);
 
-  private:
+    bool pushMsgItem(const auto &msg);
+    bool popMsgItem(auto &msg);
+    bool fifoIsEmpty() const { return count == 0; }
+    bool fifoIsFull() const { return count == FIFO_SIZE; }
 
     CMPS14Processor &compass;
     SignalKBroker &signalk;
 
-    // I had strange issues with LCD I2C in my other boat project,
-    // which disappeared after using LCD via unique_ptr/make_unique.
-    // I copied the same here, but LiquidCrystal_I2C lcd; might work as well.
+    // Had strange issues with LCD in my previous project
+    // which disappeared with unique_ptr/make_unique
+    // so copied that to here as well.
     std::unique_ptr<LiquidCrystal_I2C> lcd;
 
     static constexpr uint8_t LED_PIN_BL = 2;
     static constexpr uint8_t LED_PIN_GR = 13;
     static constexpr uint8_t LCD_ADDR1 = 0x27;
     static constexpr uint8_t LCD_ADDR2 = 0x3F;
+    static constexpr uint8_t FIFO_SIZE = 16;
+    static constexpr unsigned long LCD_MS = 1009;
+                       
+    unsigned long last_lcd_ms = 0;
 
-    unsigned long lcd_hold_ms = 0;
+    // FIFO queue for LCD printing
+    struct MsgItem {
+      char l1[17];
+      char l2[17];
+    };
+
+    MsgItem fifo[FIFO_SIZE];
+    uint8_t head = 0;   // index to write next
+    uint8_t tail = 0;   // index to read next
+    uint8_t count = 0;  // number of items in the buffer
 
     char RSSIc[16];
     char IPc[16];

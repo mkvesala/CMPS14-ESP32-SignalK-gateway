@@ -35,7 +35,6 @@ class CMPS14Application {
     static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
     static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
     static constexpr unsigned long WS_RETRY_MAX          = 119993;      // Max reconnect delay for SignalK websocket
-    static constexpr unsigned long LCD_MS                = 1009;        // Frequency to show heading on LCD
 
     // Timers
     unsigned long expn_retry_ms      = WS_RETRY_MS;
@@ -43,8 +42,7 @@ class CMPS14Application {
     unsigned long last_tx_ms         = 0;   
     unsigned long last_minmax_tx_ms  = 0;         
     unsigned long last_read_ms       = 0;
-    unsigned long last_cal_poll_ms   = 0;                           
-    unsigned long last_lcd_ms        = 0;
+    unsigned long last_cal_poll_ms   = 0;
 
     bool compass_ok = false;
     bool calmode_ok = false;
@@ -63,6 +61,6 @@ class CMPS14Application {
     void handleWebsocket(unsigned long now);
     void handleCompass(unsigned long now);
     void handleSignalK(unsigned long now);
-    void handleDisplay(unsigned long now);
+    void handleDisplay();
 
 };

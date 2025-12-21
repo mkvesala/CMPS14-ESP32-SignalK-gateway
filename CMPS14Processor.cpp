@@ -11,11 +11,15 @@ bool CMPS14Processor::begin(TwoWire &wirePort) {
     return sensor.begin(wirePort);
 }
 
-// Level pitch and roll
+// Capture leveling factors for resetting attitude to zero
 void CMPS14Processor::level() {
     if (validf(pitch_level_raw) && validf(roll_level_raw)) {
         pitch_level = -pitch_level_raw;
         roll_level = -roll_level_raw;
+        minMaxDelta.pitch_max_rad = NAN; // reset min and max values
+        minMaxDelta.pitch_min_rad = NAN;
+        minMaxDelta.roll_max_rad = NAN;
+        minMaxDelta.roll_min_rad = NAN;
     }
 }
 
