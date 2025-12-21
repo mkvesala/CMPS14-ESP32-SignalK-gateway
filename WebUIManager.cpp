@@ -558,12 +558,20 @@ void WebUIManager::handleDeviationTable(){
   const int W=800, H=400;
   const float xpad=40, ypad=20;
   const float xmin=0, xmax=360;
-  const int STEP = 10; // Sample every 10 degrees
-  float ymax = 0.0f;
+  const int STEP = 10; // Sample every 10°
+  const int NUMOF_SAMPLES = (360 / STEP) + 1;
+
+  // Pre-calculate all deviation values at 10° resolution
+  float deviations[NUMOF_SAMPLES];
   HarmonicCoeffs hc = compass.getHarmonicCoeffs();
-  for (int d=0; d<=360; d+=STEP){
-    float v = computeDeviation(hc, (float)d);
-    if (fabs(v) > ymax) ymax = fabs(v);
+  for (int i=0; i < NUMOF_SAMPLES; i++) {
+    deviations[i] = computeDeviation(hc, (float)(i * STEP));
+  }
+
+  // Use pre-calclulated deviations
+  float ymax = 0.0f;
+  for (int i=0; i < NUMOF_SAMPLES; i++){
+    if (fabs(deviations[i]) > ymax) ymax = fabs(deviations[i]);
   }
   ymax = max(ymax + 1.0f, 5.0f); 
 
@@ -617,11 +625,11 @@ void WebUIManager::handleDeviationTable(){
     server.sendContent(buf);
   }
 
-  // Polyline (every 10 degrees for performance)
+  // Polyline (every 10 degrees for performance), using pre-calculated values
   server.sendContent_P(R"(<polyline fill="none" stroke="#0af" stroke-width="2" points=")");
-  for (int d=0; d<=360; d+=STEP){
-    float X=xmap((float)d);
-    float Y=ymap(computeDeviation(hc,(float)d));
+  for (int i=0; i < NUMOF_SAMPLES; i++){
+    float X=xmap((float)(i * STEP));
+    float Y=ymap(deviations[i]);
     snprintf(buf,sizeof(buf),"%.1f,%.1f ",X,Y);
     server.sendContent(buf);
   }
@@ -629,16 +637,17 @@ void WebUIManager::handleDeviationTable(){
 
   server.sendContent_P(R"(</svg></div>)");
 
-  // Deviation table every 10°
+  // Deviation table every 10°, using pre-calculated values
   server.sendContent_P(R"(
     <div class="card">
     <table>
     <tr><th>Compass</th><th>Deviation</th><th></th><th>Compass</th><th>Deviation</th></tr>)");
-  for (int d=10; d<=180; d+=10){
-    float v = computeDeviation(hc, (float)d);
-    int d2 = d+180;
-    float v2 = computeDeviation(hc, (float)d2);
-    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.0f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.0f\u00B0</td></tr>", d, v, d2, v2);
+  for (int i=10; i <= 180; i+=10){
+    int idx1 = i / STEP;
+    int idx2 = (i + 180) / STEP;
+    float v = deviations[idx1];
+    float v2 = deviations[idx2];
+    snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.0f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.0f\u00B0</td></tr>", i, v, i+180, v2);
     server.sendContent(buf);
   }
   server.sendContent_P(R"(</table></div>)");
