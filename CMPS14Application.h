@@ -12,7 +12,7 @@ class CMPS14Application {
 
   public:
   
-    CMPS14Application();
+    explicit CMPS14Application();
 
     void begin();
     void loop();

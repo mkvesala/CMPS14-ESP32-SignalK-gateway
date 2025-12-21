@@ -218,7 +218,7 @@ Path                  Description               Parameters
 /cal/off              Stop calibration          none
 /store/on             Save calibration profile  none
 /reset/on             Reset CMPS14              none
-/calmode/set          Save calibration mode     ?c=<0|1|2>&t=<0...60> // 0 = FULL AUTO, 1 = AUTO, 2 = USE
+/calmode/set          Save calibration mode     ?c=<0|1|2|3>&t=<0...60> // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE
 /offset/set           Installation offset       ?v=<-180...180>
 /dev8/set             Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>
 /deviationdetails     Deviation curve and table none
@@ -228,7 +228,7 @@ Path                  Description               Parameters
 /restart              Restart ESP32             ?ms=5003
 /level                Level CMPS14 attitude     none
 ```
-Endpoints can of course be used by any http-request. Thus, should one want to add leveling to, let's say, a KIP dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauge widgets on the dashboard.
+Endpoints can of course be used by any http-request. Thus, should one want to add leveling to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauge widgets on the dashboard.
 
 ### LCD 16x2
 
@@ -341,7 +341,7 @@ Developed and tested using:
 - ESP32 platform on Arduino IDE 2.3.6
 - CMPS14 datasheet
 - SignalK specification
-- OpenCPN and [KIP](https://github.com/mxtommy/Kip) for visualization
+- OpenCPN and KIP for visualization
 
 Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
 
@@ -349,7 +349,7 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT Business 5 and 5.1. ChatGPT was used as sparring partner to discuss ideas and to generate source code skeletons based on validated ideas. ChatGPT was also my personal trainer in C/C++ helping me to get into speed again. Some mathematical stuff and other functions beyond my skills were provided by ChatGPT. I have no clue whatsover how it generates source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
+Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner, for generating source code skeletons and as my personal trainer in C++ until it started wild hallusinations at model 5.1. Claude (code) was used for code review and performance improvement (less hallusination). I have no clue whatsover how these models generate source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
 
 
 

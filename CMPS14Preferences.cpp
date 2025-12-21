@@ -65,38 +65,29 @@ void CMPS14Preferences::saveManualVariation(float deg) {
     prefs.end();
 }
 
-// Save measured deviations at 8 cardinal and intercardinal points
-void CMPS14Preferences::saveMeasuredDeviations(const float out[8]) {
+// Save measured deviations and 5 coeffs of the harmonic model
+void CMPS14Preferences::saveDeviationSettings(const float out[8], const HarmonicCoeffs &hc) {
     if (!prefs.begin(ns, false)) return;
+
     for (int i = 0; i < 8; i++) {
         char key[8];
         snprintf(key, sizeof(key), "dev%d", i);
         prefs.putFloat(key, out[i]);
     }
-    prefs.end();
-}
 
-// Save 5 coeffs of harmonic model
-void CMPS14Preferences::saveHarmonicCoeffs(const HarmonicCoeffs &hc) {
-    if (!prefs.begin(ns, false)) return;
     prefs.putFloat("hc_A", hc.A);
     prefs.putFloat("hc_B", hc.B);
     prefs.putFloat("hc_C", hc.C);
     prefs.putFloat("hc_D", hc.D);
     prefs.putFloat("hc_E", hc.E);
+
     prefs.end();
 }
 
-// Save calibration mode to be selected on boot
-void CMPS14Preferences::saveCalibrationModeBoot(CalMode mode) {
+// Save calibration mode at boot and timeout of FULL AUTO calibration mode
+void CMPS14Preferences::saveCalibrationSettings(CalMode mode, unsigned long ms) {
     if (!prefs.begin(ns, false)) return;
     prefs.putUChar("cal_mode_boot", (uint8_t)mode);
-    prefs.end();
-}
-
-// Save timeout of FULL AUTO calibration
-void CMPS14Preferences::saveFullAutoTimeout(unsigned long ms) {
-    if (!prefs.begin(ns, false)) return;
     prefs.putULong("fastop", ms);
     prefs.end();
 }

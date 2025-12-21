@@ -213,8 +213,7 @@ void WebUIManager::handleSetDeviations() {
   HarmonicCoeffs hc = computeHarmonicCoeffs(measured_deviations); 
   compass.setHarmonicCoeffs(hc);
 
-  compass_prefs.saveMeasuredDeviations(measured_deviations);
-  compass_prefs.saveHarmonicCoeffs(hc);
+  compass_prefs.saveDeviationSettings(measured_deviations, hc);
 
   display.showSuccessMessage("SAVE DEVIATIONS", true);
 
@@ -233,16 +232,13 @@ void WebUIManager::handleSetCalmode() {
     else v = CAL_USE;
     compass.setCalibrationModeBoot(v);
    
-    if (!(compass.getCalibrationModeRuntime() == CAL_FULL_AUTO)) {
-      long t = server.arg("t").toInt();
-      if (t <= 0) t = 0;
-      if (t > 60) t = 60;
-      unsigned long full_auto_stop_ms = 60 * 1000 * t;
-      compass.setFullAutoTimeout(full_auto_stop_ms);
-      compass_prefs.saveFullAutoTimeout(full_auto_stop_ms);
-    }
+    long t = server.arg("t").toInt();
+    if (t <= 0) t = 0;
+    if (t > 60) t = 60;
+    unsigned long full_auto_stop_ms = 60 * 1000 * t;
+    compass.setFullAutoTimeout(full_auto_stop_ms);
 
-    compass_prefs.saveCalibrationModeBoot(v);
+    compass_prefs.saveCalibrationSettings(v, full_auto_stop_ms);
     display.showInfoMessage("BOOT MODE SAVED", calModeToString(v));
   }
   this->handleRoot();
@@ -353,7 +349,7 @@ void WebUIManager::handleRoot() {
     <input type="radio" name="c" value="1")");
   if (mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Auto </label><label>
-    <input type="radio" name="c" value="2")");
+    <input type="radio" name="c" value="3")");
   if (mode_boot == CAL_USE) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Use/Manual</label><br>
     <label>Full auto stops in </label>
