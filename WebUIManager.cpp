@@ -558,9 +558,10 @@ void WebUIManager::handleDeviationTable(){
   const int W=800, H=400;
   const float xpad=40, ypad=20;
   const float xmin=0, xmax=360;
+  const int STEP = 10; // Sample every 10 degrees
   float ymax = 0.0f;
   HarmonicCoeffs hc = compass.getHarmonicCoeffs();
-  for (int d=0; d<=360; ++d){
+  for (int d=0; d<=360; d+=STEP){
     float v = computeDeviation(hc, (float)d);
     if (fabs(v) > ymax) ymax = fabs(v);
   }
@@ -616,9 +617,9 @@ void WebUIManager::handleDeviationTable(){
     server.sendContent(buf);
   }
 
-  // Polyline
+  // Polyline (every 10 degrees for performance)
   server.sendContent_P(R"(<polyline fill="none" stroke="#0af" stroke-width="2" points=")");
-  for (int d=0; d<=360; ++d){
+  for (int d=0; d<=360; d+=STEP){
     float X=xmap((float)d);
     float Y=ymap(computeDeviation(hc,(float)d));
     snprintf(buf,sizeof(buf),"%.1f,%.1f ",X,Y);
