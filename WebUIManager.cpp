@@ -225,12 +225,12 @@ void WebUIManager::handleSetDeviations() {
 void WebUIManager::handleSetCalmode() {
   if (server.hasArg("calmode") && server.hasArg("fastop")) {
     
-    String m = server.arg("calmode");
+    const char* m = server.arg("calmode").c_str();
     CalMode v = CAL_USE;
-    if (m == "full")         v = CAL_FULL_AUTO;
-    else if (m == "semi")    v = CAL_SEMI_AUTO;
-    else if (m == "manual")  v = CAL_MANUAL;
-    else                     v = CAL_USE;
+    if (strcmp(m, "full") == 0)        v = CAL_FULL_AUTO;
+    else if (strcmp(m, "semi") == 0)   v = CAL_SEMI_AUTO;
+    else if (strcmp(m, "manual") == 0) v = CAL_MANUAL;
+    else                               v = CAL_USE;
     compass.setCalibrationModeBoot(v);
    
     if (!(compass.getCalibrationModeRuntime() == CAL_FULL_AUTO)) {
@@ -271,8 +271,8 @@ void WebUIManager::handleSetMagvar() {
 void WebUIManager::handleSetHeadingMode() {
   bool send_hdg_true;
   if (server.hasArg("mode")) {
-    String mode = server.arg("mode");
-    send_hdg_true = (mode == "true");
+    const char* mode = server.arg("mode").c_str();
+    send_hdg_true = (strcmp(mode, "true") == 0);
   }
   compass.setSendHeadingTrue(send_hdg_true);
 
