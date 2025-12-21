@@ -37,8 +37,8 @@ bool SignalKBroker::connectWebsocket() {
         ws.onMessage([this](WebsocketsMessage msg) {
             this->onMessageCallback(msg);
         });
-        ws.onEvent([this](WebsocketsEvent event, String data) {
-            this->onEventCallback(event, data);
+        ws.onEvent([this](WebsocketsEvent event, const String &data) {
+            this->onEventCallback(event); // String not used at all
         });
     }
     return ws_open;
@@ -75,9 +75,9 @@ void SignalKBroker::sendHdgPitchRollDelta() {
 
     if (!(changed_h || changed_p || changed_r)) return;  
 
-    StaticJsonDocument<512> doc;
-    doc["context"] = "vessels.self";
-    auto updates = doc.createNestedArray("updates");
+    hdg_pitch_roll_doc.clear();
+    hdg_pitch_roll_doc["context"] = "vessels.self";
+    auto updates = hdg_pitch_roll_doc.createNestedArray("updates");
     auto up      = updates.createNestedObject();
     up["$source"] = SK_SOURCE;
     auto values  = up.createNestedArray("values");
@@ -96,7 +96,7 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     if (values.size() == 0) return;
 
     char buf[640];
-    size_t n = serializeJson(doc, buf, sizeof(buf));
+    size_t n = serializeJson(hdg_pitch_roll_doc, buf, sizeof(buf));
     bool ok = ws.send(buf, n);
     if (!ok) {
         ws.close();
@@ -120,9 +120,9 @@ void SignalKBroker::sendPitchRollMinMaxDelta() {
 
     if (!(ch_pmin || ch_pmax || ch_rmin || ch_rmax)) return;
 
-    StaticJsonDocument<512> doc;
-    doc["context"] = "vessels.self";
-    auto updates = doc.createNestedArray("updates");
+    minmax_doc.clear();
+    minmax_doc["context"] = "vessels.self";
+    auto updates = minmax_doc.createNestedArray("updates");
     auto up      = updates.createNestedObject();
     up["$source"] = SK_SOURCE;
     auto values  = up.createNestedArray("values");
@@ -141,7 +141,7 @@ void SignalKBroker::sendPitchRollMinMaxDelta() {
     if (values.size() == 0) return;
 
     char buf[640];
-    size_t n = serializeJson(doc, buf, sizeof(buf));
+    size_t n = serializeJson(minmax_doc, buf, sizeof(buf));
     bool ok = ws.send(buf, n);
     if (!ok){
         ws.close();
@@ -183,10 +183,10 @@ void SignalKBroker::setSignalKSource() {
 void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
     if (!compass.isSendingHeadingTrue()) return;
     if (!msg.isText()) return;
-    StaticJsonDocument<1024> d;
-    if (deserializeJson(d, msg.data())) return;
-    if (!d.containsKey("updates")) return;
-    for (JsonObject up : d["updates"].as<JsonArray>()) {
+    incoming_doc.clear();
+    if (deserializeJson(incoming_doc, msg.data())) return;
+    if (!incoming_doc.containsKey("updates")) return;
+    for (JsonObject up : incoming_doc["updates"].as<JsonArray>()) {
         if (!up.containsKey("values")) continue;
         for (JsonObject v : up["values"].as<JsonArray>()) {
             if (!v.containsKey("path")) continue;
@@ -206,7 +206,7 @@ void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
 }
 
 // Callback for onEvent
-void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
+void SignalKBroker::onEventCallback(WebsocketsEvent event) {
     switch (event) {
         case WebsocketsEvent::ConnectionOpened: {
             ws_open = true;
@@ -227,9 +227,9 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event, String data) {
 // When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
 void SignalKBroker::handleVariationDelta(){  
     if (!compass.isSendingHeadingTrue()) return;
-    StaticJsonDocument<256> sub;
-    sub["context"] = "vessels.self";
-    auto subscribe = sub.createNestedArray("subscribe");
+    subscribe_doc.clear();
+    subscribe_doc["context"] = "vessels.self";
+    auto subscribe = subscribe_doc.createNestedArray("subscribe");
     auto s = subscribe.createNestedObject();
     s["path"] = "navigation.magneticVariation";
     s["format"] = "delta";
@@ -237,7 +237,7 @@ void SignalKBroker::handleVariationDelta(){
     s["period"] = 1000;
 
     char buf[256];
-    size_t n = serializeJson(sub, buf, sizeof(buf));
+    size_t n = serializeJson(subscribe_doc, buf, sizeof(buf));
     ws.send(buf, n);
 }
 

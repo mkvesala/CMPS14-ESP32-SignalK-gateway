@@ -130,41 +130,41 @@ void WebUIManager::handleStatus() {
   } 
 
   HarmonicCoeffs hc = compass.getHarmonicCoeffs();
-  StaticJsonDocument<1024> doc;
+  status_doc.clear();
 
-  doc["cal_mode"]             = calModeToString(compass.getCalibrationModeRuntime());
-  doc["cal_mode_boot"]        = calModeToString(compass.getCalibrationModeBoot());
-  doc["fa_left"]              = this->ms_to_hms_str(compass.getFullAutoLeft());
-  doc["wifi"]                 = display.getWifiIPAddress();
-  doc["rssi"]                 = display.getWifiQuality();
-  doc["hdg_deg"]              = compass.getHeadingDeg();
-  doc["compass_deg"]          = compass.getCompassDeg();
-  doc["pitch_deg"]            = compass.getPitchDeg();
-  doc["roll_deg"]             = compass.getRollDeg();
-  doc["pitch_level"]          = compass.getPitchLevel();
-  doc["roll_level"]           = compass.getRollLevel();
-  doc["offset"]               = compass.getInstallationOffset();
-  doc["dev"]                  = compass.getDeviation();
-  doc["variation"]            = compass.getVariation();
-  doc["heading_true_deg"]     = compass.getHeadingTrueDeg();
-  doc["acc"]                  = acc;
-  doc["mag"]                  = mag;
-  doc["sys"]                  = sys;
-  doc["hca"]                  = hc.A;
-  doc["hcb"]                  = hc.B;
-  doc["hcc"]                  = hc.C;
-  doc["hcd"]                  = hc.D;
-  doc["hce"]                  = hc.E;
-  doc["use_manual_magvar"]    = compass.isUsingManualVariation();   
-  doc["send_hdg_true"]        = compass.isSendingHeadingTrue();         
-  doc["stored"]               = compass.isCalProfileStored(); 
+  status_doc["cal_mode"]             = calModeToString(compass.getCalibrationModeRuntime());
+  status_doc["cal_mode_boot"]        = calModeToString(compass.getCalibrationModeBoot());
+  status_doc["fa_left"]              = this->ms_to_hms_str(compass.getFullAutoLeft());
+  status_doc["wifi"]                 = display.getWifiIPAddress();
+  status_doc["rssi"]                 = display.getWifiQuality();
+  status_doc["hdg_deg"]              = compass.getHeadingDeg();
+  status_doc["compass_deg"]          = compass.getCompassDeg();
+  status_doc["pitch_deg"]            = compass.getPitchDeg();
+  status_doc["roll_deg"]             = compass.getRollDeg();
+  status_doc["pitch_level"]          = compass.getPitchLevel();
+  status_doc["roll_level"]           = compass.getRollLevel();
+  status_doc["offset"]               = compass.getInstallationOffset();
+  status_doc["dev"]                  = compass.getDeviation();
+  status_doc["variation"]            = compass.getVariation();
+  status_doc["heading_true_deg"]     = compass.getHeadingTrueDeg();
+  status_doc["acc"]                  = acc;
+  status_doc["mag"]                  = mag;
+  status_doc["sys"]                  = sys;
+  status_doc["hca"]                  = hc.A;
+  status_doc["hcb"]                  = hc.B;
+  status_doc["hcc"]                  = hc.C;
+  status_doc["hcd"]                  = hc.D;
+  status_doc["hce"]                  = hc.E;
+  status_doc["use_manual_magvar"]    = compass.isUsingManualVariation();   
+  status_doc["send_hdg_true"]        = compass.isSendingHeadingTrue();         
+  status_doc["stored"]               = compass.isCalProfileStored(); 
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "0");
 
   char out[1024];
-  size_t n = serializeJson(doc, out, sizeof(out));
+  size_t n = serializeJson(status_doc, out, sizeof(out));
   server.send(200, "application/json; charset=utf-8", out);
 }
 

@@ -24,13 +24,19 @@ private:
     void setSignalKURL();
     void setSignalKSource();
     void onMessageCallback(WebsocketsMessage msg);
-    void onEventCallback(WebsocketsEvent event, String data);
+    void onEventCallback(WebsocketsEvent event);
     void handleVariationDelta();
 
 private:
     
     CMPS14Processor &compass;
     WebsocketsClient ws;
+
+    // Reusable JSON documents
+    StaticJsonDocument<512> hdg_pitch_roll_doc; 
+    StaticJsonDocument<512> minmax_doc;
+    StaticJsonDocument<1024> incoming_doc;
+    StaticJsonDocument<256> subscribe_doc;
 
     bool ws_open = false;
 

@@ -24,6 +24,10 @@ private:
   SignalKBroker &signalk;
   DisplayManager &display;
 
+  // Reusable JSON document
+  StaticJsonDocument<1024> status_doc;
+
+  // Webserver endpoint handlers
   void setupRoutes();
   void handleStatus();
   void handleSetOffset();
