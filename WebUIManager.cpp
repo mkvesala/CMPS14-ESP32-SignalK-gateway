@@ -285,6 +285,9 @@ void WebUIManager::handleSetHeadingMode() {
 // Web UI handler for the configuration HTML page 
 void WebUIManager::handleRoot() {
 
+  // Re-usable buffer for all content creation
+  char buf[256];
+
   CalMode mode_runtime = compass.getCalibrationModeRuntime();
   CalMode mode_boot = compass.getCalibrationModeBoot();
   float measured_deviations[8];
@@ -319,11 +322,9 @@ void WebUIManager::handleRoot() {
   server.sendContent_P(R"(
     <div class='card' id='controls'>)");
   if (mode_runtime == CAL_FULL_AUTO) {
-    char buf[128];
     snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(mode_runtime), this->ms_to_hms_str(compass.getFullAutoLeft()));
     server.sendContent(buf);
   } else {
-    char buf[64];
     snprintf(buf, sizeof(buf), "Current mode: %s<br>", calModeToString(mode_runtime));
     server.sendContent(buf);
   }
@@ -347,22 +348,19 @@ void WebUIManager::handleRoot() {
     <div class='card'>
     <form action="/calmode/set" method="get">
     <label>Boot mode </label><label><input type="radio" name="calmode" value="full")");
-  { if (mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)"); }
+  if (mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Full auto </label><label>
     <input type="radio" name="calmode" value="semi")");
-  { if (mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)"); }
+  if (mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Auto </label><label>
     <input type="radio" name="calmode" value="use")");
-  { if (mode_boot == CAL_USE) server.sendContent_P(R"( checked)"); }
+  if (mode_boot == CAL_USE) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Use/Manual</label><br>
     <label>Full auto stops in </label>
     <input type="number" name="fastop" step="1" min="0" max="60" value=")");
-      {
-        char buf[32];
-        float to = (float)(compass.getFullAutoTimeout()/1000/60);
-        snprintf(buf, sizeof(buf), "%.0f", to);
-        server.sendContent(buf);
-      }
+  float to = (float)(compass.getFullAutoTimeout()/1000/60);
+  snprintf(buf, sizeof(buf), "%.0f", to);
+  server.sendContent(buf);
   server.sendContent_P(R"("> mins (0 never)<br><input type="submit" id="calmodebtn" class="button" value="SAVE"></form></div>)");
 
   // DIV Set installation offset
@@ -371,11 +369,8 @@ void WebUIManager::handleRoot() {
     <form action="/offset/set" method="get">
     <label>Installation offset</label>
     <input type="number" name="v" step="1" min="-180" max="180" value=")");
-      {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "%.0f", compass.getInstallationOffset());
-        server.sendContent(buf);
-      }
+  snprintf(buf, sizeof(buf), "%.0f", compass.getInstallationOffset());
+  server.sendContent(buf);
   server.sendContent_P(R"(">&deg; <input type="submit" value="SAVE" class="button"></form></div>)");
 
   // DIV Set deviation 
@@ -383,47 +378,35 @@ void WebUIManager::handleRoot() {
     <div class='card'>Measured deviations<form action="/dev8/set" method="get"><div>)");
 
   // Row 1: N NE
-  {
-    char row1[256];
-    snprintf(row1, sizeof(row1),
-      "<label>N</label><input name=\"N\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
-      "<label>NE</label><input name=\"NE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      measured_deviations[0], measured_deviations[1]);
-    server.sendContent(row1);
-  }
+  snprintf(buf, sizeof(buf),
+    "<label>N</label><input name=\"N\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+    "<label>NE</label><input name=\"NE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
+    measured_deviations[0], measured_deviations[1]);
+  server.sendContent(buf);
   server.sendContent_P(R"(</div><div>)");
 
   // Row 2:  E SE
-  {
-  char row2[256];
-    snprintf(row2, sizeof(row2),
-      "<label>E</label><input name=\"E\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
-      "<label>SE</label><input name=\"SE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      measured_deviations[2], measured_deviations[3]);
-    server.sendContent(row2);
-  }
+  snprintf(buf, sizeof(buf),
+    "<label>E</label><input name=\"E\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+    "<label>SE</label><input name=\"SE\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
+    measured_deviations[2], measured_deviations[3]);
+  server.sendContent(buf);
   server.sendContent_P(R"(</div><div>)");
 
   // Row 3: S SW
-  {
-  char row3[256];
-    snprintf(row3, sizeof(row3),
-      "<label>S</label><input name=\"S\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
-      "<label>SW</label><input name=\"SW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      measured_deviations[4], measured_deviations[5]);
-    server.sendContent(row3);
-  }
+  snprintf(buf, sizeof(buf),
+    "<label>S</label><input name=\"S\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+    "<label>SW</label><input name=\"SW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
+    measured_deviations[4], measured_deviations[5]);
+  server.sendContent(buf);
   server.sendContent_P(R"(</div><div>)");
 
   // Row 4: W NW
-  {
-    char row4[256];
-    snprintf(row4, sizeof(row4),
-      "<label>W</label><input name=\"W\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
-      "<label>NW</label><input name=\"NW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
-      measured_deviations[6], measured_deviations[7]);
-    server.sendContent(row4);
-  }
+  snprintf(buf, sizeof(buf),
+    "<label>W</label><input name=\"W\"  type=\"number\" step=\"1\" value=\"%.0f\">&deg; "
+    "<label>NW</label><input name=\"NW\" type=\"number\" step=\"1\" value=\"%.0f\">&deg; ",
+    measured_deviations[6], measured_deviations[7]);
+  server.sendContent(buf);
 
   server.sendContent_P(R"(
     </div>
@@ -440,11 +423,8 @@ void WebUIManager::handleRoot() {
     <form action="/magvar/set" method="get">
     <label>Manual variation </label>
     <input type="number" name="v" step="1" min="-180" max="180" value=")");
-    {
-      char buf[32];
-      snprintf(buf, sizeof(buf), "%.0f", compass.getManualVariation());
-      server.sendContent(buf);
-    }
+  snprintf(buf, sizeof(buf), "%.0f", compass.getManualVariation());
+  server.sendContent(buf);
   server.sendContent_P(R"(">&deg; <input type="submit" value="SAVE" class="button"></form></div>)");
 
   // DIV Set heading mode TRUE or MAGNETIC
@@ -452,10 +432,10 @@ void WebUIManager::handleRoot() {
     <div class='card'>
     <form action="/heading/mode" method="get">
     <label>Heading </label><label><input type="radio" name="mode" value="true")");
-    { if (send_hdg_true) server.sendContent_P(R"( checked)"); }
+    if (send_hdg_true) server.sendContent_P(R"( checked)");
     server.sendContent_P(R"(>True</label><label>
     <input type="radio" name="mode" value="mag")");
-    { if (!send_hdg_true) server.sendContent_P(R"( checked)"); }
+    if (!send_hdg_true) server.sendContent_P(R"( checked)");
     server.sendContent_P(R"(>Magnetic</label>
     <input type="submit" class="button" value="SAVE"></form></div>)");
 
@@ -579,7 +559,7 @@ void WebUIManager::handleDeviationTable(){
   auto ymap = [&](float y){ return H-ypad - (y + ymax) * ( (H-2*ypad) / (2*ymax) ); };
 
   // Grid
-  char buf[160];
+  char buf[256];
   server.sendContent_P(R"(<svg width="100%" viewBox="0 0 )");
   snprintf(buf, sizeof(buf), "%d %d", W, H);
   server.sendContent(buf);
