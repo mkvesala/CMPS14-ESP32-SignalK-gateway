@@ -21,11 +21,11 @@ Led indicators for calibration mode and connection status (two leds).
 
 ## Purpose of the project
 
-1. Needed a reliable low-cost digital compass that could be connected to SignalK server of my vessel
-2. Wanted to learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. Tried to refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
+1. Need a reliable low-cost digital compass that could be connected to SignalK server of my vessel
+2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
+3. Refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
-Started the project Arduino-style by copying code from my previous project (VEDirect-ESP32-SignalK-gateway). Then, just wanted keep playing around with Arduino. However, my next project will be most likely based on SensESP just to keep things less complicated for myself.
+Started the project Arduino-style by copying code from a previous project (VEDirect-ESP32-SignalK-gateway). Then, just kept playing around with Arduino. The next project will be most likely based on SensESP/PlatformIO to keep things less complicated.
 
 ## Release history
 
@@ -96,9 +96,7 @@ void loop() {
    dev(hdg) = A + Bsin(hdg) + Ccos(hdg) + Dsin(2hdg) + Ecos(2hdg)
    ```
 4. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 NVS
-5. Full deviation curve and deviation table available on web UI
-   - Deviation curve as SVG graph
-   - Deviation table with 10° steps
+5. Full deviation curve and deviation table at 10° resolution available on web UI
 
 **Note that deviation can be applied only to a permanently mounted stable compass. While CMPS14 can be securely mounted to the vessel, it's behavior may still be altered by calibration (automatic or manual). It is recommended to keep deviation at 0° until there are undeniable evidence that the compass is stable and operating without any needs for regular calibration. It's obvious that the deviations should always be re-measured and computed after each calibration.**
 
@@ -193,7 +191,7 @@ Additionally the user may:
    - Reset does *not* reset configuration settings nor pitch/roll min/max values
 5. View the deviation curve and deviation table
    - Opens a new page with a back-button pointing to the configuration page
-   - SVG graph drawn by calculating deviation 0...360° with 001° resolution
+   - SVG graph drawn by calculating deviation 0...360° with 010° resolution
    - Deviation table presented 0...360° with 010° resolution
 6. Level the attitude to zero
    - Takes the negation of the latest pitch and roll to capture the leveling factors for attitude

@@ -42,16 +42,11 @@ class DisplayManager {
 
     CMPS14Processor &compass;
     SignalKBroker &signalk;
-
-    // Had strange issues with LCD in my previous project
-    // which disappeared with unique_ptr/make_unique
-    // so copied that to here as well.
-    std::unique_ptr<LiquidCrystal_I2C> lcd;
+    LiquidCrystal_I2C lcd;
 
     static constexpr uint8_t LED_PIN_BL = 2;
     static constexpr uint8_t LED_PIN_GR = 13;
-    static constexpr uint8_t LCD_ADDR1 = 0x27;
-    static constexpr uint8_t LCD_ADDR2 = 0x3F;
+    static constexpr uint8_t LCD_ADDR = 0x27;
     static constexpr uint8_t FIFO_SIZE = 16;
     static constexpr unsigned long LCD_MS = 1009;
                        

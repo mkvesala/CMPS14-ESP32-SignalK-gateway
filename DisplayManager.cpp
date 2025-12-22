@@ -3,7 +3,7 @@
 // === P U B L I C === //
 
 // Constructor
-DisplayManager::DisplayManager(CMPS14Processor &compassref, SignalKBroker &signalkref) : compass(compassref), signalk(signalkref) {}
+DisplayManager::DisplayManager(CMPS14Processor &compassref, SignalKBroker &signalkref) : lcd(LCD_ADDR, 16, 2), compass(compassref), signalk(signalkref) {}
 
 // Initialization
 bool DisplayManager::begin() {
@@ -106,13 +106,13 @@ void DisplayManager::updateLCD(const char* l1, const char* l2) {
   this->copy16(t, l1);
   this->copy16(b, l2);
 
-  lcd->setCursor(0, 0);
-  lcd->print(t);
-  for (int i = (int)strlen(t); i < 16; i++) lcd->print(' ');
+  lcd.setCursor(0, 0);
+  lcd.print(t);
+  for (int i = (int)strlen(t); i < 16; i++) lcd.print(' ');
 
-  lcd->setCursor(0, 1);
-  lcd->print(b);
-  for (int i = (int)strlen(b); i < 16; i++) lcd->print(' ');
+  lcd.setCursor(0, 1);
+  lcd.print(b);
+  for (int i = (int)strlen(b); i < 16; i++) lcd.print(' ');
 
   this->copy16(prev_top, t);
   this->copy16(prev_bot, b);
@@ -120,18 +120,10 @@ void DisplayManager::updateLCD(const char* l1, const char* l2) {
 }
 
 // Initialize LCD screen
-// Had strange issues with LCD in my previous project
-// which disappeared with unique_ptr/make_unique
-// so copied that to here as well.
 bool DisplayManager::initLCD() {
-  uint8_t addr = 0;
-  if (this->i2cAvailable(LCD_ADDR1)) addr = LCD_ADDR1;
-  else if (this->i2cAvailable(LCD_ADDR2)) addr = LCD_ADDR2;
-
-  if (addr) {
-    lcd = std::make_unique<LiquidCrystal_I2C>(addr, 16, 2);
-    lcd->init();
-    lcd->backlight();
+  if (this->i2cAvailable(LCD_ADDR)) {
+    lcd.init();
+    lcd.backlight();
     lcd_present = true;
   } else {
     lcd_present = false;
