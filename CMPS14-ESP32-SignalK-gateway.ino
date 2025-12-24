@@ -9,11 +9,12 @@ void setup() {
   delay(47);
 
   app.begin();
-  app.status();
+
   if (!app.compassOk()) { 
     Serial.println("CMPS14 INIT FAILED! CHECK SYSTEM!");
     while(true); 
   }
+  
 }
 
 void loop() {

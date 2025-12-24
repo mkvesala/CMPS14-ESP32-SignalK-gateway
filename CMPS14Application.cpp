@@ -30,8 +30,8 @@ void CMPS14Application::begin() {
   compass_prefs.load();
 
   // Init appropriate calibration mode or use-mode
-  calmode_ok = compass.initCalibrationModeBoot();
-
+  compass.initCalibrationModeBoot();
+  
   // Stop bluetooth
   btStop(); 
 
@@ -39,45 +39,11 @@ void CMPS14Application::begin() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  unsigned long t0 = millis();
-  while (!WiFi.isConnected() && (long)(millis() - t0) < WIFI_TIMEOUT_MS) { delay(250); } 
+  wifi_state = WifiState::CONNECTING;
+  wifi_conn_start_ms = millis();
+  display.showInfoMessage("WIFI", "CONNECTING");
 
-  // Execute if WiFi successfully connected
-  if (WiFi.isConnected()) {
-
-    display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
-
-    // SignalK websocket
-    signalk.begin();
-
-    // OTA
-    ArduinoOTA.setHostname(signalk.getSignalKSource());
-    ArduinoOTA.setPassword(WIFI_PASS);
-    ArduinoOTA.onStart([](){});
-    ArduinoOTA.onEnd([]() {});
-    ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total){
-      display.showInfoMessage("OTA UPDATE", "UPLOADING");
-    });
-    ArduinoOTA.onError([] (ota_error_t error) {});
-    ArduinoOTA.begin();
-
-    // Webserver handlers
-    webui.begin();
-
-  // No WiFi connection, use only LCD output and power off WiFi 
-  } else {  
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF); 
-  }
-
-}
-
-// Debug status update
-void CMPS14Application::status() {
-  if (calmode_ok) display.showInfoMessage("CAL MODE INIT", calModeToString(compass.getCalibrationModeRuntime()));
-  display.showSuccessMessage("WIFI CONNECT", WiFi.isConnected());
-  if (WiFi.isConnected()) display.showWifiStatus();
-  display.showSuccessMessage("SK WEBSOCKET", signalk.isOpen());
+  // Compass ok?
   display.showSuccessMessage("CMPS14 INIT", compass_ok);
 }
 
@@ -85,6 +51,7 @@ void CMPS14Application::status() {
 void CMPS14Application::loop() {
 
   const unsigned long now = millis();
+  this->handleWifi(now);
   this->handleOTA();
   this->handleWebUI();
   this->handleWebsocket(now);
@@ -95,6 +62,66 @@ void CMPS14Application::loop() {
 }
 
 // === P R I V A T E ===
+
+// Wifi
+void CMPS14Application::handleWifi(unsigned long now) {
+  if ((long)(now - wifi_last_check_ms) < WIFI_STATUS_CHECK_MS) {
+    return;
+  }
+  wifi_last_check_ms = now;
+  switch (wifi_state) {
+    
+    case WifiState::INIT:
+      break;
+    
+    case WifiState::CONNECTING: {
+      wl_status_t status = WiFi.status();
+      if (status == WL_CONNECTED) {
+        wifi_state = WifiState::CONNECTED;
+        display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
+        display.showSuccessMessage("WIFI CONNECT", true);
+        display.showWifiStatus();
+        this->initWifiServices();
+        expn_retry_ms = WS_RETRY_MS;
+      }
+      else if ((long)(now - wifi_conn_start_ms) >= WIFI_TIMEOUT_MS) {
+        wifi_state = WifiState::FAILED;
+        display.showSuccessMessage("WIFI CONNECT", false);
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+        wifi_state = WifiState::OFF;
+      }
+      else if (status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
+        wifi_state = WifiState::FAILED;
+        display.showSuccessMessage("WIFI CONNECT", false);
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+        wifi_state = WifiState::OFF;
+      }
+      break;
+    }
+
+    case WifiState::CONNECTED: {
+      if(!WiFi.isConnected()) {
+        wifi_state = WifiState::DISCONNECTED;
+        display.showInfoMessage("WIFI", "LOST");
+        WiFi.disconnect();
+        WiFi.begin(WIFI_SSID, WIFI_PASS);
+        wifi_state = WifiState::CONNECTING;
+        wifi_conn_start_ms = now;
+      }
+      break;
+    }
+
+    case WifiState::FAILED:
+    case WifiState::DISCONNECTED:
+      break;
+
+    case WifiState::OFF:
+      break;
+  }
+
+}
 
 // OTA
 void CMPS14Application::handleOTA() {
@@ -175,4 +202,24 @@ void CMPS14Application::handleDisplay() {
 
   display.handle();
   
+}
+
+// Init wifi-dependent stuff
+void CMPS14Application::initWifiServices() {
+  // SignalK websocket
+    signalk.begin();
+
+    // OTA
+    ArduinoOTA.setHostname(signalk.getSignalKSource());
+    ArduinoOTA.setPassword(WIFI_PASS);
+    ArduinoOTA.onStart([](){});
+    ArduinoOTA.onEnd([]() {});
+    ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total){
+      display.showInfoMessage("OTA UPDATE", "UPLOADING");
+    });
+    ArduinoOTA.onError([] (ota_error_t error) {});
+    ArduinoOTA.begin();
+
+    // Webserver handlers
+    webui.begin();
 }
