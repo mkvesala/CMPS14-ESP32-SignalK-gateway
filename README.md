@@ -30,10 +30,11 @@ Started the project Arduino-style by copying code from a previous project (VEDir
 ## Release history
 
 ```
-Release            Branch                           Comment
+Release       Branch                      Comment
 
-v1.0.0             main                             Latest release. Refactored into classes.
-v0.5.1             legacy/procedural-0.5.x          Last fully procedural version.
+v1.0.0        main                        Latest release. Refactored into classes
+                                          with new features not implemented in 0.5.x.
+v0.5.1        legacy/procedural-0.5.x     Last fully procedural version.
 ```
 ## Class CMPS14Sensor
 
@@ -81,7 +82,7 @@ void loop() {
 1. Reads angle, pitch and roll from CMPS14 at ~20 Hz frequency
 2. Applies installation offset (user input) to raw angle for compass heading
 3. Applies smoothing to compass heading
-4. Computes magnetic heading using harmonic deviation model on compass heading
+4. Applies deviation on compass heading for magnetic heading
 5. Computes true heading (optional), using either
    - Live *navigation.magneticVariation* received from SignalK (prioritized over user input)
    - Manual variation from user input on web UI (used automatically whenever *navigation.magneticVariation* is not available)
@@ -96,7 +97,8 @@ void loop() {
    dev(hdg) = A + Bsin(hdg) + Ccos(hdg) + Dsin(2hdg) + Ecos(2hdg)
    ```
 4. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 NVS
-5. Full deviation curve and deviation table at 10° resolution available on web UI
+5. A deviation lookup table is computed each time the 5 coeffs change and on boot. The lookup table contains the deviation for each 1° over 360°. The lookup method will apply a linear interpolation to gain 0.01° (or so) accuracy.
+6. Deviation curve and deviation table at simplified 10° resolution available on web UI
 
 **Note that deviation can be applied only to a permanently mounted stable compass. While CMPS14 can be securely mounted to the vessel, it's behavior may still be altered by calibration (automatic or manual). It is recommended to keep deviation at 0° until there are undeniable evidence that the compass is stable and operating without any needs for regular calibration. It's obvious that the deviations should always be re-measured and computed after each calibration.**
 
@@ -191,8 +193,7 @@ Additionally the user may:
    - Reset does *not* reset configuration settings nor pitch/roll min/max values
 5. View the deviation curve and deviation table
    - Opens a new page with a back-button pointing to the configuration page
-   - SVG graph drawn by calculating deviation 0...360° with 010° resolution
-   - Deviation table presented 0...360° with 010° resolution
+   - Simplified deviation curve and deviation table presented 0...360° with 010° resolution
 6. Level the attitude to zero
    - Takes the negation of the latest pitch and roll to capture the leveling factors for attitude
    - Leveling factors are applied to the raw pitch and roll
@@ -255,7 +256,7 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
 - CMPS14-ESP32-SignalK-gateway.ino                 // Create CMPS14Application app, setup(), loop()
 - globals.h                                        // Library includes
 - CalMode.h                                        // Struct for CMPS14 calibration modes
-- harmonic.h             | harmonic.cpp            // Harmonic model to compute deviation
+- harmonic.h             | harmonic.cpp            // Struct and functions to compute deviations, class DeviationLookup
 - CMPS14Sensor.h         | CMPS14Sensor.cpp        // Class CMPS14Sensor, the "sensor"
 - CMPS14Processor.h      | CMPS14Processor.cpp     // Class CMPS14Processor, the "compass"
 - CMPS14Preferences.h    | CMPS14Preferences.cpp   // Class CMPS14Preferences, the "compass_prefs"
@@ -281,10 +282,10 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
 6. Joy-IT step-down [voltage converter](https://joy-it.net/en/products/SBC-Buck04-5V)
    - SH-ESP32 accepts 8 - 32 V, this is step-down to 5 V for CMPS14 and LCD
 7. IP67 enclosures for CMPS14 and SH-ESP32, cable clands and SP13 connectors
-8. 3D printed [panel mount bezel](https://www.printables.com/model/158413-panel-mount-16x2-lcd-bezel) for LCD 16x2 (temporarily a black 2 x 4 x 1 inch plastic box with a cut hole)
-9. Wifi router providing wireless LAN AP
-10. MacOS laptop in LAN running SignalK server
-11. Jumper wires, male row headers (2.54 mm)
+8. Jumper wires, male row headers (2.54 mm)
+9. 3D printed [panel mount bezel](https://www.printables.com/model/158413-panel-mount-16x2-lcd-bezel) for LCD 16x2 (temporarily a black 2 x 4 x 1 inch plastic box with a cut hole)
+10. Wifi router providing wireless LAN AP
+11. MacOS laptop in LAN running SignalK server
 
 **No paid partnerships.**
 
