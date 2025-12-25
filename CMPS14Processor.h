@@ -43,6 +43,7 @@ public:
     CalMode getCalibrationModeBoot() const { return cal_mode_boot; }
     CalMode getCalibrationModeRuntime() const { return cal_mode_runtime; }
     HarmonicCoeffs getHarmonicCoeffs() const { return hc; }
+    const DeviationLookup& getDeviationLookup() const { return dev_lut; }
 
     bool isUsingManualVariation() const { return use_manual_magvar; }
     bool isCalProfileStored() const { return cal_profile_stored; }
@@ -57,7 +58,7 @@ public:
     void setSendHeadingTrue(bool hdg) { send_hdg_true = hdg; }
     void setCalibrationModeBoot(CalMode mode) { cal_mode_boot = mode; }
     void setCalibrationModeRuntime(CalMode mode) { cal_mode_runtime = mode; }
-    void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) { hc = coeffs; }
+    void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) { hc = coeffs; dev_lut.build(hc); }
     void setMeasuredDeviations(const float in[8]) { memcpy(measured_deviations, in, sizeof(measured_deviations)); }
     void setFullAutoTimeout(unsigned long ms) { full_auto_stop_ms = ms; }
     void setFullAutoLeft(unsigned long ms) { full_auto_left_ms = ms; }
@@ -89,6 +90,7 @@ private:
     bool send_hdg_true = true;                  // Send also true heading
 
     HarmonicCoeffs hc = { 0,0,0,0,0 };                  // Five harmonic coeffs to compute deviations - as a struct, because part of computing model A, B, C, D and E.
+    DeviationLookup dev_lut;                            // Lookup table for deviations
     
     float measured_deviations[8] = { 0,0,0,0,0,0,0,0 }; // Measured deviations (deg) in cardinal and intercardinal directions, as an array, because imput only
 

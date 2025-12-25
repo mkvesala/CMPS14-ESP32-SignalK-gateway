@@ -1,5 +1,7 @@
 #include "harmonic.h"
 
+// === G L O B A L  C O R E  F U N C T I O N S ===
+
 // Solve A..E with least squares method from 8 given datapoints
 HarmonicCoeffs computeHarmonicCoeffs(const float* dev_deg) {
   float MTM[5][5] = {0};
@@ -43,4 +45,31 @@ HarmonicCoeffs computeHarmonicCoeffs(const float* dev_deg) {
 float computeDeviation(const HarmonicCoeffs& h, float hdg_deg) {
   float th = hdg_deg * M_PI / 180.0f;
   return h.A + h.B*sinf(th) + h.C*cosf(th) + h.D*sinf(2*th) + h.E*cosf(2*th);
+}
+
+// === D E V I A T I O N  L O O K U P  T A B L E  C L A S S ===
+
+// === P U B L I C ===
+
+// Build the lookup table by computing deviation for each 1° of 360°
+void DeviationLookup::build(const HarmonicCoeffs &hc) {
+  for (int i = 0; i < SIZE; i++) {
+    float th = i * (M_PI / 180.0f);
+    lut[i] = hc.A + hc.B*sinf(th) + hc.C*cosf(th) + hc.D*sinf(2*th) + hc.E*cosf(2*th);
+  }
+  valid = true;
+}
+
+float DeviationLookup::lookup(float compass_deg) const {
+  if (!valid) return 0.0f;
+
+  while (compass_deg >= 360.0f) compass_deg -= 360.0f;
+  while (compass_deg < 0.0f) compass_deg += 360.0f;
+
+  // Interpolate (linear)
+  int idx = (int)compass_deg;
+  float frac = compass_deg - idx;
+  int next = (idx + 1) % SIZE;
+
+  return lut[idx] * (1.0f - frac) + lut[next] * frac;
 }

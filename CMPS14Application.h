@@ -47,7 +47,6 @@ class CMPS14Application {
     unsigned long wifi_last_check_ms = 0;
 
     bool compass_ok = false;
-    bool calmode_ok = false;
 
     enum class WifiState {
       INIT, CONNECTING, CONNECTED, FAILED, DISCONNECTED, OFF

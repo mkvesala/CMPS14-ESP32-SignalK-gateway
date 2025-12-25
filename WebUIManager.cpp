@@ -535,19 +535,14 @@ void WebUIManager::handleDeviationTable(){
   const float xpad=40, ypad=20;
   const float xmin=0, xmax=360;
   const int STEP = 10; // Sample every 10°
-  const int NUMOF_SAMPLES = (360 / STEP) + 1;
-
-  // Pre-calculate all deviation values at 10° resolution
-  float deviations[NUMOF_SAMPLES];
-  HarmonicCoeffs hc = compass.getHarmonicCoeffs();
-  for (int i=0; i < NUMOF_SAMPLES; i++) {
-    deviations[i] = computeDeviation(hc, (float)(i * STEP));
-  }
-
+  
+  const DeviationLookup &dev_lut = compass.getDeviationLookup();
+  
   // Use pre-calclulated deviations
   float ymax = 0.0f;
-  for (int i=0; i < NUMOF_SAMPLES; i++){
-    if (fabs(deviations[i]) > ymax) ymax = fabs(deviations[i]);
+  for (int i=0; i < 360; i += STEP){
+    float dev = dev_lut.lookup((float)i);
+    if (fabs(dev) > ymax) ymax = fabs(dev);
   }
   ymax = max(ymax + 1.0f, 5.0f); 
 
@@ -603,9 +598,9 @@ void WebUIManager::handleDeviationTable(){
 
   // Polyline (every 10 degrees for performance), using pre-calculated values
   server.sendContent_P(R"(<polyline fill="none" stroke="#0af" stroke-width="2" points=")");
-  for (int i=0; i < NUMOF_SAMPLES; i++){
-    float X=xmap((float)(i * STEP));
-    float Y=ymap(deviations[i]);
+  for (int i=0; i < 360; i += STEP){
+    float X=xmap((float)i);
+    float Y=ymap(dev_lut.lookup((float)i));
     snprintf(buf,sizeof(buf),"%.1f,%.1f ",X,Y);
     server.sendContent(buf);
   }
@@ -621,8 +616,8 @@ void WebUIManager::handleDeviationTable(){
   for (int i=10; i <= 180; i+=10){
     int idx1 = i / STEP;
     int idx2 = (i + 180) / STEP;
-    float v = deviations[idx1];
-    float v2 = deviations[idx2];
+    float v = dev_lut.lookup((float)idx1);
+    float v2 = dev_lut.lookup((float)idx2);
     snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.0f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.0f\u00B0</td></tr>", i, v, i+180, v2);
     server.sendContent(buf);
   }

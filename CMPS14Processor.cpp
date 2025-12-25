@@ -45,7 +45,7 @@ bool CMPS14Processor::update() {
     }
 
     // Heading (M)
-    dev_deg = computeDeviation(hc, compass_deg);
+    dev_deg = dev_lut.lookup(compass_deg);
     heading_deg = compass_deg + dev_deg;
     if (heading_deg >= 360.0f) heading_deg -= 360.0f;
     if (heading_deg < 0.0f) heading_deg += 360.0f;
