@@ -129,23 +129,35 @@ float computeDeviation(const HarmonicCoeffs& h, float hdg_deg) {
 
 // Build the lookup table by computing deviation for each 1° of 360°
 void DeviationLookup::build(const HarmonicCoeffs &hc) {
+
   for (int i = 0; i < SIZE; i++) {
-    float th = i * (M_PI / 180.0f);
+    float hdg_deg = (float)i;
+    float th = hdg_deg * M_PI / 180.0f;
     lut[i] = hc.A + hc.B*sinf(th) + hc.C*cosf(th) + hc.D*sinf(2*th) + hc.E*cosf(2*th);
   }
   valid = true;
 }
 
+// Return an interpolated value from lookup table based on HDG(C)
 float DeviationLookup::lookup(float compass_deg) const {
   if (!valid) return 0.0f;
 
+  // Validate input
+  if (!validf(compass_deg)) return 0.0f;
+
+  // Normalize to [0, 360) range
   while (compass_deg >= 360.0f) compass_deg -= 360.0f;
   while (compass_deg < 0.0f) compass_deg += 360.0f;
 
   // Interpolate (linear)
   int idx = (int)compass_deg;
   float frac = compass_deg - idx;
-  int next = (idx + 1) % SIZE;
 
-  return lut[idx] * (1.0f - frac) + lut[next] * frac;
+  // Ensure idx is within bounds
+  if (idx < 0 || idx >= SIZE) return 0.0f;
+
+  int next = (idx + 1) % SIZE;
+  float result = lut[idx] * (1.0f - frac) + lut[next] * frac;
+
+  return result;
 }

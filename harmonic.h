@@ -26,12 +26,18 @@ class DeviationLookup {
 
 public:
 
+  DeviationLookup() {
+    for (int i = 0; i < SIZE; i++) {
+      lut[i] = 0.0f;
+    }
+  }
+
   void build(const HarmonicCoeffs &hc);
   float lookup(float compass_deg) const;
 
 private:
 
-  static constexpr uint8_t SIZE = 360;
+  static constexpr int SIZE = 360;
   float lut[SIZE];
   bool valid = false;
 

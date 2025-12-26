@@ -614,10 +614,8 @@ void WebUIManager::handleDeviationTable(){
     <table>
     <tr><th>Compass</th><th>Deviation</th><th></th><th>Compass</th><th>Deviation</th></tr>)");
   for (int i=10; i <= 180; i+=10){
-    int idx1 = i / STEP;
-    int idx2 = (i + 180) / STEP;
-    float v = dev_lut.lookup((float)idx1);
-    float v2 = dev_lut.lookup((float)idx2);
+    float v = dev_lut.lookup((float)i);
+    float v2 = dev_lut.lookup((float)(i + 180));
     snprintf(buf,sizeof(buf),"<tr><td>%03d\u00B0</td><td>%+.0f\u00B0</td><td></td><td>%03d\u00B0</td><td>%+.0f\u00B0</td></tr>", i, v, i+180, v2);
     server.sendContent(buf);
   }

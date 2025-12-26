@@ -58,10 +58,13 @@ public:
     void setSendHeadingTrue(bool hdg) { send_hdg_true = hdg; }
     void setCalibrationModeBoot(CalMode mode) { cal_mode_boot = mode; }
     void setCalibrationModeRuntime(CalMode mode) { cal_mode_runtime = mode; }
-    void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) { hc = coeffs; dev_lut.build(hc); }
     void setMeasuredDeviations(const float in[8]) { memcpy(measured_deviations, in, sizeof(measured_deviations)); }
     void setFullAutoTimeout(unsigned long ms) { full_auto_stop_ms = ms; }
     void setFullAutoLeft(unsigned long ms) { full_auto_left_ms = ms; }
+    void setHarmonicCoeffs(const HarmonicCoeffs &coeffs) {
+        hc = coeffs;
+        dev_lut.build(hc);
+    }
 
 private:
 
