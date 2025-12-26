@@ -92,13 +92,10 @@ void loop() {
 ### Deviation
 
 1. Takes 8 user-measured deviations (N, NE, E, SE, S, SW, W, NW) as input from web UI
-2. Fits 5-parameter sinusoidal model on measured deviations:
-   ```
-   dev(hdg) = A + Bsin(hdg) + Ccos(hdg) + Dsin(2hdg) + Ecos(2hdg)
-   ```
-4. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 NVS
-5. A deviation lookup table is computed each time the 5 coeffs change and on boot. The lookup table contains the deviation for each 1° over 360°. The lookup method will apply a linear interpolation to gain 0.01° (or so) accuracy.
-6. Deviation curve and deviation table at simplified 10° resolution available on web UI
+2. Computes 5 harmonic coefficients (A, B, C, D, E) that best fit the mathematical model `deviation(θ) = A + B·sin(θ) + C·cos(θ) + D·sin(2θ) + E·cos(2θ)` using least squares regression and Gauss-Jordan elimination, providing smooth sinusoidal curve through all 8 user-measured points
+3. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 NVS
+4. A deviation lookup table is computed each time the 5 coeffs change and on boot. The lookup table contains the deviation for each 1° over 360°. The lookup method will apply a linear interpolation to gain 0.01° (or so) accuracy when retrieving a value from the lookup table at a compass heading.
+5. Deviation curve and deviation table at simplified 10° resolution available on web UI
 
 **Note that deviation can be applied only to a permanently mounted stable compass. While CMPS14 can be securely mounted to the vessel, it's behavior may still be altered by calibration (automatic or manual). It is recommended to keep deviation at 0° until there are undeniable evidence that the compass is stable and operating without any needs for regular calibration. It's obvious that the deviations should always be re-measured and computed after each calibration.**
 
