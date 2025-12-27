@@ -57,45 +57,12 @@ void DisplayManager::showWifiStatus() {
   this->pushMsgItem(msg);
 }
 
-// Show heading T/M
-void DisplayManager::showHeading() {
-  float heading_true_deg = compass.getHeadingTrueDeg();
-  float heading_deg = compass.getHeadingDeg();
-  if (compass.isSendingHeadingTrue() && validf(heading_true_deg)) {
-    char buf[17];
-    snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
-    this->updateLCD("  HEADING (T):", buf);
-  } else if (validf(heading_deg)) {
-    char buf[17];
-    snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
-    this->updateLCD("  HEADING (M):", buf);
-  }
-}
-
 void DisplayManager::setWifiInfo(int rssi, IPAddress ip) {
   this->setRSSIc(rssi);
   this->setIPc(ip);
 }
 
 // === P R I V A T E === //
-
-// Push a message for LCD printing to FIFO queue
-bool DisplayManager::pushMsgItem(const auto &msg) {
-  if (this->fifoIsFull()) return false;
-  fifo[head] = msg;
-  head = (head + 1) % FIFO_SIZE;
-  count++;
-  return true;
-}
-
-// Pop a message for LCD printing from FIFO queue
-bool DisplayManager::popMsgItem(auto &msg) {
-  if (this->fifoIsEmpty()) return false;
-  msg = fifo[tail];
-  tail = (tail + 1) % FIFO_SIZE;
-  count--;
-  return true;
-}
 
 // LCD basic printing on two lines
 void DisplayManager::updateLCD(const char* l1, const char* l2) {
@@ -131,74 +98,19 @@ bool DisplayManager::initLCD() {
   return lcd_present;
 }
 
-// LED indicator for calibration mode, blue led at GPIO2
-void DisplayManager::updateBlueLed(){
-  static unsigned long last = 0;
-  static bool state = false;
-  const unsigned long now = millis();
-
-  switch (compass.getCalibrationModeRuntime()){
-    case CAL_USE:
-      digitalWrite(LED_PIN_BL, HIGH); 
-      return;
-    case CAL_FULL_AUTO: {
-      const unsigned long toggle_ms = 997;
-      if (now - last >= toggle_ms) {
-        state = !state;
-        digitalWrite(LED_PIN_BL, state ? HIGH : LOW); 
-        last = now;
-      }
-      break;
-    }
-    case CAL_SEMI_AUTO:
-    case CAL_MANUAL: {
-      const unsigned long toggle_ms = 101;
-      if (now - last >= toggle_ms) {
-        state = !state;
-        digitalWrite(LED_PIN_BL, state ? HIGH : LOW); 
-        last = now;
-      }
-      break;
-    }
-    default:
-      digitalWrite(LED_PIN_BL, LOW);
-      break;
+// Show heading T/M
+void DisplayManager::showHeading() {
+  float heading_true_deg = compass.getHeadingTrueDeg();
+  float heading_deg = compass.getHeadingDeg();
+  if (compass.isSendingHeadingTrue() && validf(heading_true_deg)) {
+    char buf[17];
+    snprintf(buf, sizeof(buf), "      %03.0f%c", heading_true_deg, 223);
+    this->updateLCD("  HEADING (T):", buf);
+  } else if (validf(heading_deg)) {
+    char buf[17];
+    snprintf(buf, sizeof(buf), "      %03.0f%c", heading_deg, 223);
+    this->updateLCD("  HEADING (M):", buf);
   }
-}
-
-// LED indicator for wifi mode, green led at GPIO13
-void DisplayManager::updateGreenLed(){
-  static unsigned long last = 0;
-  static bool state = false;
-  const unsigned long now = millis();
-
-  if (WiFi.getMode() == WIFI_OFF) {
-    const unsigned long toggle_ms = 1009;
-    if (now - last >= toggle_ms) {
-      state = !state;
-      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);
-      last = now;
-    }
-    return;
-  }
-
-  if (signalk.isOpen()) {
-    digitalWrite(LED_PIN_GR, HIGH);
-    return;
-  }
-
-  if (WiFi.isConnected()) {
-    const unsigned long toggle_ms = 97;
-    if (now - last >= toggle_ms) {
-      state = !state;
-      digitalWrite(LED_PIN_GR, state ? HIGH : LOW);
-      last = now;
-    }
-    return;
-  }
-
-  digitalWrite(LED_PIN_GR, LOW); 
-
 }
 
 // Scan I2C address
@@ -225,4 +137,100 @@ void DisplayManager::setRSSIc(int rssi) {
 // Set IP Address descriptor
 void DisplayManager::setIPc(IPAddress ip) {
   snprintf(IPc, sizeof(IPc), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+}
+
+// Push a message for LCD printing to FIFO queue
+bool DisplayManager::pushMsgItem(const auto &msg) {
+  if (this->fifoIsFull()) return false;
+  fifo[head] = msg;
+  head = (head + 1) % FIFO_SIZE;
+  count++;
+  return true;
+}
+
+// Pop a message for LCD printing from FIFO queue
+bool DisplayManager::popMsgItem(auto &msg) {
+  if (this->fifoIsEmpty()) return false;
+  msg = fifo[tail];
+  tail = (tail + 1) % FIFO_SIZE;
+  count--;
+  return true;
+}
+
+// LED indicator for calibration mode, blue led at GPIO2
+void DisplayManager::updateBlueLed(){
+  static unsigned long last = 0;
+  static bool blink_state = false;
+  const unsigned long now = millis();
+
+  switch (compass.getCalibrationModeRuntime()){
+    case CAL_USE:
+      this->setLedState(LED_PIN_BL, blue_led_current_state, true); 
+      return;
+    case CAL_FULL_AUTO: {
+      const unsigned long toggle_ms = 997;
+      if (now - last >= toggle_ms) {
+        blink_state = !blink_state;
+        this->setLedState(LED_PIN_BL, blue_led_current_state, blink_state);
+        last = now;
+      }
+      break;
+    }
+    case CAL_SEMI_AUTO:
+    case CAL_MANUAL: {
+      const unsigned long toggle_ms = 101;
+      if (now - last >= toggle_ms) {
+        blink_state = !blink_state;
+        this->setLedState(LED_PIN_BL, blue_led_current_state, blink_state); 
+        last = now;
+      }
+      break;
+    }
+    default:
+      this->setLedState(LED_PIN_BL, blue_led_current_state, false);
+      break;
+  }
+}
+
+// LED indicator for wifi mode, green led at GPIO13
+void DisplayManager::updateGreenLed(){
+  static unsigned long last = 0;
+  static bool blink_state = false;
+  const unsigned long now = millis();
+
+  if (WiFi.getMode() == WIFI_OFF) {
+    const unsigned long toggle_ms = 1009;
+    if (now - last >= toggle_ms) {
+      blink_state = !blink_state;
+      this->setLedState(LED_PIN_GR, green_led_current_state, blink_state);
+      last = now;
+    }
+    return;
+  }
+
+  if (signalk.isOpen()) {
+    this->setLedState(LED_PIN_GR, green_led_current_state, true);
+    return;
+  }
+
+  if (WiFi.isConnected()) {
+    const unsigned long toggle_ms = 97;
+    if (now - last >= toggle_ms) {
+      blink_state = !blink_state;
+      this->setLedState(LED_PIN_GR, green_led_current_state, blink_state);
+      last = now;
+    }
+    return;
+  }
+
+  this->setLedState(LED_PIN_GR, green_led_current_state, false);
+
+}
+
+// Small wrapper for LED GPIO operations
+void DisplayManager::setLedState(uint8_t pin, bool &current_state, bool new_state) {
+  if (current_state != new_state) {
+    digitalWrite(pin, new_state ? HIGH : LOW);
+    current_state = new_state;
+  }
 }
