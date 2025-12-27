@@ -48,10 +48,6 @@ class CMPS14Application {
 
     bool compass_ok = false;
 
-    enum class WifiState {
-      INIT, CONNECTING, CONNECTED, FAILED, DISCONNECTED, OFF
-    };
-
     WifiState wifi_state = WifiState::INIT;
 
     // Core instances for app

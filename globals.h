@@ -11,6 +11,7 @@
 #include <Preferences.h>
 #include <esp_system.h>
 #include "CalMode.h"
+#include "WifiState.h"
 #include "harmonic.h"
 #include "secrets.h"
 
