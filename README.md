@@ -30,11 +30,11 @@ Started the project Arduino-style by copying code from a previous project (VEDir
 ## Release history
 
 ```
-Release       Branch                      Comment
+Release     Branch                      Comment
 
-v1.0.0        main                        Latest release. Refactored into classes
-                                          with new features not implemented in 0.5.x.
-v0.5.1        legacy/procedural-0.5.x     Last fully procedural version.
+v1.0.0      main                        Latest release. Refactored into classes
+                                        with new features not implemented in 0.5.x.
+v0.5.1      legacy/procedural-0.5.x     Last fully procedural version.
 ```
 ## Class CMPS14Sensor
 
@@ -196,6 +196,7 @@ Additionally the user may:
    - Leveling factors are applied to the raw pitch and roll
    - Thus, user may reset the attitude to zero at any vessel position to start using proportional pitch and roll
    - Leveling is not incremental and the leveling factors are *not* stored persistently in ESP32 NVS
+   - Leveling resets pitch/roll min/max values
 8. Restart ESP32
    - Opens a temporary page which will refresh back to the configuration page after 30 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
@@ -236,15 +237,16 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
 ### Two led indicators
 
 1. GPIO2 blue led indicator (built in led on SH-ESP32 board)
+   - Fast ~5 Hz blinking: wifi not connected
+   - Medium ~2 Hz blinking: wifi connecting
+   - Slow ~1 Hz blinking: wifi connected
+   - Solid state: websocket connection to SignalK server is open
+   - Off: I have a bad feeling about this.  
+1. GPIO13 green led indicator (additional led soldered onto the board)   
    - Solid state: *USE* mode
    - Fast ~5 Hz blinking: *AUTO* or *MANUAL* calibration mode active
    - Slow ~0.5 Hz blinking: *FULL AUTO* calibration mode active
    - Off: Houston, we have a problem.
-2. GPIO13 green led indicator (additional led soldered onto the board)
-   - Solid state: websocket connection to SignalK server is open
-   - Fast ~5 Hz blinking: wifi is connected but websocket connection to SignalK server is down
-   - Slow ~0.5 Hz blinking: no network connection
-   - Off: I have a bad feeling about this.
   
 ## Project structure
 
@@ -252,7 +254,8 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
 /
 - CMPS14-ESP32-SignalK-gateway.ino                 // Create CMPS14Application app, setup(), loop()
 - globals.h                                        // Library includes
-- CalMode.h                                        // Struct for CMPS14 calibration modes
+- CalMode.h                                        // Enum class for CMPS14 calibration modes
+- WifiState.h                                      // Enum class for wifi states
 - harmonic.h             | harmonic.cpp            // Struct and functions to compute deviations, class DeviationLookup
 - CMPS14Sensor.h         | CMPS14Sensor.cpp        // Class CMPS14Sensor, the "sensor"
 - CMPS14Processor.h      | CMPS14Processor.cpp     // Class CMPS14Processor, the "compass"
