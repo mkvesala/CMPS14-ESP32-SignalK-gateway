@@ -19,6 +19,7 @@ class DisplayManager {
     void showWifiStatus();
     
     void setWifiInfo(int rssi, IPAddress ip);
+    void setWifiState(WifiState state);
 
     const char* getWifiQuality() const { return RSSIc; }
     const char* getWifiIPAddress() const { return IPc; }
@@ -73,6 +74,9 @@ class DisplayManager {
     // Wifi info
     char RSSIc[16];
     char IPc[16];
+
+    // Wifi state
+    WifiState wifi_state = WifiState::INIT;
 
     // LCD content for strcmp
     char prev_top[17] = "";

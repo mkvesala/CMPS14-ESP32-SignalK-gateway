@@ -26,7 +26,7 @@ class DeviationLookup {
 
 public:
 
-  DeviationLookup() {
+  explicit DeviationLookup() {
     for (int i = 0; i < SIZE; i++) {
       lut[i] = 0.0f;
     }

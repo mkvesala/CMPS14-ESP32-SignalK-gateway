@@ -42,6 +42,7 @@ void CMPS14Application::begin() {
   wifi_state = WifiState::CONNECTING;
   wifi_conn_start_ms = millis();
   display.showInfoMessage("WIFI", "CONNECTING");
+  display.setWifiState(wifi_state);
 
   // Compass ok?
   display.showSuccessMessage("CMPS14 INIT", compass_ok);
@@ -81,6 +82,7 @@ void CMPS14Application::handleWifi(unsigned long now) {
         display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
         display.showSuccessMessage("WIFI CONNECT", true);
         display.showWifiStatus();
+        display.setWifiState(wifi_state);
         this->initWifiServices();
         expn_retry_ms = WS_RETRY_MS;
       }
@@ -90,6 +92,7 @@ void CMPS14Application::handleWifi(unsigned long now) {
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
         wifi_state = WifiState::OFF;
+        display.setWifiState(wifi_state);
       }
       else if (status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
         wifi_state = WifiState::FAILED;
@@ -97,6 +100,7 @@ void CMPS14Application::handleWifi(unsigned long now) {
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
         wifi_state = WifiState::OFF;
+        display.setWifiState(wifi_state);
       }
       break;
     }
@@ -108,6 +112,7 @@ void CMPS14Application::handleWifi(unsigned long now) {
         WiFi.disconnect();
         WiFi.begin(WIFI_SSID, WIFI_PASS);
         wifi_state = WifiState::CONNECTING;
+        display.setWifiState(wifi_state);
         wifi_conn_start_ms = now;
       }
       break;

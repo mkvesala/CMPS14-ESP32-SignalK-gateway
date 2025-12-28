@@ -9,8 +9,8 @@ DisplayManager::DisplayManager(CMPS14Processor &compassref, SignalKBroker &signa
 bool DisplayManager::begin() {
   pinMode(LED_PIN_BL, OUTPUT);
   pinMode(LED_PIN_GR, OUTPUT);
-  digitalWrite(LED_PIN_BL, LOW);
-  digitalWrite(LED_PIN_GR, LOW);
+  this->setLedState(LED_PIN_BL, blue_led_current_state, false);
+  this->setLedState(LED_PIN_GR, green_led_current_state, false);
   return this->initLCD();
 }
 
@@ -60,6 +60,10 @@ void DisplayManager::showWifiStatus() {
 void DisplayManager::setWifiInfo(int rssi, IPAddress ip) {
   this->setRSSIc(rssi);
   this->setIPc(ip);
+}
+
+void DisplayManager::setWifiState(WifiState state) {
+  wifi_state = state;
 }
 
 // === P R I V A T E === //
@@ -157,76 +161,95 @@ bool DisplayManager::popMsgItem(auto &msg) {
   return true;
 }
 
-// LED indicator for calibration mode, blue led at GPIO2
-void DisplayManager::updateBlueLed(){
+// LED indicator for calibration mode, green led at GPI13
+void DisplayManager::updateGreenLed(){
   static unsigned long last = 0;
   static bool blink_state = false;
   const unsigned long now = millis();
 
   switch (compass.getCalibrationModeRuntime()){
     case CAL_USE:
-      this->setLedState(LED_PIN_BL, blue_led_current_state, true); 
+      this->setLedState(LED_PIN_GR, green_led_current_state, true); // solid
       return;
     case CAL_FULL_AUTO: {
-      const unsigned long toggle_ms = 997;
+      const unsigned long toggle_ms = 997; // 0.5 hz
       if (now - last >= toggle_ms) {
         blink_state = !blink_state;
-        this->setLedState(LED_PIN_BL, blue_led_current_state, blink_state);
+        this->setLedState(LED_PIN_GR, green_led_current_state, blink_state);
         last = now;
       }
       break;
     }
     case CAL_SEMI_AUTO:
     case CAL_MANUAL: {
-      const unsigned long toggle_ms = 101;
+      const unsigned long toggle_ms = 101; // 5 hz
       if (now - last >= toggle_ms) {
         blink_state = !blink_state;
-        this->setLedState(LED_PIN_BL, blue_led_current_state, blink_state); 
+        this->setLedState(LED_PIN_GR, green_led_current_state, blink_state); 
         last = now;
       }
       break;
     }
     default:
-      this->setLedState(LED_PIN_BL, blue_led_current_state, false);
+      this->setLedState(LED_PIN_GR, green_led_current_state, false); // off
       break;
   }
 }
 
-// LED indicator for wifi mode, green led at GPIO13
-void DisplayManager::updateGreenLed(){
+// LED indicator for wifi mode, blue led at GPIO2
+void DisplayManager::updateBlueLed(){
   static unsigned long last = 0;
   static bool blink_state = false;
   const unsigned long now = millis();
 
-  if (WiFi.getMode() == WIFI_OFF) {
-    const unsigned long toggle_ms = 1009;
-    if (now - last >= toggle_ms) {
-      blink_state = !blink_state;
-      this->setLedState(LED_PIN_GR, green_led_current_state, blink_state);
-      last = now;
-    }
-    return;
-  }
-
   if (signalk.isOpen()) {
-    this->setLedState(LED_PIN_GR, green_led_current_state, true);
+    this->setLedState(LED_PIN_BL, blue_led_current_state, true); // solid
     return;
   }
 
-  if (WiFi.isConnected()) {
-    const unsigned long toggle_ms = 97;
-    if (now - last >= toggle_ms) {
-      blink_state = !blink_state;
-      this->setLedState(LED_PIN_GR, green_led_current_state, blink_state);
-      last = now;
-    }
-    return;
-  }
+  switch (wifi_state) {
 
-  this->setLedState(LED_PIN_GR, green_led_current_state, false);
+    case WifiState::OFF:
+    case WifiState::DISCONNECTED:
+    case WifiState::FAILED:
+    case WifiState::INIT: {
+      const unsigned long toggle_ms = 97;  // 5 hz
+      if (now - last >= toggle_ms) {
+        blink_state = !blink_state;
+        this->setLedState(LED_PIN_BL, blue_led_current_state, blink_state);
+        last = now;
+      }
+      break;
+    } 
+
+    case WifiState::CONNECTING: {
+      const unsigned long toggle_ms = 251;  // 2 hz
+      if (now - last >= toggle_ms) {
+        blink_state = !blink_state;
+        this->setLedState(LED_PIN_BL, blue_led_current_state, blink_state);
+        last = now;
+      }
+      break;
+    } 
+
+    case WifiState::CONNECTED: {
+      const unsigned long toggle_ms = 503;  // 1 hz
+      if (now - last >= toggle_ms) {
+        blink_state = !blink_state;
+        this->setLedState(LED_PIN_BL, blue_led_current_state, blink_state);
+        last = now;
+      }
+      break;
+    } 
+
+    default:
+      this->setLedState(LED_PIN_BL, blue_led_current_state, false); // off
+      break;
+
+  }
 
 }
-
+  
 // Small wrapper for LED GPIO operations
 void DisplayManager::setLedState(uint8_t pin, bool &current_state, bool new_state) {
   if (current_state != new_state) {
