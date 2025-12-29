@@ -11,7 +11,7 @@ CMPS14Application::CMPS14Application():
   display(compass, signalk),
   webui(compass, compass_prefs, signalk, display) {}
 
-// Init basically everything
+// Init non-wifi-dependent stuff
 void CMPS14Application::begin() {
 
   // Init I2C
@@ -83,7 +83,7 @@ void CMPS14Application::handleWifi(unsigned long now) {
         display.showSuccessMessage("WIFI CONNECT", true);
         display.showWifiStatus();
         display.setWifiState(wifi_state);
-        this->initWifiServices();
+        this->initWifiServices(); // Init wifi-dependent stuff
         expn_retry_ms = WS_RETRY_MS;
       }
       else if ((long)(now - wifi_conn_start_ms) >= WIFI_TIMEOUT_MS) {
@@ -119,9 +119,7 @@ void CMPS14Application::handleWifi(unsigned long now) {
     }
 
     case WifiState::FAILED:
-    case WifiState::DISCONNECTED:
-      break;
-
+    case WifiState::DISCONNECTED: // Todo add retry?
     case WifiState::OFF:
       break;
   }
@@ -212,19 +210,19 @@ void CMPS14Application::handleDisplay() {
 // Init wifi-dependent stuff
 void CMPS14Application::initWifiServices() {
   // SignalK websocket
-    signalk.begin();
+  signalk.begin();
 
-    // OTA
-    ArduinoOTA.setHostname(signalk.getSignalKSource());
-    ArduinoOTA.setPassword(WIFI_PASS);
-    ArduinoOTA.onStart([](){});
-    ArduinoOTA.onEnd([]() {});
-    ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total){
-      display.showInfoMessage("OTA UPDATE", "UPLOADING");
-    });
-    ArduinoOTA.onError([] (ota_error_t error) {});
-    ArduinoOTA.begin();
+  // OTA
+  ArduinoOTA.setHostname(signalk.getSignalKSource());
+  ArduinoOTA.setPassword(WIFI_PASS);
+  ArduinoOTA.onStart([](){});
+  ArduinoOTA.onEnd([]() {});
+  ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total){
+    display.showInfoMessage("OTA UPDATE", "UPLOADING");
+  });
+  ArduinoOTA.onError([] (ota_error_t error) {});
+  ArduinoOTA.begin();
 
-    // Webserver handlers
-    webui.begin();
+  // Webserver handlers
+  webui.begin();
 }

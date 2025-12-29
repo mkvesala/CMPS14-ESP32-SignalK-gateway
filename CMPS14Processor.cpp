@@ -94,10 +94,17 @@ bool CMPS14Processor::startCalibration(CalMode mode) {
             ok = this->enableBackgroundCal(true);
             full_auto_left_ms = 0;
             full_auto_start_ms = millis();
-        } break;
-        case CAL_SEMI_AUTO: ok = this->enableBackgroundCal(false); break;
-        case CAL_MANUAL:    ok = this->enableBackgroundCal(false); break;
-        default:            ok = sensor.sendCommand(REG_USEMODE); break;
+            break;
+        }
+        case CAL_SEMI_AUTO: 
+            ok = this->enableBackgroundCal(false); 
+            break;
+        case CAL_MANUAL:
+            ok = this->enableBackgroundCal(false);
+            break;
+        default:
+            ok = sensor.sendCommand(REG_USEMODE);
+            break;
     }
     return ok;
 }
@@ -139,10 +146,18 @@ bool CMPS14Processor::initCalibrationModeBoot() {
         return started;
     }
     switch (cal_mode_boot) {
-        case CAL_FULL_AUTO:     started = this->startCalibration(CAL_FULL_AUTO); break;
-        case CAL_SEMI_AUTO:     started = this->startCalibration(CAL_SEMI_AUTO); break;
-        case CAL_MANUAL:        started = this->startCalibration(CAL_MANUAL); break;
-        default:                started = this->stopCalibration(); break;
+        case CAL_FULL_AUTO:
+            started = this->startCalibration(CAL_FULL_AUTO);
+            break;
+        case CAL_SEMI_AUTO:
+            started = this->startCalibration(CAL_SEMI_AUTO);
+            break;
+        case CAL_MANUAL:
+            started = this->startCalibration(CAL_MANUAL);
+            break;
+        default:
+            started = this->stopCalibration();
+            break;
     }
     return started;
 }   

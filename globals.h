@@ -10,6 +10,7 @@
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <esp_system.h>
+#include <esp_mac.h>
 #include "CalMode.h"
 #include "WifiState.h"
 #include "harmonic.h"

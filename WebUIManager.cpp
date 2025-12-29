@@ -123,11 +123,7 @@ void WebUIManager::handleStatus() {
   mag = statuses[0];
   acc = statuses[1];
   gyr = statuses[2];
-  sys = statuses[3];
-
-  if (WiFi.isConnected()) {
-    display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
-  } 
+  sys = statuses[3]; 
 
   HarmonicCoeffs hc = compass.getHarmonicCoeffs();
   status_doc.clear();

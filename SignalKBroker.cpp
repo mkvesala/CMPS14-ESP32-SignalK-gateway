@@ -23,11 +23,14 @@ void SignalKBroker::handleStatus() {
         ws.poll();
     }
 
-    // Kill ghost websocket
-    if (!WiFi.isConnected() && ws_open) {
-        ws.close();
-        ws_open = false;
-    }
+    // This was a safety net to kill a ghost websocket
+    // but the library should take care of it by
+    // WebSocketsEvent::connectionClosed -event.
+    // Removed as Wifi is now only on caller's (app) responsibility
+    // if (!WiFi.isConnected() && ws_open) {
+    //     ws.close();
+    //     ws_open = false;
+    // }
 }
 
 // Open Websocket to SignalK server and set callbacks
@@ -38,7 +41,7 @@ bool SignalKBroker::connectWebsocket() {
             this->onMessageCallback(msg);
         });
         ws.onEvent([this](WebsocketsEvent event, const String &data) {
-            this->onEventCallback(event); // String not used at all
+            this->onEventCallback(event); // const String &data not passed forward
         });
     }
     return ws_open;
@@ -54,7 +57,7 @@ void SignalKBroker::closeWebsocket() {
 void SignalKBroker::sendHdgPitchRollDelta() {
     auto delta = compass.getHeadingDelta();
   
-    if (!WiFi.isConnected() || !ws_open) return; 
+    if (!ws_open) return; 
     if (!validf(delta.heading_rad) || !validf(delta.pitch_rad) || !validf(delta.roll_rad)) return; 
 
     static float last_h = NAN, last_p = NAN, last_r = NAN;
@@ -109,7 +112,7 @@ void SignalKBroker::sendPitchRollMinMaxDelta() {
     
     auto delta = compass.getMinMaxDelta();
   
-    if (!WiFi.isConnected() || !ws_open) return; 
+    if (!ws_open) return; 
 
     static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
 
@@ -175,7 +178,7 @@ void SignalKBroker::setSignalKURL() {
 // Set ESP32's SignalK source based on ESP32's MAC address tail
 void SignalKBroker::setSignalKSource() {
   uint8_t m[6];
-  WiFi.macAddress(m);
+  esp_efuse_mac_get_default(m); // get MAC address independently from WiFi library
   snprintf(SK_SOURCE, sizeof(SK_SOURCE), "esp32.cmps14-%02x%02x%02x", m[3], m[4], m[5]);
 }
 
@@ -211,7 +214,8 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event) {
         case WebsocketsEvent::ConnectionOpened: {
             ws_open = true;
             this->handleVariationDelta();
-        }   break;
+            break;
+        }   
         case WebsocketsEvent::ConnectionClosed:
             ws_open = false;
             break;
