@@ -18,7 +18,7 @@ class DisplayManager {
     void showInfoMessage(const char* who, const char* what);
     void showWifiStatus();
     
-    void setWifiInfo(int rssi, IPAddress ip);
+    void setWifiInfo(int32_t rssi, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
     void setWifiState(WifiState state);
 
     const char* getWifiQuality() const { return RSSIc; }
@@ -34,8 +34,8 @@ class DisplayManager {
     void copy16(char* dst, const char* src);
     
     // Wifi info
-    void setRSSIc(int rssi);
-    void setIPc(IPAddress ip);
+    void setRSSIc(int32_t rssi);
+    void setIPc(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
 
     // Fifo
     bool pushMsgItem(const auto &msg);

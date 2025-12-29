@@ -57,9 +57,9 @@ void DisplayManager::showWifiStatus() {
   this->pushMsgItem(msg);
 }
 
-void DisplayManager::setWifiInfo(int rssi, IPAddress ip) {
+void DisplayManager::setWifiInfo(int32_t rssi, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3) {
   this->setRSSIc(rssi);
-  this->setIPc(ip);
+  this->setIPc(ip0, ip1, ip2, ip3);
 }
 
 void DisplayManager::setWifiState(WifiState state) {
@@ -130,7 +130,7 @@ void DisplayManager::copy16(char* dst, const char* src) {
 }
 
 // Set RSSI descriptor
-void DisplayManager::setRSSIc(int rssi) {
+void DisplayManager::setRSSIc(int32_t rssi) {
   const char* label =
       (rssi > -55) ? "EXCELLENT" :
       (rssi < -80) ? "POOR" : "OK";
@@ -139,8 +139,8 @@ void DisplayManager::setRSSIc(int rssi) {
 }
 
 // Set IP Address descriptor
-void DisplayManager::setIPc(IPAddress ip) {
-  snprintf(IPc, sizeof(IPc), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+void DisplayManager::setIPc(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3) {
+  snprintf(IPc, sizeof(IPc), "%u.%u.%u.%u", ip0, ip1, ip2, ip3);
 }
 
 // Push a message for LCD printing to FIFO queue

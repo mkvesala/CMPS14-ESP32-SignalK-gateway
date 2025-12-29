@@ -79,7 +79,9 @@ void CMPS14Application::handleWifi(unsigned long now) {
       wl_status_t status = WiFi.status();
       if (status == WL_CONNECTED) {
         wifi_state = WifiState::CONNECTED;
-        display.setWifiInfo(WiFi.RSSI(), WiFi.localIP());
+        int32_t rssi = WiFi.RSSI();
+        IPAddress ip = WiFi.localIP();
+        display.setWifiInfo(rssi, ip[0], ip[1], ip[2], ip[3]);
         display.showSuccessMessage("WIFI CONNECT", true);
         display.showWifiStatus();
         display.setWifiState(wifi_state);
@@ -215,11 +217,11 @@ void CMPS14Application::initWifiServices() {
   // OTA
   ArduinoOTA.setHostname(signalk.getSignalKSource());
   ArduinoOTA.setPassword(WIFI_PASS);
-  ArduinoOTA.onStart([](){});
-  ArduinoOTA.onEnd([]() {});
-  ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total){
+  ArduinoOTA.onStart([this](){
     display.showInfoMessage("OTA UPDATE", "UPLOADING");
   });
+  ArduinoOTA.onEnd([]() {});
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});
   ArduinoOTA.onError([] (ota_error_t error) {});
   ArduinoOTA.begin();
 
