@@ -51,6 +51,7 @@ void CMPS14Application::begin() {
 // Repeat stuff
 void CMPS14Application::loop() {
 
+  uint32_t loop_start = micros();   // Debug
   const unsigned long now = millis();
   this->handleWifi(now);
   this->handleOTA();
@@ -58,7 +59,11 @@ void CMPS14Application::loop() {
   this->handleWebsocket(now);
   this->handleCompass(now);
   this->handleSignalK(now);
+  this->handleMemory(now); // Debug
   this->handleDisplay();
+  uint32_t loop_runtime = micros() - loop_start; // Debug
+  this->monitorLoopRuntime(loop_runtime); // Debug
+  this->handleLoopRuntime(now); // Debug
 
 }
 
@@ -152,7 +157,7 @@ void CMPS14Application::handleWebsocket(unsigned long now) {
       display.showInfoMessage("SK WEBSOCKET", "CONNECTING");
       signalk.connectWebsocket();
       next_ws_try_ms = now + expn_retry_ms;
-      expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX);
+      expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX_MS);
   }
   if (signalk.isOpen()) expn_retry_ms = WS_RETRY_MS;
   else compass.setUseManualVariation(true);
@@ -217,14 +222,65 @@ void CMPS14Application::initWifiServices() {
   // OTA
   ArduinoOTA.setHostname(signalk.getSignalKSource());
   ArduinoOTA.setPassword(WIFI_PASS);
-  ArduinoOTA.onStart([this](){
-    display.showInfoMessage("OTA UPDATE", "UPLOADING");
-  });
-  ArduinoOTA.onEnd([]() {});
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});
-  ArduinoOTA.onError([] (ota_error_t error) {});
+  // ArduinoOTA.onStart([](){});
+  // ArduinoOTA.onEnd([](){});
+  // ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});
+  // ArduinoOTA.onError([](ota_error_t error) {});
   ArduinoOTA.begin();
 
   // Webserver handlers
   webui.begin();
 }
+
+// Debug: show memory status
+void CMPS14Application::handleMemory(unsigned long now) {
+  if ((long)(now - last_mem_check_ms) < MEM_CHECK_MS) return;
+  last_mem_check_ms = now;
+
+  uint16_t heap_free = ESP.getFreeHeap() / 1024;
+  uint16_t heap_total = ESP.getHeapSize() / 1024;
+  uint8_t heap_percent = (heap_free * 100) / heap_total;
+
+  char line1[17];
+  char line2[17];
+  
+  snprintf(line1, sizeof(line1), "MEM: %u%%", heap_percent);
+  snprintf(line2, sizeof(line2), "%uK/%uK", heap_free, heap_total);
+  
+  display.showInfoMessage(line1, line2);
+}
+
+// Debug: monitor the runtime of app.loop() in microseconds
+void CMPS14Application::monitorLoopRuntime(uint32_t us) {
+  // Min/Max tracking
+  if (us < loop_min_us) loop_min_us = us;
+  if (us > loop_max_us) loop_max_us = us;
+  
+  // EMA: alpha = 0.1 (10% new data, 90% history avg)
+  if (loop_count == 0) {
+    loop_avg_us = us;
+  } else {
+    loop_avg_us = 0.1 * us + 0.9 * loop_avg_us;
+  }
+  loop_count++;
+}
+
+// Debug: display app.loop() runtime stats on LCD and provide data to web UI
+void CMPS14Application::handleLoopRuntime(unsigned long now) {
+
+  if ((long)(now - last_runtime_check_ms) < RUNTIME_CHECK_MS) return;
+  last_runtime_check_ms = now;
+
+  char line0[17];
+  char line1[17];
+
+  snprintf(line0, sizeof(line0), "LMIN:%uus", loop_min_us);
+  snprintf(line1, sizeof(line1), "LMAX:%uus", loop_max_us);
+  display.showInfoMessage(line0, line1);
+  webui.setLoopRuntimeInfo(loop_min_us, loop_max_us, loop_avg_us);
+  
+  // Reset min/max
+  loop_min_us = UINT32_MAX;
+  loop_max_us = 0;
+}
+

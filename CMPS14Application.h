@@ -34,17 +34,26 @@ class CMPS14Application {
     static constexpr unsigned long WIFI_STATUS_CHECK_MS  = 503;         // Frequency to check wifi status
     static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
     static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
-    static constexpr unsigned long WS_RETRY_MAX          = 119993;      // Max reconnect delay for SignalK websocket
+    static constexpr unsigned long WS_RETRY_MAX_MS       = 119993;      // Max reconnect delay for SignalK websocket
+    static constexpr unsigned long MEM_CHECK_MS          = 120007;      // Memory check every 2 mins to LCD - debug
+    static constexpr unsigned long RUNTIME_CHECK_MS      = 59999;       // Runtime monitoring of app.loop() - debug
 
     // Timers
-    unsigned long expn_retry_ms      = WS_RETRY_MS;
-    unsigned long next_ws_try_ms     = 0;
-    unsigned long last_tx_ms         = 0;   
-    unsigned long last_minmax_tx_ms  = 0;         
-    unsigned long last_read_ms       = 0;
-    unsigned long last_cal_poll_ms   = 0;
-    unsigned long wifi_conn_start_ms = 0;
-    unsigned long wifi_last_check_ms = 0;
+    unsigned long expn_retry_ms         = WS_RETRY_MS;
+    unsigned long next_ws_try_ms        = 0;
+    unsigned long last_tx_ms            = 0;   
+    unsigned long last_minmax_tx_ms     = 0;         
+    unsigned long last_read_ms          = 0;
+    unsigned long last_cal_poll_ms      = 0;
+    unsigned long wifi_conn_start_ms    = 0;
+    unsigned long wifi_last_check_ms    = 0;
+    unsigned long last_mem_check_ms     = 0; // Debug
+    unsigned long last_runtime_check_ms = 0; // Debug
+
+    uint32_t loop_min_us = UINT32_MAX;
+    uint32_t loop_max_us = 0;
+    float loop_avg_us = 0.0f;
+    uint32_t loop_count = 0;
 
     bool compass_ok = false;
 
@@ -65,8 +74,12 @@ class CMPS14Application {
     void handleWebsocket(unsigned long now);
     void handleCompass(unsigned long now);
     void handleSignalK(unsigned long now);
+    void handleMemory(unsigned long now); // Debug
+    void handleLoopRuntime(unsigned long now); // Debug
     void handleDisplay();
 
     void initWifiServices();
+    
+    void monitorLoopRuntime(uint32_t us); // Debug 
 
 };
