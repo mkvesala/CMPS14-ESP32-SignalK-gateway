@@ -1,4 +1,7 @@
 #include "SignalKBroker.h"
+#include "secrets.h"
+
+using namespace websockets;
 
 // === P U B L I C ===
 

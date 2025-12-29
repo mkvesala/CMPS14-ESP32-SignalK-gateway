@@ -1,12 +1,17 @@
 #pragma once
 
-#include "globals.h"
+#include <Arduino.h>
+#include <Wire.h>
+#include <WiFi.h>
+#include <ArduinoOTA.h>
+#include <esp_system.h>
+#include "WifiState.h"
 #include "CMPS14Sensor.h"
 #include "CMPS14Processor.h"
 #include "CMPS14Preferences.h"
 #include "SignalKBroker.h"
 #include "DisplayManager.h"
-#include "WebUiManager.h"
+#include "WebUIManager.h"
 
 class CMPS14Application {
 

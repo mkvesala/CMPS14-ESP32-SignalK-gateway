@@ -1,11 +1,16 @@
 #pragma once
 
-#include "globals.h"
+#include <Arduino.h>
+#include <WebServer.h>
+#include <ArduinoJson.h>
+#include <esp_system.h>
+#include "harmonic.h"
+#include "CalMode.h"
 #include "CMPS14Processor.h"
 #include "CMPS14Preferences.h"
 #include "SignalKBroker.h"
 #include "DisplayManager.h"
-
+#include "version.h"
 
 class WebUIManager {
 

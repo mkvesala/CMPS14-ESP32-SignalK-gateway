@@ -1,6 +1,5 @@
 #include "WebUIManager.h"
 
-
 // === P U B L I C ===
 
 WebUIManager::WebUIManager(

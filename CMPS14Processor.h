@@ -1,6 +1,9 @@
 #pragma once
 
-#include "globals.h"
+#include <Arduino.h>
+#include <Wire.h>
+#include "CalMode.h"
+#include "harmonic.h"
 #include "CMPS14Sensor.h"
 
 class CMPS14Processor {

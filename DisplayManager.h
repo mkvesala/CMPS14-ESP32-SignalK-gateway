@@ -1,7 +1,11 @@
 #pragma once
 
 #include <memory>
-#include "globals.h"
+#include <Arduino.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include "WifiState.h"
+#include "CalMode.h"
 #include "CMPS14Processor.h"
 #include "SignalKBroker.h"
 

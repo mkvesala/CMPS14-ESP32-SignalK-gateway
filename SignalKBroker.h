@@ -1,9 +1,16 @@
 #pragma once
 
-#include "globals.h"
+#include <Arduino.h>
+#include <ArduinoWebsockets.h>
+#include <ArduinoJson.h>
+#include <esp_mac.h>
 #include "CMPS14Processor.h"
 
-using namespace websockets;
+namespace websockets {
+    class WebsocketsClient;
+    class WebsocketsMessage;
+    enum class WebsocketsEvent;
+}
 
 class SignalKBroker {
 public:
@@ -23,14 +30,14 @@ private:
     float computeAngDiffRad(float a, float b);
     void setSignalKURL();
     void setSignalKSource();
-    void onMessageCallback(WebsocketsMessage msg);
-    void onEventCallback(WebsocketsEvent event);
+    void onMessageCallback(websockets::WebsocketsMessage msg);
+    void onEventCallback(websockets::WebsocketsEvent event);
     void handleVariationDelta();
 
 private:
     
     CMPS14Processor &compass;
-    WebsocketsClient ws;
+    websockets::WebsocketsClient ws;
 
     // Reusable JSON documents
     StaticJsonDocument<512> hdg_pitch_roll_doc; 

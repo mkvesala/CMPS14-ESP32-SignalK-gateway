@@ -1,4 +1,4 @@
-#include "globals.h"
+#include <Arduino.h> 
 #include "CMPS14Application.h"
 
 CMPS14Application app;

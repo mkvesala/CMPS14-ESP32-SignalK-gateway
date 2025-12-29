@@ -1,7 +1,10 @@
 #pragma once
 
-#include "globals.h"
+#include <Arduino.h>
+#include <Preferences.h> 
 #include "CMPS14Processor.h"
+#include "harmonic.h"
+#include "CalMode.h"
 
 // Preferences subsystem for CMPS14Processor
 class CMPS14Preferences {
