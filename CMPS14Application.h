@@ -50,10 +50,9 @@ class CMPS14Application {
     unsigned long last_mem_check_ms     = 0; // Debug
     unsigned long last_runtime_check_ms = 0; // Debug
 
-    uint32_t loop_min_us = UINT32_MAX;
-    uint32_t loop_max_us = 0;
+    // Debug app.loop() runtime monitoring
     float loop_avg_us = 0.0f;
-    uint32_t loop_count = 0;
+    bool monitoring = false;
 
     bool compass_ok = false;
 
@@ -68,18 +67,18 @@ class CMPS14Application {
     WebUIManager webui;
 
     // Handlers for loop - timers and operations
-    void handleWifi(unsigned long now);
+    void handleWifi(const unsigned long now);
     void handleOTA();
     void handleWebUI();
-    void handleWebsocket(unsigned long now);
-    void handleCompass(unsigned long now);
-    void handleSignalK(unsigned long now);
-    void handleMemory(unsigned long now); // Debug
-    void handleLoopRuntime(unsigned long now); // Debug
+    void handleWebsocket(const unsigned long now);
+    void handleCompass(const unsigned long now);
+    void handleSignalK(const unsigned long now);
+    void handleMemory(const unsigned long now); // Debug
     void handleDisplay();
 
     void initWifiServices();
     
-    void monitorLoopRuntime(uint32_t us); // Debug 
+    void monitorLoopRuntime(const unsigned long us); // Debug 
+    void handleLoopRuntime(const unsigned long now); // Debug
 
 };

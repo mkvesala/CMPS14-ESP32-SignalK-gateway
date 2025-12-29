@@ -56,7 +56,7 @@ class DisplayManager {
     static constexpr uint8_t LED_PIN_GR = 13;
     static constexpr uint8_t LCD_ADDR = 0x27;
     static constexpr uint8_t FIFO_SIZE = 16;
-    static constexpr unsigned long LCD_MS = 1009;
+    static constexpr unsigned long LCD_MS = 1499;
                        
     unsigned long last_lcd_ms = 0;
 

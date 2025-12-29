@@ -26,9 +26,7 @@ void WebUIManager::handleRequest() {
 }
 
 // Debug: follow up app.loop() runtime stats
-void WebUIManager::setLoopRuntimeInfo(uint32_t min_us, uint32_t max_us, float avg_us) {
-  runtime_min_us = min_us;
-  runtime_max_us = max_us;
+void WebUIManager::setLoopRuntimeInfo(float avg_us) {
   runtime_avg_us = avg_us;
 }
 
@@ -132,10 +130,11 @@ void WebUIManager::handleStatus() {
   gyr = statuses[2];
   sys = statuses[3]; 
 
+  // Debug memory usage
   uint16_t heap_free = ESP.getFreeHeap() / 1024;    // kbytes
   uint16_t heap_total = ESP.getHeapSize() / 1024;   // kbytes
   uint8_t heap_percent = (heap_free * 100) / heap_total;
-  UBaseType_t stack_free = uxTaskGetStackHighWaterMark(NULL);
+  UBaseType_t stack_free = uxTaskGetStackHighWaterMark(NULL); // bytes in ESP-IDF, unlike vanilla FreeRTOS
 
   HarmonicCoeffs hc = compass.getHarmonicCoeffs();
   status_doc.clear();
@@ -166,13 +165,12 @@ void WebUIManager::handleStatus() {
   status_doc["use_manual_magvar"]    = compass.isUsingManualVariation();   
   status_doc["send_hdg_true"]        = compass.isSendingHeadingTrue();         
   status_doc["stored"]               = compass.isCalProfileStored();
+  status_doc["version"]              = FW_VERSION;
   // Debug
   status_doc["heap_free"]            = heap_free;
   status_doc["heap_total"]           = heap_total; 
   status_doc["heap_percent"]         = heap_percent;
   status_doc["stack_free"]           = stack_free;
-  status_doc["runtime_min"]          = runtime_min_us;
-  status_doc["runtime_max"]          = runtime_max_us;
   status_doc["runtime_avg"]          = runtime_avg_us;
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -499,9 +497,10 @@ void WebUIManager::handleRoot() {
             'Pitch: '+fmt1(j.pitch_deg)+'\u00B0 ('+fmt1(j.pitch_level)+'\u00B0) Roll: '+fmt1(j.roll_deg)+'\u00B0 ('+fmt1(j.roll_level)+'\u00B0)',
             'Acc: '+j.acc+', Mag: '+j.mag+', Sys: '+j.sys,
             'HcA: '+fmt1(j.hca)+', HcB: '+fmt1(j.hcb)+', HcC: '+fmt1(j.hcc)+', HcD: '+fmt1(j.hcd)+', HcE: '+fmt1(j.hce),
-            'Heap free: '+j.heap_free+' kB ('+j.heap_percent+' \u0025) of '+j.heap_total+' kB, Stack free: '+j.stack_free+' B',
-            'Min: '+j.runtime_min+' us, Max: '+j.runtime_max+' us, Avg: '+j.runtime_avg+' ms',
-            'WiFi: '+j.wifi+' ('+j.rssi+')'
+            'Heap: '+j.heap_free+' kB ('+j.heap_percent+' \u0025) free, total '+j.heap_total+' kB',
+            'Loop runtime avg: '+fmt1(j.runtime_avg)+' \u00B5s, loop task free stack: '+j.stack_free+' B',
+            'WiFi: '+j.wifi+' ('+j.rssi+')',
+            'Software version: '+j.version
           ];
           document.getElementById('st').textContent=d.join('\n');
           renderControls(j);

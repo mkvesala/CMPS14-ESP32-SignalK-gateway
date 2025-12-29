@@ -16,4 +16,5 @@
 #include "harmonic.h"
 #include "secrets.h"
 
+inline constexpr const char* FW_VERSION = "N/A";
 using namespace websockets;

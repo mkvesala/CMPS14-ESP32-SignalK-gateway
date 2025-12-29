@@ -16,7 +16,7 @@ public:
   void begin();
   void handleRequest();
 
-  void setLoopRuntimeInfo(uint32_t min_us, uint32_t max_us, float avg_us); // Debug
+  void setLoopRuntimeInfo(float avg_us); // Debug
 
 private:
   
@@ -29,9 +29,7 @@ private:
   // Reusable JSON document
   StaticJsonDocument<1024> status_doc;
 
-  // Debug app.loop() runtime stats
-  uint32_t runtime_min_us = 0;
-  uint32_t runtime_max_us = 0;
+  // Debug app.loop() runtime
   float runtime_avg_us = 0.0f;
 
   // Webserver endpoint handlers

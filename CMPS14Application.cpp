@@ -51,7 +51,7 @@ void CMPS14Application::begin() {
 // Repeat stuff
 void CMPS14Application::loop() {
 
-  uint32_t loop_start = micros();   // Debug
+  const unsigned long loop_start = micros();   // Debug
   const unsigned long now = millis();
   this->handleWifi(now);
   this->handleOTA();
@@ -61,7 +61,7 @@ void CMPS14Application::loop() {
   this->handleSignalK(now);
   this->handleMemory(now); // Debug
   this->handleDisplay();
-  uint32_t loop_runtime = micros() - loop_start; // Debug
+  const unsigned long loop_runtime = micros() - loop_start; // Debug
   this->monitorLoopRuntime(loop_runtime); // Debug
   this->handleLoopRuntime(now); // Debug
 
@@ -70,7 +70,7 @@ void CMPS14Application::loop() {
 // === P R I V A T E ===
 
 // Wifi
-void CMPS14Application::handleWifi(unsigned long now) {
+void CMPS14Application::handleWifi(const unsigned long now) {
   if ((long)(now - wifi_last_check_ms) < WIFI_STATUS_CHECK_MS) {
     return;
   }
@@ -146,7 +146,7 @@ void CMPS14Application::handleWebUI() {
 }
 
 // Websocket poll and reconnect
-void CMPS14Application::handleWebsocket(unsigned long now) {
+void CMPS14Application::handleWebsocket(const unsigned long now) {
   if (!WiFi.isConnected()) {
     compass.setUseManualVariation(true);
     return;
@@ -164,7 +164,7 @@ void CMPS14Application::handleWebsocket(unsigned long now) {
 }
 
 // Compass
-void CMPS14Application::handleCompass(unsigned long now) {
+void CMPS14Application::handleCompass(const unsigned long now) {
   
   if ((long)(now - last_read_ms) >= READ_MS) {
     last_read_ms = now; 
@@ -190,7 +190,7 @@ void CMPS14Application::handleCompass(unsigned long now) {
 }
 
 // SignalK delta sending
-void CMPS14Application::handleSignalK(unsigned long now) {
+void CMPS14Application::handleSignalK(const unsigned long now) {
   if (!WiFi.isConnected()) return;
 
   // Send heading, pitch and roll to SignalK server
@@ -233,7 +233,7 @@ void CMPS14Application::initWifiServices() {
 }
 
 // Debug: show memory status
-void CMPS14Application::handleMemory(unsigned long now) {
+void CMPS14Application::handleMemory(const unsigned long now) {
   if ((long)(now - last_mem_check_ms) < MEM_CHECK_MS) return;
   last_mem_check_ms = now;
 
@@ -250,37 +250,32 @@ void CMPS14Application::handleMemory(unsigned long now) {
   display.showInfoMessage(line1, line2);
 }
 
-// Debug: monitor the runtime of app.loop() in microseconds
-void CMPS14Application::monitorLoopRuntime(uint32_t us) {
-  // Min/Max tracking
-  if (us < loop_min_us) loop_min_us = us;
-  if (us > loop_max_us) loop_max_us = us;
+// Debug: monitor exponential movig avg runtime of app.loop() in microseconds
+void CMPS14Application::monitorLoopRuntime(const unsigned long us) {
   
-  // EMA: alpha = 0.1 (10% new data, 90% history avg)
-  if (loop_count == 0) {
+  // EMA: alpha = 0.05 (5% new data, 95% history avg), forgets 95 % of history after ~60 iterations
+  if (!monitoring) {
     loop_avg_us = us;
+    monitoring = true;
   } else {
-    loop_avg_us = 0.1 * us + 0.9 * loop_avg_us;
+    loop_avg_us = 0.05 * us + 0.95 * loop_avg_us;
   }
-  loop_count++;
+
 }
 
 // Debug: display app.loop() runtime stats on LCD and provide data to web UI
-void CMPS14Application::handleLoopRuntime(unsigned long now) {
+void CMPS14Application::handleLoopRuntime(const unsigned long now) {
 
   if ((long)(now - last_runtime_check_ms) < RUNTIME_CHECK_MS) return;
   last_runtime_check_ms = now;
 
-  char line0[17];
-  char line1[17];
+  char l1[17];
+  char l2[17];
 
-  snprintf(line0, sizeof(line0), "LMIN:%uus", loop_min_us);
-  snprintf(line1, sizeof(line1), "LMAX:%uus", loop_max_us);
-  display.showInfoMessage(line0, line1);
-  webui.setLoopRuntimeInfo(loop_min_us, loop_max_us, loop_avg_us);
+  snprintf(l1, sizeof(l1), "LOOP RUNTIME AVG");
+  snprintf(l2, sizeof(l2), "%5.2f us", loop_avg_us);
+  display.showInfoMessage(l1, l2);
+  webui.setLoopRuntimeInfo(loop_avg_us);
   
-  // Reset min/max
-  loop_min_us = UINT32_MAX;
-  loop_max_us = 0;
 }
 
