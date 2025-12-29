@@ -168,10 +168,10 @@ void DisplayManager::updateGreenLed(){
   const unsigned long now = millis();
 
   switch (compass.getCalibrationModeRuntime()){
-    case CAL_USE:
+    case CalMode::USE:
       this->setLedState(LED_PIN_GR, green_led_current_state, true); // solid
       return;
-    case CAL_FULL_AUTO: {
+    case CalMode::FULL_AUTO: {
       const unsigned long toggle_ms = 997; // 0.5 hz
       if (now - last >= toggle_ms) {
         blink_state = !blink_state;
@@ -180,8 +180,8 @@ void DisplayManager::updateGreenLed(){
       }
       break;
     }
-    case CAL_SEMI_AUTO:
-    case CAL_MANUAL: {
+    case CalMode::AUTO:
+    case CalMode::MANUAL: {
       const unsigned long toggle_ms = 101; // 5 hz
       if (now - last >= toggle_ms) {
         blink_state = !blink_state;

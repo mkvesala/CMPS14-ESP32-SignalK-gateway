@@ -1,22 +1,22 @@
 #pragma once
 
-#include <stdint.h>
+#include <Arduino.h>
 
 // Domain type for calibration mode
-enum CalMode : uint8_t {
-    CAL_USE       = 0,
-    CAL_FULL_AUTO = 1,
-    CAL_SEMI_AUTO = 2,
-    CAL_MANUAL    = 3
+enum class CalMode : uint8_t {
+    USE       = 0,
+    FULL_AUTO = 1,
+    AUTO      = 2,
+    MANUAL    = 3
 };
 
 // Domain helper for converting mode to human-readable string
 static inline const char* calModeToString(CalMode mode) {
     switch (mode) {
-        case CAL_FULL_AUTO: return "FULL AUTO";
-        case CAL_SEMI_AUTO: return "AUTO";
-        case CAL_MANUAL:    return "MANUAL";
-        case CAL_USE:       return "USE";
-        default:            return "UNKNOWN";
+        case CalMode::FULL_AUTO:     return "FULL AUTO";
+        case CalMode::AUTO:          return "AUTO";
+        case CalMode::MANUAL:        return "MANUAL";
+        case CalMode::USE:           return "USE";
+        default:                     return "UNKNOWN";
     }
 }

@@ -43,7 +43,7 @@ void CMPS14Preferences::load() {
     compass.setSendHeadingTrue(prefs.getBool("send_hdg_true", true));
 
     // Calibration boot mode
-    compass.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CAL_USE));
+    compass.setCalibrationModeBoot((CalMode)prefs.getUChar("cal_mode_boot", (uint8_t)CalMode::USE));
   
     // Full auto timeout
     compass.setFullAutoTimeout((unsigned long)prefs.getULong("fastop", 0));

@@ -75,7 +75,7 @@ void WebUIManager::setupRoutes() {
 
 // Web UI handler for CALIBRATE button
 void WebUIManager::handleStartCalibration(){
-  if (compass.startCalibration(CAL_MANUAL)) {
+  if (compass.startCalibration(CalMode::MANUAL)) {
     // ok
   }
   this->handleRoot();
@@ -221,11 +221,11 @@ void WebUIManager::handleSetCalmode() {
   if (server.hasArg("c") && server.hasArg("t")) { 
     
     char c = server.arg("c").charAt(0);
-    CalMode v = CAL_USE;
-    if (c == '0') v = CAL_FULL_AUTO;
-    else if (c == '1') v = CAL_SEMI_AUTO;
-    else if (c == '2') v = CAL_MANUAL;
-    else v = CAL_USE;
+    CalMode v = CalMode::USE;
+    if (c == '0') v = CalMode::FULL_AUTO;
+    else if (c == '1') v = CalMode::AUTO;
+    else if (c == '2') v = CalMode::MANUAL;
+    else v = CalMode::USE;
     compass.setCalibrationModeBoot(v);
    
     long t = server.arg("t").toInt();
@@ -313,7 +313,7 @@ void WebUIManager::handleRoot() {
   // DIV Calibrate, Stop, Reset
   server.sendContent_P(R"(
     <div class='card' id='controls'>)");
-  if (mode_runtime == CAL_FULL_AUTO) {
+  if (mode_runtime == CalMode::FULL_AUTO) {
     snprintf(buf, sizeof(buf), "Current mode: %s (%s)<br>", calModeToString(mode_runtime), this->ms_to_hms_str(compass.getFullAutoLeft()));
     server.sendContent(buf);
   } else {
@@ -321,16 +321,16 @@ void WebUIManager::handleRoot() {
     server.sendContent(buf);
   }
 
-  if (mode_runtime == CAL_SEMI_AUTO || mode_runtime == CAL_MANUAL) {
+  if (mode_runtime == CalMode::AUTO || mode_runtime == CalMode::MANUAL) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
     if (!compass.isCalProfileStored()) {
       server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
     } else {
       server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");
     }
-  } else if (mode_runtime == CAL_USE) {
+  } else if (mode_runtime == CalMode::USE) {
     server.sendContent_P(R"(<a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
-  } else if (mode_runtime == CAL_FULL_AUTO) {
+  } else if (mode_runtime == CalMode::FULL_AUTO) {
     server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
   }
   server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></div>)");
@@ -340,13 +340,13 @@ void WebUIManager::handleRoot() {
     <div class='card'>
     <form action="/calmode/set" method="get">
     <label>Boot mode </label><label><input type="radio" name="c" value="0")");
-  if (mode_boot == CAL_FULL_AUTO) server.sendContent_P(R"( checked)");
+  if (mode_boot == CalMode::FULL_AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Full auto </label><label>
     <input type="radio" name="c" value="1")");
-  if (mode_boot == CAL_SEMI_AUTO) server.sendContent_P(R"( checked)");
+  if (mode_boot == CalMode::AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Auto </label><label>
     <input type="radio" name="c" value="3")");
-  if (mode_boot == CAL_USE) server.sendContent_P(R"( checked)");
+  if (mode_boot == CalMode::USE) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Use/Manual</label><br>
     <label>Full auto stops in </label>
     <input type="number" name="t" step="1" min="0" max="60" value=")");

@@ -167,11 +167,11 @@ void CMPS14Application::handleCompass(unsigned long now) {
   // Monitor calibration status
   if ((long)(now - last_cal_poll_ms) >= CAL_POLL_MS) {
     last_cal_poll_ms = now;
-    compass.monitorCalibration(compass.getCalibrationModeRuntime() == CAL_SEMI_AUTO);
+    compass.monitorCalibration(compass.getCalibrationModeRuntime() == CalMode::AUTO);
   }
 
   // Monitor FULL AUTO mode timeout
-  if (compass.getCalibrationModeRuntime() == CAL_FULL_AUTO && compass.getFullAutoTimeout() > 0) { 
+  if (compass.getCalibrationModeRuntime() == CalMode::FULL_AUTO && compass.getFullAutoTimeout() > 0) { 
     long left = compass.getFullAutoTimeout() - (now - compass.getFullAutoStart());
     if (left <= 0) {
       if (compass.stopCalibration()) display.showInfoMessage("FULL AUTO", "TIMEOUT");

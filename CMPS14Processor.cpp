@@ -77,8 +77,8 @@ bool CMPS14Processor::reset() {
     if (!ok) return false;
     delay(599);  // Datasheet recommends delay of 300 ms here
     if (sensor.sendCommand(REG_USEMODE)) {
-        cal_mode_runtime = CAL_USE;
-        cal_mode_boot = CAL_USE;
+        cal_mode_runtime = CalMode::USE;
+        cal_mode_boot = CalMode::USE;
         cal_profile_stored = false;
         return true;
     }
@@ -90,16 +90,16 @@ bool CMPS14Processor::startCalibration(CalMode mode) {
     cal_mode_runtime = mode;
     bool ok = false;
     switch (mode) {
-        case CAL_FULL_AUTO: {
+        case CalMode::FULL_AUTO: {
             ok = this->enableBackgroundCal(true);
             full_auto_left_ms = 0;
             full_auto_start_ms = millis();
             break;
         }
-        case CAL_SEMI_AUTO: 
+        case CalMode::AUTO: 
             ok = this->enableBackgroundCal(false); 
             break;
-        case CAL_MANUAL:
+        case CalMode::MANUAL:
             ok = this->enableBackgroundCal(false);
             break;
         default:
@@ -111,7 +111,7 @@ bool CMPS14Processor::startCalibration(CalMode mode) {
 
 // Stop calibration and return to use-mode
 bool CMPS14Processor::stopCalibration() {
-    cal_mode_runtime = CAL_USE;
+    cal_mode_runtime = CalMode::USE;
     return sensor.sendCommand(REG_USEMODE);
 }
 
@@ -132,7 +132,7 @@ void CMPS14Processor::monitorCalibration(bool autosave) {
             sensor.sendCommand(REG_USEMODE);
         if (ok) {
             cal_profile_stored = true;
-            cal_mode_runtime = CAL_USE;
+            cal_mode_runtime = CalMode::USE;
         }
         cal_ok_count = 0;
     }
@@ -142,18 +142,18 @@ void CMPS14Processor::monitorCalibration(bool autosave) {
 bool CMPS14Processor::initCalibrationModeBoot() {
     bool started = false;
     if (!sensor.available()) {
-        cal_mode_runtime = CAL_USE;
+        cal_mode_runtime = CalMode::USE;
         return started;
     }
     switch (cal_mode_boot) {
-        case CAL_FULL_AUTO:
-            started = this->startCalibration(CAL_FULL_AUTO);
+        case CalMode::FULL_AUTO:
+            started = this->startCalibration(CalMode::FULL_AUTO);
             break;
-        case CAL_SEMI_AUTO:
-            started = this->startCalibration(CAL_SEMI_AUTO);
+        case CalMode::AUTO:
+            started = this->startCalibration(CalMode::AUTO);
             break;
-        case CAL_MANUAL:
-            started = this->startCalibration(CAL_MANUAL);
+        case CalMode::MANUAL:
+            started = this->startCalibration(CalMode::MANUAL);
             break;
         default:
             started = this->stopCalibration();
@@ -171,7 +171,7 @@ bool CMPS14Processor::saveCalibrationProfile() {
         sensor.sendCommand(REG_USEMODE);
     if (ok) {
         cal_profile_stored = true;
-        cal_mode_runtime = CAL_USE;
+        cal_mode_runtime = CalMode::USE;
     }
     return ok;
 }

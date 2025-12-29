@@ -76,8 +76,8 @@ private:
     CMPS14Sensor &sensor;
     TwoWire *wire;
 
-    CalMode cal_mode_boot = CAL_USE;
-    CalMode cal_mode_runtime = CAL_USE;
+    CalMode cal_mode_boot = CalMode::USE;
+    CalMode cal_mode_runtime = CalMode::USE;
 
     // CMPS14 processing
     float installation_offset_deg = 0.0f;       // Physical installation offset of the CMPS14 sensor in degrees
