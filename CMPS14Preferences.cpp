@@ -2,9 +2,10 @@
 
 // === P U B L I C ===
 
+// Constructor
 CMPS14Preferences::CMPS14Preferences(CMPS14Processor &compassref) : compass(compassref) {}
 
-// Load all settings to CMPS14Processor
+// Load all settings from NVS to CMPS14Processor
 void CMPS14Preferences::load() {
 
     if (!prefs.begin(ns, false)) return;

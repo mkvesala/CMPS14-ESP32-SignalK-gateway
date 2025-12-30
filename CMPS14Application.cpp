@@ -254,12 +254,12 @@ void CMPS14Application::handleMemory(const unsigned long now) {
 // Debug: monitor exponential movig avg runtime of app.loop() in microseconds
 void CMPS14Application::monitorLoopRuntime(const unsigned long us) {
   
-  // EMA: alpha = 0.05 (5% new data, 95% history avg), forgets 95 % of history after ~60 iterations
+  // EMA: alpha = 0.01 (1% new data, 99% history avg), forgets 95 % of history after ~600 iterations
   if (!monitoring) {
     loop_avg_us = us;
     monitoring = true;
   } else {
-    loop_avg_us = 0.05 * us + 0.95 * loop_avg_us;
+    loop_avg_us = 0.01 * us + 0.99 * loop_avg_us;
   }
 
 }

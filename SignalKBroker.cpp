@@ -18,7 +18,7 @@ bool SignalKBroker::begin() {
     return this->connectWebsocket();
 }
 
-// Poll websocket and kill it if wifi has dropped but ws somehow still open
+// Poll websocket - possibly other stuff if needed
 void SignalKBroker::handleStatus() {
 
     // Keep websocket alive

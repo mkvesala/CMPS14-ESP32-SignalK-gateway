@@ -1,7 +1,7 @@
 #include "harmonic.h"
 
 // === G L O B A L  C O R E  F U N C T I O N S ===
-
+//
 // Solve A..E with least squares method from 8 given datapoints
 //
 // This function calculates 5 harmonic coefficients (A, B, C, D, E) that best fit

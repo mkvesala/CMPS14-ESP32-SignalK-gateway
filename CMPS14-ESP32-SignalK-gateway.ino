@@ -1,6 +1,14 @@
 #include <Arduino.h> 
 #include "CMPS14Application.h"
 
+// === M A I N  P R O G R A M ===
+//
+// - Owns the CMPS14Application instance
+// - Initiates Serial
+// - Initiates the app
+// - Stops before loop() if the compass of the app is not initialized
+// - Executes app.loop() within main loop()
+
 CMPS14Application app;
 
 void setup() {

@@ -11,18 +11,6 @@ bool CMPS14Processor::begin(TwoWire &wirePort) {
     return sensor.begin(wirePort);
 }
 
-// Capture leveling factors for resetting attitude to zero
-void CMPS14Processor::level() {
-    if (validf(pitch_level_raw) && validf(roll_level_raw)) {
-        pitch_level = -pitch_level_raw;
-        roll_level = -roll_level_raw;
-        minMaxDelta.pitch_max_rad = NAN; // reset min and max values
-        minMaxDelta.pitch_min_rad = NAN;
-        minMaxDelta.roll_max_rad = NAN;
-        minMaxDelta.roll_min_rad = NAN;
-    }
-}
-
 // Process the values received from CMPS14Sensor::read(...)
 bool CMPS14Processor::update() {
     float raw_deg, pitch_raw, roll_raw;
@@ -66,6 +54,18 @@ bool CMPS14Processor::update() {
     this->updateMinMaxDelta();
 
     return true;
+}
+
+// Capture leveling factors for resetting attitude to zero
+void CMPS14Processor::level() {
+    if (validf(pitch_level_raw) && validf(roll_level_raw)) {
+        pitch_level = -pitch_level_raw;
+        roll_level = -roll_level_raw;
+        minMaxDelta.pitch_max_rad = NAN; // reset min and max values
+        minMaxDelta.pitch_min_rad = NAN;
+        minMaxDelta.roll_max_rad = NAN;
+        minMaxDelta.roll_min_rad = NAN;
+    }
 }
 
 // Reset CMPS14Sensor

@@ -14,6 +14,7 @@ bool DisplayManager::begin() {
   return this->initLCD();
 }
 
+// Manage message queue (fifo) and update LEDs
 void DisplayManager::handle() {
   const unsigned long now = millis();
   if ((long)now - last_lcd_ms >= LCD_MS) {

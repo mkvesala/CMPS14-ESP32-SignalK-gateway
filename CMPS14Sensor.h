@@ -3,6 +3,21 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+// === C M P S 1 4 S E N S O R  C L A S S ===
+//
+// - Class CMPS14Sensor - "the sensor" responsible of the actual CMPS14 device
+// - Initialise: if (sensor.begin(Wire)) ...
+// - Read raw data to float variables:
+//      float angle_deg, pitch_deg, roll_deg;
+//      if (sensor.available() && sensor.read(angle_deg, pitch_deg, roll_deg)) ...
+// - Send a command byte:
+//      uint8_t cmd = 0x80;
+//      if (sensor.sendCommand(cmd)) ...
+// - Read a register value:
+//      uint8_t reg = 0x04;
+//      uint8_t ack = sensor.readRegister(reg);
+//      if (sensor.isAck(ack)) ...
+
 class CMPS14Sensor {
 public:
 

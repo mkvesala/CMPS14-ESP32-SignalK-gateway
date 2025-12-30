@@ -6,6 +6,18 @@
 #include "harmonic.h"
 #include "CMPS14Sensor.h"
 
+// === C M P S 1 4 P R O C E S S O R  C L A S S ===
+//
+// - Class CMPS14Processor - acts as "the compass" responsible of main "business logic"
+// - Initialise: compass.begin(Wire)
+// - Read the sensor and process the raw values: compass.update()
+// - Level the attitude output to zero: compass.level()
+// - Provides public API to
+//   - Manage the calibration of CMPS14 sensor
+//   - Get the processed sensor values and configuration data
+//   - Set the configuration data
+// - Association (1:1) to CMPS14Sensor, "the sensor"
+
 class CMPS14Processor {
 public:
     explicit CMPS14Processor (CMPS14Sensor &cmps14Sensor);
@@ -83,25 +95,29 @@ private:
     CalMode cal_mode_runtime = CalMode::USE;
 
     // CMPS14 processing
-    float installation_offset_deg = 0.0f;       // Physical installation offset of the CMPS14 sensor in degrees
-    float dev_deg = 0.0f;                       // Deviation calculated by harmonic model
-    float magvar_manual_deg = 0.0f;             // Variation that is set manually from web UI
-    float magvar_live_deg = 0.0f;               // Variation from SignalK navigation.magneticVariation path
-    float pitch_level = 0.0f;                   // Leveling of pitch
-    float roll_level = 0.0f;                    // Leveling of roll
-    float pitch_level_raw = NAN;                // Leveling of pitch
-    float roll_level_raw = NAN;                // Leveling of roll
-    bool use_manual_magvar = true;              // Use magvar_manual_deg if true
-    bool cal_profile_stored = false;            // Calibration profile saved if true
-    bool send_hdg_true = true;                  // Send also true heading
+    float installation_offset_deg = 0.0f;  // Physical installation offset of the CMPS14 sensor in degrees
+    float dev_deg = 0.0f;                  // Deviation calculated by harmonic model
+    float magvar_manual_deg = 0.0f;        // Variation that is set manually from web UI
+    float magvar_live_deg = 0.0f;          // Variation from SignalK navigation.magneticVariation path
+    float pitch_level = 0.0f;              // Leveling of pitch
+    float roll_level = 0.0f;               // Leveling of roll
+    float pitch_level_raw = NAN;           // Leveling of pitch
+    float roll_level_raw = NAN;            // Leveling of roll
+    bool use_manual_magvar = true;         // Use magvar_manual_deg if true
+    bool cal_profile_stored = false;       // Calibration profile saved if true
+    bool send_hdg_true = true;             // Send also true heading
 
-    HarmonicCoeffs hc = { 0,0,0,0,0 };                  // Five harmonic coeffs to compute deviations - as a struct, because part of computing model A, B, C, D and E.
-    DeviationLookup dev_lut;                            // Lookup table for deviations
+    // Five harmonic coeffs to compute deviations - as a struct, because part of computing model A, B, C, D and E.
+    HarmonicCoeffs hc = { 0,0,0,0,0 }; 
+
+    // Lookup table for deviations                 
+    DeviationLookup dev_lut;                            
     
-    float measured_deviations[8] = { 0,0,0,0,0,0,0,0 }; // Measured deviations (deg) in cardinal and intercardinal directions, as an array, because imput only
+    // Measured deviations (deg) in cardinal and intercardinal directions, as an array, because imput only
+    float measured_deviations[8] = { 0,0,0,0,0,0,0,0 }; 
 
-    static constexpr float HEADING_ALPHA = 0.15f;       // Smoothing factor for Heading (C)
-    static constexpr uint8_t CAL_OK_REQUIRED = 3;       // Autocalibration save condition threshold
+    static constexpr float HEADING_ALPHA = 0.15f;  // Smoothing factor for Heading (C)
+    static constexpr uint8_t CAL_OK_REQUIRED = 3;  // Autocalibration save condition threshold
 
     // Compass and attitude in degrees
     float compass_deg = NAN;
@@ -122,9 +138,9 @@ private:
 
     // Calibration
     uint8_t cal_ok_count = 0;
-    unsigned long full_auto_start_ms      = 0;      // Full auto mode start timestamp
-    unsigned long full_auto_stop_ms       = 0;      // Full auto mode timeout, 0 = never
-    unsigned long full_auto_left_ms       = 0;      // Full auto mode time left
+    unsigned long full_auto_start_ms   = 0;  // Full auto mode start timestamp
+    unsigned long full_auto_stop_ms    = 0;  // Full auto mode timeout, 0 = never
+    unsigned long full_auto_left_ms    = 0;  // Full auto mode time left
 
 
     // CMPS14 register map

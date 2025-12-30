@@ -2,6 +2,7 @@
 
 // === P U B L I C ===
 
+// Constructor
 WebUIManager::WebUIManager(
     CMPS14Processor &compassref,
     CMPS14Preferences &compass_prefsref,
@@ -318,7 +319,7 @@ void WebUIManager::handleRoot() {
     .button { background-color: #00A300; border: none; color: white; padding: 6px 20px; text-decoration: none; font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
     .button2 { background-color: #D10000; }
     .button:disabled, .button2:disabled { opacity:0.5; cursor:not-allowed; }
-    .card { width:92%; margin:2px auto; padding:4px; background:#0b0b0b; border-radius:6px; box-shadow:0 0 0 1px #222 inset; }
+    .card { width:92%; margin:2px auto; padding:2px; background:#0b0b0b; border-radius:4px; box-shadow:0 0 0 1px #222 inset; }
     h1 { margin:12px 0 8px 0; } h2 { margin:8px 0; font-size: 4vmin; max-font-size: 16px; min-font-size: 10px; } h3 { margin:6px 0; font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; }
     label { display:inline-block; min-width:40px; text-align:right; margin-right:6px; }
     input[type=number]{ font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; width:60px; padding:4px 6px; margin:4px; border-radius:6px; border:1px solid #333; background:#111; color:#fff; }

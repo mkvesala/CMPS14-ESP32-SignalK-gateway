@@ -6,6 +6,19 @@
 #include <esp_mac.h>
 #include "CMPS14Processor.h"
 
+// === S I G N A L K B R O K E R  C L A S S ===
+//
+// - Class SignalKBroker - "the signalk" responsible of 
+//   communicating with SignalK server over websocket
+// - Owns the WebsocketsClient instance
+// - Init: signalk.begin()
+// - Provides public API to
+//   - Connect and disconnect the websocket
+//   - Send SignalK deltas as JSON to the server
+//   - Get the source name that is visible to the server
+//   - Check the websocket connection status
+// - Association (1:1) to CMPS14Processor
+
 namespace websockets {
     class WebsocketsClient;
     class WebsocketsMessage;
