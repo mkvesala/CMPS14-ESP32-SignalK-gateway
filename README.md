@@ -346,8 +346,8 @@ Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-elec
 Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly:
 
 - Free heap memory (from `ESP.getFreeHeap()`): approximately 160 kB (60 %) free, total being 277 kB - does not vary that much
-- Loop runtime exponential moving average (alpha 0.01): approximately 990 microseconds
-- Loop task free stack (from `uxTaskGetStackHighWaterMark(NULL)`): stays below 4300 bytes
+- Loop runtime exponential moving average (alpha 0.01): approximately 1 ms
+- Loop task free stack (from `uxTaskGetStackHighWaterMark(NULL)`): stays above 4300 bytes
 
 ## Credits
 
