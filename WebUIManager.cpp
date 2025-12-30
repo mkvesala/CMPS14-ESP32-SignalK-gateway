@@ -662,19 +662,19 @@ void WebUIManager::handleRestart() {
   server.sendContent_P(R"(
     <!DOCTYPE html><html><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="30; url=/">
+    <meta http-equiv="refresh" content="15; url=/">
     <style>
       body{background:#000;color:#fff;font-family:Helvetica;text-align:center;margin:18vh 0 0 0}
       .msg{font-size:5vmin;max-font-size:24px;min-font-size:12px}
       p{color:#bbb}
     </style>
     <script>
-      setTimeout(function() { location.replace("/"); }, 31000);
+      setTimeout(function() { location.replace("/"); }, 16000);
     </script>
     </head><body>
       <div class="msg">RESTARTING...</div>
       <p>Please wait.</p>
-      <p>This page will refresh in 30 seconds.</p>
+      <p>This page will refresh in 15 seconds.</p>
     </body></html>
   )");
   server.sendContent("");
