@@ -298,20 +298,13 @@ Endpoints can of course be used by any http get request. Thus, should one want t
 ## Software used
 
 1. Arduino IDE 2.3.6
-2. ESP32 board package
-3. Libraries:
+2. Espressif Systems esp32 board package 3.3.5
+3. Additional libraries installed:
    ```
-   Arduino.h
-   Wire.h
-   WiFi.h
-   WebServer.h
-   ArduinoWebsockets.h
-   ArduinoJson.h
-   ArduinoOTA.h
-   LiquidCrystal_I2C.h
-   Preferences.h
-   esp_system.h
-   esp_mac.h
+   ArduinoWebsockets (by Gil Maimon version 0.5.4)
+   ArduinoJson(by Benoit Blanchon version 7.4.2)
+   ArduinoOTA (by Arduino, Juraj Andrassy version 1.1.0)
+   LiquidCrystal_I2C (by Frank de Brabander version 1.1.2)
    ```
 
 ## Installation
@@ -339,13 +332,13 @@ Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-elec
 ## Todo
 
 - Replace the timers within `loop()` with separate tasks on pinned to core 0 and 1 to improve performance
-- Finish the hardware setup by soldered wiring instead of jumper wires and headers
+- Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers
 
 ## Debug
 
 Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly:
 
-- Free heap memory (from ´ESP.getFreeHeap()`): approximately 160 kB (60 %) free, total being 277 kB - does not vary that much
+- Free heap memory (from `ESP.getFreeHeap()`): approximately 160 kB (60 %) free, total being 277 kB - does not vary that much
 - Loop runtime exponential moving average (alpha 0.01): approximately 990 microseconds
 - Loop task free stack (from `uxTaskGetStackHighWaterMark(NULL)`): stays below 4300 bytes
 
@@ -354,10 +347,10 @@ Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connecte
 Developed and tested using:
 
 - SH-ESP32 board Rev 2.2.1
-- ESP32 platform on Arduino IDE 2.3.6
+- Espressif Systems esp32 3.3.5 package on Arduino IDE 2.3.6
+- SignalK server verion 2.18.0
+- OpenCPN version 5.12.4-universal and KIP version 4.0.7 for visualization
 - CMPS14 datasheet
-- SignalK specification
-- OpenCPN and KIP for visualization
 
 Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
 
@@ -367,7 +360,7 @@ No paid partnerships.
 
 Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++ until it started wild hallusinations at model 5.1. Claude (code) was used for code review (less hallusination than ChatGPT).
 
-The only "full AI" pieces of code are ´computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI assisted".
+The only "full AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI assisted".
 
 I have no clue whatsover how these LLMs generate source code. Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional from my side.
 
