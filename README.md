@@ -38,7 +38,9 @@ v1.0.0     main                       Latest release. Refactored into classes
                                       with new features not implemented in 0.5.x.
 v0.5.1     legacy/procedural-0.5.x    Last fully procedural version.
 ```
-## Class CMPS14Sensor
+## Classes
+
+### Class CMPS14Sensor
 
 The heart of the project is the modest librarish class `CMPS14Sensor` which communicates with the CMPS14 device. It has the following public API:
 
@@ -58,17 +60,17 @@ The simple usage of CMPS14Sensor could be:
 #include <Wire.h>
 #include "CMPS14Sensor.h"
 
-CMPS14Sensor sensor(0x60);
+CMPS14Sensor sensor(0x60); // I2C address
 
 void setup() {
    Serial.begin(115200);
-   Wire.begin(16, 17);
+   Wire.begin(16, 17);     // SDA, SCL
    delay(100);
    sensor.begin(Wire);
 }
 
 void loop() {
-   float angle_deg, pitch_deg, roll_deg;
+   float angle_deg, pitch_deg, roll_deg = 0.0f;
    if (sensor.available() && sensor.read(angle_deg, pitch_deg, roll_deg)) {
       Serial.println(angle_deg);
       Serial.println(pitch_deg);
@@ -222,13 +224,13 @@ Path                Description               Parameters
 /store/on           Save calibration profile  none
 /reset/on           Reset CMPS14              none
 /calmode/set        Save calibration mode     ?c=<0|1|2|3>&t=<0...60> // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE
-/offset/set         Installation offset       ?v=<-180...180>
-/dev8/set           Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>
+/offset/set         Installation offset       ?v=<-180...180> // Degrees (-) correct towards port side, (+) correct towards starboard
+/dev8/set           Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n> // <n> = deviation in degrees
 /deviationdetails   Deviation curve and table none
-/magvar/set         Manual variation          ?v=<-180...180>
+/magvar/set         Manual variation          ?v=<-180...180> // Degrees (-) west, (+) east
 /heading/mode       Heading mode              ?m=<1|0> // 1 = HDG(T), 0 = HDG(M)
 /status             Status block              none
-/restart            Restart ESP32             ?ms=5003
+/restart            Restart ESP32             ?ms=5003 // Delay before actual restart in ms
 /level              Level CMPS14 attitude     none
 ```
 Endpoints can of course be used by any http get request. Thus, should one want to add leveling of attitude to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauges on the dashboard.
@@ -300,12 +302,10 @@ Endpoints can of course be used by any http get request. Thus, should one want t
 1. Arduino IDE 2.3.6
 2. Espressif Systems esp32 board package 3.3.5
 3. Additional libraries installed:
-   ```
-   ArduinoWebsockets (by Gil Maimon version 0.5.4)
-   ArduinoJson(by Benoit Blanchon version 7.4.2)
-   ArduinoOTA (by Arduino, Juraj Andrassy version 1.1.0)
-   LiquidCrystal_I2C (by Frank de Brabander version 1.1.2)
-   ```
+   - ArduinoWebsockets (by Gil Maimon version 0.5.4)
+   - ArduinoJson(by Benoit Blanchon version 7.4.2)
+   - ArduinoOTA (by Arduino, Juraj Andrassy version 1.1.0)
+   - LiquidCrystal_I2C (by Frank de Brabander version 1.1.2)
 
 ## Installation
 
@@ -322,16 +322,17 @@ Endpoints can of course be used by any http get request. Thus, should one want t
    #define SK_PORT     3000 or whatever you have defined on SignalK server
    #define SK_TOKEN    "your_token"
    ```
-4. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
-5. Connect and power up the ESP32 with the USB cable
-6. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
-7. Open browser --> navigate to ESP32 webserver's ip-address for web UI (make sure you are in the same network with the ESP32)
+4. **SECURITY: make sure that `secrets.h` is listed in your `.gitignore` file**
+5. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
+6. Connect and power up the ESP32 with the USB cable
+7. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
+8. Open browser --> navigate to ESP32 webserver's ip-address for web UI (make sure you are in the same network with the ESP32)
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
 ## Todo
 
-- Replace the timers within `loop()` with separate tasks on pinned to core 0 and 1 to improve performance
+- Replace the timers within `loop()` with separate tasks pinned to core 0 and 1 to improve performance
 - Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers
 
 ## Debug

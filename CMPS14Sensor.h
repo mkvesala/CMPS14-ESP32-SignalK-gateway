@@ -19,6 +19,7 @@
 //      if (sensor.isAck(ack)) ...
 
 class CMPS14Sensor {
+       
 public:
 
     explicit CMPS14Sensor(uint8_t i2c_addr);
