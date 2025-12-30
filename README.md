@@ -13,7 +13,7 @@ Applies installation offset, deviation and magnetic variation to raw angle to de
 
 Uses LCD 16x2 to show status messages and heading. If no wifi around, runs on LCD only.
 
-Runs a webserver to provide web UI for CMPS14 configuration. Configurable parameters: calibration mode (full auto, auto, manual), installation offset, measured deviations, manual variation and heading mode (true, magnetic).
+Runs a webserver to provide web UI for CMPS14 configuration. Configurable parameters: calibration mode (full auto, auto, manual), installation offset, measured deviations, manual variation, heading mode (true, magnetic) and attitude leveling.
 
 OTA updates and persistent storage of configuration in ESP32 NVS are enabled.
 
@@ -21,20 +21,20 @@ Led indicators for calibration mode and connection status (two leds).
 
 ## Purpose of the project
 
-1. Need a reliable low-cost digital compass that could be connected to SignalK server of my vessel
-2. Learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. Refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
+1. Needed a reliable low-cost digital compass that could be connected to SignalK server of my vessel
+2. To learn ESP32 capabilities for other digital boat projects that are on my backlog
+3. To refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
 Started the project Arduino-style by copying code from a previous project (VEDirect-ESP32-SignalK-gateway). Then, just kept playing around with Arduino. The next project will be most likely based on SensESP/PlatformIO to keep things less complicated.
 
 ## Release history
 
 ```
-Release     Branch                      Comment
+Release    Branch                     Comment
 
-v1.0.0      main                        Latest release. Refactored into classes
-                                        with new features not implemented in 0.5.x.
-v0.5.1      legacy/procedural-0.5.x     Last fully procedural version.
+v1.0.0     main                       Latest release. Refactored into classes
+                                      with new features not implemented in 0.5.x.
+v0.5.1     legacy/procedural-0.5.x    Last fully procedural version.
 ```
 ## Class CMPS14Sensor
 
@@ -94,7 +94,7 @@ void loop() {
 1. Takes 8 user-measured deviations (N, NE, E, SE, S, SW, W, NW) as input from web UI
 2. Computes 5 harmonic coefficients (A, B, C, D, E) that best fit the mathematical model `deviation(θ) = A + B·sin(θ) + C·cos(θ) + D·sin(2θ) + E·cos(2θ)` using least squares regression and Gauss-Jordan elimination, providing smooth sinusoidal curve through all 8 user-measured points
 3. User-measured deviations and computed 5 coeffs are stored persistently in ESP32 NVS
-4. A deviation lookup table is computed each time the 5 coeffs change and on boot. The lookup table contains the deviation for each 1° over 360°. The lookup method will apply a linear interpolation to gain 0.01° (or so) accuracy when retrieving a value from the lookup table at a compass heading.
+4. A deviation lookup table is computed each time the 5 coeffs change and on ESP32 boot. The lookup table contains the deviation for each 1° over 360°. The lookup method will apply a linear interpolation for better accuracy when retrieving a value from the lookup table at a compass heading.
 5. Deviation curve and deviation table at simplified 10° resolution available on web UI
 
 **Note that deviation can be applied only to a permanently mounted stable compass. While CMPS14 can be securely mounted to the vessel, it's behavior may still be altered by calibration (automatic or manual). It is recommended to keep deviation at 0° until there are undeniable evidence that the compass is stable and operating without any needs for regular calibration. It's obvious that the deviations should always be re-measured and computed after each calibration.**
@@ -129,7 +129,7 @@ ws://<server>:<port>/signalk/v1/stream?token=<optional>
 3. *navigation.attitude.roll.max*
 4. *navigation.attitude.roll.min*
 
-The min and max values reset to zero on ESP32 restart and they are *not* persistently stored in ESP32 NVS.
+The min and max values reset to zero on ESP32 restart and after applying attitude leveling. They are *not* persistently stored in ESP32 NVS.
 
 **Receives** at ~1 Hz frequency, in radians:
 
@@ -144,27 +144,31 @@ Three supported calibration modes and use-mode for normal operation:
 3. *MANUAL* - user-triggered calibration with manual save/replace
 4. In *USE* mode the CMPS14 operates normally based on saved calibration profile (no calibration is running).
 
-The desired calibration mode (including optional *FULL AUTO* timeout) is stored persistently in ESP32 NVS.
+When calibration is running, *SYS*, *ACC* and *MAG* indicators are monitored at ~2 Hz frequency.
 
-When calibration is running, *SYS*, *ACC* and *MAG* indicators are monitored at ~2 Hz frequency. In *AUTO* mode the calibration profile will be saved when all three indicators equal 3 (the best) over three consecutive cycles. In *MANUAL* mode user may decide when to save by monitoring the values on web UI status block. The calibration profile is saved on CMPS14 itself, *not* in ESP32 NVS.
+*FULL AUTO* and *AUTO* will activate on ESP32 boot. The *FULL AUTO* will run until the user configured stop timer or eternally if the timer is set to 0. The *AUTO* will run until all three indicators equal 3 (the best) over three consecutive cycles, then the calibration profile will be saved and *USE* mode will be activated. When *USE/MANUAL* is selected, no calibration will be started on ESP32 boot. Instead, the device will start directly to *USE* mode. In *MANUAL* mode (press *CALIBRATE*) user may decide when to save by monitoring the values on web UI status block.
 
-**Note that the *GYR* indicator for gyro is not monitored. There is a reported firmware bug in CMPS14 that makes *GYR* indicator unreliable.**
+The calibration mode selection (including optional *FULL AUTO* timeout) is stored persistently in ESP32 NVS.
+
+The calibration profile is saved on CMPS14 internally, *not* in ESP32 NVS.
+
+**Note that CMPS14's *GYR* indicator for gyro is not monitored. There is a reported firmware bug in CMPS14 that makes *GYR* indicator unreliable.**
 
 ### Web UI (ESP32 Webserver)
 
 <img src="ui1.jpeg" width="120"> <img src="ui2.jpeg" width="120"> <img src="ui3.jpeg" width="120"> <img src="ui4.jpeg" width="120">
 
-Webserver provides simple HTML/JS user interface for user to configure:
+Webserver provides simple responsive HTML/JS user interface for user to configure:
 
 1. Calibration mode on boot and optional *FULL AUTO* timeout (mins)
    - 0 mins timeout never turns *FULL AUTO* mode off automatically
-   - Effective after restart
+   - Effective after ESP32 boot
 3. Installation offset (degrees)
    - Positive offset corrects the heading *towards* starboard, meaning that the compass mounting is tilted port side
    - Negative offset corrects the heading *towards* port side, meaning that the compass mounting is tilted starboard
    - Effective immediately
 4. Measured deviations at 8 cardinal and intercardinal directions (degrees)
-   - Assumes the user has measured deviations with the standard routine:
+   - Assumes the user has measured deviations with the standard navigation routine:
      ```
      HDG (C) | Dev | HDG (M) | Var | HDG (T)
      ```
@@ -181,66 +185,66 @@ All above are stored persistently in ESP32 NVS and will be automatically retriev
 
 Additionally the user may:
 
-1. Start the calibration in *MANUAL* mode
-2. Stop the calibration in all calibration modes without saving calibration profile
-3. Save the calibration profile in *AUTO* and *MANUAL* calibration modes
-   - If calibration profile has been saved since ESP32 boot, the *REPLACE* button is shown instead of *SAVE*
-4. Reset CMPS14 to factory settings
+1. Start the calibration by pressing *CALIBRATE* in *MANUAL* mode
+2. *STOP* the calibration in all calibration modes without saving calibration profile
+3. *SAVE* the calibration profile in *AUTO* and *MANUAL* calibration modes
+   - If calibration profile has already been saved since ESP32 boot, the *REPLACE* button is shown instead of *SAVE*
+4. *RESET* CMPS14 to factory settings
    - There is a 600 ms delay after reset in the background, doubling the delay from data sheet recommendation
-   - Reset does *not* reset configuration settings nor pitch/roll min/max values
-5. View the deviation curve and deviation table
+   - Reset does *not* reset configuration settings stored in NVS nor pitch/roll min/max values
+5. *SHOW DEVIATION CURVE*
    - Opens a new page with a back-button pointing to the configuration page
    - Simplified deviation curve and deviation table presented 0...360° with 010° resolution
-6. Level the attitude to zero
+6. *LEVEL CMPS14* attitude to zero
    - Takes the negation of the latest pitch and roll to capture the leveling factors for attitude
    - Leveling factors are applied to the raw pitch and roll
    - Thus, user may reset the attitude to zero at any vessel position to start using proportional pitch and roll
    - Leveling is not incremental and the leveling factors are *not* stored persistently in ESP32 NVS
    - Leveling resets pitch/roll min/max values
-8. Restart ESP32
-   - Opens a temporary page which will refresh back to the configuration page after 30 seconds
+8. *RESTART ESP32*
+   - Opens a temporary page which will refresh back to the configuration page after 15 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
    - Calls `ESP.restart()` of `esp_system`
 9. View the parameters on status block
    - JS generated block that updates at ~1 Hz cycles
-   - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch, roll, 3 calibration status indicators, 5 coeffs of harmonic model, IP address and wifi signal level description
+   - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch (leveling factor), roll (leveling factor), 3 calibration status indicators, 5 coeffs of harmonic model, debug heap memory status, debug loop task average runtime and free loop task stack memory, IP address and wifi signal level description, software version.
 
 ### Webserver endpoints
 
 ```
-Path                  Description               Parameters
-----                  -----------               ----------
-/                     Main UI                   none
-/cal/on               Start calibration         none
-/cal/off              Stop calibration          none
-/store/on             Save calibration profile  none
-/reset/on             Reset CMPS14              none
-/calmode/set          Save calibration mode     ?c=<0|1|2|3>&t=<0...60> // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE
-/offset/set           Installation offset       ?v=<-180...180>
-/dev8/set             Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>
-/deviationdetails     Deviation curve and table none
-/magvar/set           Manual variation          ?v=<-180...180>
-/heading/mode         Heading mode              ?m=<1|0> // 1 = HDG(T), 0 = HDG(M)
-/status               Status block              none
-/restart              Restart ESP32             ?ms=5003
-/level                Level CMPS14 attitude     none
+Path                Description               Parameters
+----                -----------               ----------
+/                   Main UI                   none
+/cal/on             Start calibration         none
+/cal/off            Stop calibration          none
+/store/on           Save calibration profile  none
+/reset/on           Reset CMPS14              none
+/calmode/set        Save calibration mode     ?c=<0|1|2|3>&t=<0...60> // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE
+/offset/set         Installation offset       ?v=<-180...180>
+/dev8/set           Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>
+/deviationdetails   Deviation curve and table none
+/magvar/set         Manual variation          ?v=<-180...180>
+/heading/mode       Heading mode              ?m=<1|0> // 1 = HDG(T), 0 = HDG(M)
+/status             Status block              none
+/restart            Restart ESP32             ?ms=5003
+/level              Level CMPS14 attitude     none
 ```
-Endpoints can of course be used by any http-request. Thus, should one want to add leveling to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauge widgets on the dashboard.
+Endpoints can of course be used by any http get request. Thus, should one want to add leveling of attitude to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauges on the dashboard.
 
 ### LCD 16x2
 
-1. Shows heading (true or magnetic) at ~1 Hz frequency
-2. Shows info messages on the way, related to calibration status, user interaction on web UI, OTA update progress etc. 
-   - Info messages are visible for ~1 second before replaced by heading again
-3. To avoid unnecessary blinking the LCD will refresh only if the content to be shown is different from what's already on the display.
+1. Shows heading (true or magnetic, depending on user preference on web UI)
+2. Shows info messages on the way, related to calibration status, user interaction on web UI, OTA update progress etc.
+3. LCD shows messages from a message queue on fifo basis, every 1.5 seconds
+4. To avoid unnecessary blinking the LCD will refresh only if the content to be shown is different from what's already on the display.
 
 ### Two led indicators
 
-1. GPIO2 blue led indicator (built in led on SH-ESP32 board)
+1. GPIO2 blue led indicator (built in led on my SH-ESP32 board)
    - Fast ~5 Hz blinking: wifi not connected
    - Medium ~2 Hz blinking: wifi connecting
    - Slow ~1 Hz blinking: wifi connected
-   - Solid state: websocket connection to SignalK server is open
+   - Solid state: websocket connected to SignalK server
    - Off: I have a bad feeling about this.  
 1. GPIO13 green led indicator (additional led soldered onto the board)   
    - Solid state: *USE* mode
@@ -252,8 +256,8 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
 
 ```
 /
-- CMPS14-ESP32-SignalK-gateway.ino                 // Create CMPS14Application app, setup(), loop()
-- globals.h                                        // Library includes
+- CMPS14-ESP32-SignalK-gateway.ino                 // Owns CMPS14Application app, contains setup() and loop()
+- version.h                                        // Software version
 - CalMode.h                                        // Enum class for CMPS14 calibration modes
 - WifiState.h                                      // Enum class for wifi states
 - harmonic.h             | harmonic.cpp            // Struct and functions to compute deviations, class DeviationLookup
@@ -272,13 +276,13 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
 2. CMPS14 sensor (I2C mode) connected with 1.2 m CAT5E network cable
 3. LCD 16x2 module(with I2C backpack) connected with 1.2 m CAT5E network cable
 4. LEDs
-   - blue led at GPIO2 (built in led on SH-ESP32 board)
+   - blue led at GPIO2 (built-in led on SH-ESP32 board)
    - green led at GPIO13 in series with 330 ohm resistor
 5. Sparkfun bi-directional [logic level converter](https://www.sparkfun.com/sparkfun-logic-level-converter-bi-directional.html)
    - SH-ESP32 runs 3.3 V internally
    - CMPS14 accepts both 3.3 V and 5 V
-   - LCD accepts both 3.3 V and 5 V but is brighter with 5 V
-   - Soldered logic level converter onto the board and used 5 V both for CMPS14 and LCD
+   - LCD accepts both 3.3 V and 5 V but is sharper with 5 V
+   - Soldered logic level converter onto the board and used 5 V both for CMPS14 and LCD (I2C comms)
 6. Joy-IT step-down [voltage converter](https://joy-it.net/en/products/SBC-Buck04-5V)
    - SH-ESP32 accepts 8 - 32 V, this is step-down to 5 V for CMPS14 and LCD
 7. IP67 enclosures for CMPS14 and SH-ESP32, cable clands and SP13 connectors
@@ -301,10 +305,11 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
    WebServer.h
    ArduinoWebsockets.h
    ArduinoJson.h
+   ArduinoOTA.h
    LiquidCrystal_I2C.h
    Preferences.h
    esp_system.h
-   ArduinoOTA.h
+   esp_mac.h
    ```
 
 ## Installation
@@ -322,21 +327,30 @@ Endpoints can of course be used by any http-request. Thus, should one want to ad
    #define SK_PORT     3000 or whatever you have defined on SignalK server
    #define SK_TOKEN    "your_token"
    ```
-4. Connect and power up the device with the USB cable
-5. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
-6. Open browser --> navigate to ESP32 ip-address for configuration page (make sure you are in the same network with the ESP32).
+4. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
+5. Connect and power up the ESP32 with the USB cable
+6. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
+7. Open browser --> navigate to ESP32 webserver's ip-address for web UI (make sure you are in the same network with the ESP32)
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
 ## Todo
 
-- Replace the timers within `loop()` with separate tasks on core 0 and 1
+- Replace the timers within `loop()` with separate tasks on pinned to core 0 and 1 to improve performance
+
+## Debug
+
+Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly:
+
+- Free heap memory (from ´ESP.getFreeHeap()`): approximately 160 kB (60 %) free, total being 277 kB - does not vary that much
+- Loop runtime exponential moving average (alpha 0.01): approximately 990 microseconds
+- Loop task free stack (from `uxTaskGetStackHighWaterMark(NULL)`): stays below 4300 bytes
 
 ## Credits
 
 Developed and tested using:
 
-- SH-ESP32 board
+- SH-ESP32 board Rev 2.2.1
 - ESP32 platform on Arduino IDE 2.3.6
 - CMPS14 datasheet
 - SignalK specification
@@ -348,7 +362,17 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner, for generating source code skeletons and as my personal trainer in C++ until it started wild hallusinations at model 5.1. Claude (code) was used for code review and performance improvement (less hallusination). I have no clue whatsover how these models generate source code. Thus, any similarities to any other source code out there, done by other people or organizations, is pure coincidence from my side.
+Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++ until it started wild hallusinations at model 5.1. Claude (code) was used for code review (less hallusination than ChatGPT).
+
+The only "full AI" pieces of code are ´computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI assisted".
+
+I have no clue whatsover how these LLMs generate source code. Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional from my side.
+
+I would highly appreciate improvement suggestions as well as any Arduino-style ESP32/C++ coding advice before entering into SensESP/PlatformIO universe in my next project. 😃 
+
+## Gallery
+
+<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120">
 
 
 
