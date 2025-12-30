@@ -9,7 +9,7 @@
 
 ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json.
 
-<img src="project5.jpeg" width="240">
+<img src="project5.jpeg" width="360">
 
 Applies installation offset, deviation and magnetic variation to raw angle to determine compass heading, magnetic heading and optionally true heading. Computes deviation at any compass heading, based on user-measured deviations at 8 cardinal and intercardinal directions. Subscribes magnetic variation from SignalK server. This is prioritized over manually entered variation to determine true heading.
 
@@ -79,6 +79,12 @@ void loop() {
 }
 
 ```
+### Class diagram
+
+<img src="class_diagram.png" width="360">
+
+Each class presented with their full public API. Private attributes only to show class relationships.
+
 ## Features
 
 ### Compass and attitude
