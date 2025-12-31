@@ -9,8 +9,6 @@
 
 ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json.
 
-<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120">
-
 Applies installation offset, deviation and magnetic variation to raw angle to determine compass heading, magnetic heading and optionally true heading. Computes deviation at any compass heading, based on user-measured deviations at 8 cardinal and intercardinal directions. Subscribes magnetic variation from SignalK server. This is prioritized over manually entered variation to determine true heading.
 
 Uses LCD 16x2 to show status messages and heading. If no wifi around, runs on LCD only.
@@ -79,7 +77,7 @@ void loop() {
 }
 
 ```
-### Class diagram
+### Other classes
 
 <img src="class_diagram.png" width="480">
 
@@ -87,7 +85,7 @@ Each class presented in the diagram with their full public API. Private attribut
 
 **CMPS14Processor:** 
 - Owns: DeviationLookup
-- Uses: DeviationLookup, CalMode and TwoWire
+- Uses: CMPS14Sensor, CalMode and TwoWire
 - Owned by: CMPS14Application
 - Responsible of: the main business logic, acts as "the compass"
 
@@ -105,7 +103,7 @@ Each class presented in the diagram with their full public API. Private attribut
 
 **DisplayManager:**
 - Owns: LiquidCrystal_I2C
-- Uses: CMPS14Processor, SignalKBroder, WifiState and CalMode
+- Uses: CMPS14Processor, SignalKBroker, WifiState and CalMode
 - Owned by: CMPS14Application
 - Responsible of: LCD display and LEDs, acts as "the display"
 

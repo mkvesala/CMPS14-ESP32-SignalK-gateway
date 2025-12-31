@@ -10,14 +10,14 @@
 //
 // - Class SignalKBroker - "the signalk" responsible of 
 //   communicating with SignalK server over websocket
-// - Owns the WebsocketsClient instance
 // - Init: signalk.begin()
 // - Provides public API to
 //   - Connect and disconnect the websocket
 //   - Send SignalK deltas as JSON to the server
 //   - Get the source name that is visible to the server
 //   - Check the websocket connection status
-// - Association (1:1) to CMPS14Processor
+// - Uses: CMPS14Processor ("the compass")
+// - Owns: WebsocketsClient
 
 namespace websockets {
     class WebsocketsClient;

@@ -11,7 +11,6 @@
 // === D I S P L A Y M A N A G E R  C L A S S ===
 //
 // - Class DisplayManager - "the display" responsible of LCD and LEDs
-// - Owns the LiquidCrystal_I2C instance (LCD)
 // - Init: display.begin()
 // - Provides public API to
 //   - Handle message queue at regular intevals (fifo) for LCD
@@ -20,8 +19,9 @@
 //   - Set and get wifi connection status info
 // - Message queue works on fifo basis and the clock speed of
 //   the queue can be adjusted with LCD_MS constant
-// - Association (1:1) to CMPS14Processor and to SignalKBroker
-// - Can be re-implemented if switching to other kinda displays
+// - Uses: CMPS14Processor ("the compass"), SignalKBroker ("the signalk"), WifiState, CalMode
+// - Owns: LiquidCrystal_I2C
+// - The idea is that the class can be re-implemented if switching to other kinda displays
 //   while keeping the public API intact for backwards compatibility
 
 class DisplayManager {

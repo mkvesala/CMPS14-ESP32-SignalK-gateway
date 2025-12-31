@@ -16,17 +16,18 @@
 //
 // - Class WebUIManager - "the webui" responsible of providing
 //   a web based UI for the user to configure the compass
-// - Owns the WebServer instance
 // - Init (start the WebServer): webui.begin()
 // - Handle client request: webui.handleRequest() - this actually
 //   wraps WebServer.handleClient() to be called in loop()
 // - The web UI: http://<yourESP32ipaddress>
 // - Descriptions of the endpoints and UI in README file
-// - Association (1:1) to
+// - Uses:
 //   - CMPS14Processor
 //   - CMPS14Preferences
 //   - SignalKBroker
 //   - DisplayManager
+//   - CalMode
+// - Owns: WebServer
  
 class WebUIManager {
 

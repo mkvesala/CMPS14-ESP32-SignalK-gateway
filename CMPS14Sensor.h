@@ -17,6 +17,7 @@
 //      uint8_t reg = 0x04;
 //      uint8_t ack = sensor.readRegister(reg);
 //      if (sensor.isAck(ack)) ...
+// - Uses: TwoWire
 
 class CMPS14Sensor {
        

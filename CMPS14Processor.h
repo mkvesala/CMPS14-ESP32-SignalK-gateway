@@ -16,8 +16,8 @@
 //   - Manage the calibration of CMPS14 sensor
 //   - Get the processed sensor values and configuration data
 //   - Set the configuration data
-// - Uses CMPS14Sensor ("the sensor"), CalMode, TwoWire
-// - Owns DeviationLookup
+// - Uses: CMPS14Sensor ("the sensor"), CalMode, TwoWire
+// - Owns: DeviationLookup
 
 class CMPS14Processor {
 public:

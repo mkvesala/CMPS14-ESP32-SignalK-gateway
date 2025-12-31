@@ -16,13 +16,14 @@
 // === C M P S 1 4 A P P L I C A T I O N  C L A S S ===
 //
 // - Class CMPS14Application - "the app" responsible of orchestrating everything
-// - Owns (1:1) the instances of:
+// - Owns:
 //   - CMPS14Sensor, "the sensor"
 //   - CMPS14Processor, "the compass"
 //   - CMPS14Preferences, "the compass_prefs"
 //   - SignalKBroker, "the signalk"
 //   - DisplayManager, "the display"
 //   - WebUIManager, "the webui"
+// - Uses: WifiState, CalMode
 // - Init: app.begin() - called in setup() of the main program
 // - Loop: app.loop() - called in loop() of the main program
 // - Critical check: app.compassOk() - without the compass, well, it's not a compass
