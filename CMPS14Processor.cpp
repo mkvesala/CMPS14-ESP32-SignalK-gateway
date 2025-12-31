@@ -8,7 +8,9 @@ CMPS14Processor::CMPS14Processor(CMPS14Sensor &cmps14Sensor) : sensor(cmps14Sens
 // Begin
 bool CMPS14Processor::begin(TwoWire &wirePort) {
     wire = &wirePort;
-    return sensor.begin(wirePort);
+    bool ok = sensor.begin(wirePort);
+    if (ok) firmware_version = this->readFwVersion();
+    return ok;
 }
 
 // Process the values received from CMPS14Sensor::read(...)
@@ -202,6 +204,11 @@ bool CMPS14Processor::enableBackgroundCal(bool autosave) {
 // Read calibration status byte
 uint8_t CMPS14Processor::readCalStatusByte() {
     return sensor.readRegister(REG_CAL_STATUS);
+}
+
+// Read firmware version byte
+uint8_t CMPS14Processor::readFwVersion() {
+    return sensor.readRegister(REG_FIRMWARE);
 }
 
 // Update values of HeadingDelta struct

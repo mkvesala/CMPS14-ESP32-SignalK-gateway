@@ -65,6 +65,8 @@ public:
     bool isCalProfileStored() const { return cal_profile_stored; }
     bool isSendingHeadingTrue() const { return send_hdg_true; }
 
+    uint8_t getFwVersion() const {return firmware_version; }
+
     // Setters
     void setInstallationOffset(float offset) { installation_offset_deg = offset; }
     void setManualVariation(float variation) { magvar_manual_deg = variation; }
@@ -86,6 +88,7 @@ private:
 
     bool enableBackgroundCal(bool autosave);
     uint8_t readCalStatusByte();
+    uint8_t readFwVersion();
     void updateHeadingDelta();
     void updateMinMaxDelta();
     
@@ -143,6 +146,8 @@ private:
     unsigned long full_auto_stop_ms    = 0;  // Full auto mode timeout, 0 = never
     unsigned long full_auto_left_ms    = 0;  // Full auto mode time left
 
+    // CMPS14 firmware version
+    uint8_t firmware_version = 0;
 
     // CMPS14 register map
     static constexpr uint8_t REG_USEMODE       = 0x80;  // Use-mode = normal operation
@@ -159,4 +164,5 @@ private:
     static constexpr uint8_t REG_AUTO_ON       = 0x93;  // Autosave byte of CMPS14
     static constexpr uint8_t REG_AUTO_OFF      = 0x83;  // Autosave off
     static constexpr uint8_t REG_MASK          = 0x03;  // Mask to read individual calibration status bits for sys, acc, gyr, mag
+    static constexpr uint8_t REG_FIRMWARE      = 0x00;  // Reading this returns firmware version (note: writing this = REG_CMD)
 };

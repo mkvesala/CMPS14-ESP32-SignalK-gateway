@@ -165,13 +165,15 @@ void WebUIManager::handleStatus() {
   status_doc["use_manual_magvar"]    = compass.isUsingManualVariation();   
   status_doc["send_hdg_true"]        = compass.isSendingHeadingTrue();         
   status_doc["stored"]               = compass.isCalProfileStored();
-  status_doc["version"]              = FW_VERSION;
+  status_doc["version"]              = SW_VERSION;
+  status_doc["firmware"]             = compass.getFwVersion();
   // Debug
   status_doc["heap_free"]            = heap_free;
   status_doc["heap_total"]           = heap_total; 
   status_doc["heap_percent"]         = heap_percent;
   status_doc["stack_free"]           = stack_free;
   status_doc["runtime_avg"]          = runtime_avg_us;
+  status_doc["uptime"]               = this->ms_to_hms_str(millis());
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -500,7 +502,8 @@ void WebUIManager::handleRoot() {
             'Heap: '+j.heap_free+' kB ('+j.heap_percent+' \u0025) free, total '+j.heap_total+' kB',
             'Loop runtime avg: '+fmt1(j.runtime_avg)+' \u00B5s, loop task free stack: '+j.stack_free+' B',
             'WiFi: '+j.wifi+' ('+j.rssi+')',
-            'Software version: '+j.version
+            'SW release: '+j.version+', FW version: '+j.firmware,
+            'System uptime: '+j.uptime
           ];
           document.getElementById('st').textContent=d.join('\n');
           renderControls(j);
@@ -662,19 +665,19 @@ void WebUIManager::handleRestart() {
   server.sendContent_P(R"(
     <!DOCTYPE html><html><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="15; url=/">
+    <meta http-equiv="refresh" content="20; url=/">
     <style>
       body{background:#000;color:#fff;font-family:Helvetica;text-align:center;margin:18vh 0 0 0}
       .msg{font-size:5vmin;max-font-size:24px;min-font-size:12px}
       p{color:#bbb}
     </style>
     <script>
-      setTimeout(function() { location.replace("/"); }, 16000);
+      setTimeout(function() { location.replace("/"); }, 21000);
     </script>
     </head><body>
       <div class="msg">RESTARTING...</div>
       <p>Please wait.</p>
-      <p>This page will refresh in 15 seconds.</p>
+      <p>This page will refresh in 20 seconds.</p>
     </body></html>
   )");
   server.sendContent("");

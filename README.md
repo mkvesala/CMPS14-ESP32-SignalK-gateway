@@ -83,49 +83,49 @@ void loop() {
 
 Each class presented in the diagram with their full public API. Private attributes only to demonstrate class relationships.
 
-**CMPS14Processor:** 
+**`CMPS14Processor`:** 
 - Owns: DeviationLookup
 - Uses: CMPS14Sensor, CalMode and TwoWire
 - Owned by: CMPS14Application
 - Responsible of: the main business logic, acts as "the compass"
 
-**CMPS14Preferences:** 
-- Owns: Preferences
-- Uses: CMPS14Processor and CalMode
-- Owned by: CMPS14Application
-- Responsible of; loading and saving configuration data to ESP32 NVS
+**`CMPS14Preferences`:** 
+- Owns: `Preferences`
+- Uses: `CMPS14Processor` and `CalMode`
+- Owned by: `CMPS14Application`
+- Responsible of: loading and saving configuration data to ESP32 NVS
 
-**SignalKBroker:** 
-- Owns: WebsocketsClient
-- Uses: CMPS14Processor
-- Owned by: CMPS14Application
+**`SignalKBroker`:** 
+- Owns: `WebsocketsClient`
+- Uses: `CMPS14Processor`
+- Owned by: `CMPS14Application`
 - Responsible of: communication with SignalK server
 
-**DisplayManager:**
-- Owns: LiquidCrystal_I2C
-- Uses: CMPS14Processor, SignalKBroker, WifiState and CalMode
-- Owned by: CMPS14Application
+**`DisplayManager`:**
+- Owns: `LiquidCrystal_I2C`
+- Uses: `CMPS14Processor`, `SignalKBroker`, `WifiState` and `CalMode`
+- Owned by: `CMPS14Application`
 - Responsible of: LCD display and LEDs, acts as "the display"
 
-**WebUIManager:**
-- Owns: WebServer
-- Uses: CMPS14Processor, CMPS14Preferences, SignalKBroker, DisplayManager and CalMode
-- Owned by: CMPS14Application
+**`WebUIManager`:**
+- Owns: `WebServer`
+- Uses: `CMPS14Processor`, `CMPS14Preferences`, SignalKBroker`, `DisplayManager` and `CalMode`
+- Owned by: `CMPS14Application`
 - Responsible of: providing web user interface, acts as "the webui"
 
-**CMPS14Application:**
-- Owns: CMPS14Sensor, CMPS14Processor, CMPS14Preferences, SignalKBroker, DisplayManager and WebUIManager
-- Uses: WifiState and CalMode
+**`CMPS14Application`:**
+- Owns: `CMPS14Sensor`, `CMPS14Processor`, `CMPS14Preferences`, `SignalKBroker`, `DisplayManager` and `WebUIManager`
+- Uses: `WifiState` and `CalMode`
 - Responsible of: orchestrating everything within the main program, acts as "the app"
 
-**DeviationLookup:**
-- Owned by: CMPS14Processor
+**`DeviationLookup`:**
+- Owned by: `CMPS14Processor`
 - Responsible of: deviation lookup table
 
-**CalMode:**
+**`CalMode`:**
 - Global enum class for different calibration modes of CMPS14
 
-**WifiState:**
+**`WifiState`:**
 - Global enum class for different WifiStates maintained and shared by CMPS14Application 
 
 ## Features
@@ -255,7 +255,7 @@ Additionally the user may:
    - Leveling is not incremental and the leveling factors are *not* stored persistently in ESP32 NVS
    - Leveling resets pitch/roll min/max values
 8. *RESTART ESP32*
-   - Opens a temporary page which will refresh back to the configuration page after 15 seconds
+   - Opens a temporary page which will refresh back to the configuration page after 20 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
    - Calls `ESP.restart()` of `esp_system`
 9. View the parameters on status block

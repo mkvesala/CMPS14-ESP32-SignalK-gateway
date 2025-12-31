@@ -47,7 +47,7 @@ bool CMPS14Sensor::sendCommand(uint8_t cmd) {
     wire->write(REG_CMD);
     wire->write(cmd);
     if (wire->endTransmission() != 0) return false;
-    delay(23);  // Datasheet recommends 20 ms delay here
+    delay(23);  // Datasheet: 20 ms delay here
     wire->requestFrom(addr, (uint8_t)1);
     if (!wire->available()) return false;
     uint8_t b = wire->read();
