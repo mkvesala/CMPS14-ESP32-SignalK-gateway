@@ -84,9 +84,9 @@ void loop() {
 Each class presented in the diagram with their full public API. Private attributes only to demonstrate class relationships.
 
 **`CMPS14Processor`:** 
-- Owns: DeviationLookup
-- Uses: CMPS14Sensor, CalMode and TwoWire
-- Owned by: CMPS14Application
+- Owns: `DeviationLookup`
+- Uses: `CMPS14Sensor`, `CalMode` and `TwoWire`
+- Owned by: `CMPS14Application`
 - Responsible of: the main business logic, acts as "the compass"
 
 **`CMPS14Preferences`:** 
@@ -109,7 +109,7 @@ Each class presented in the diagram with their full public API. Private attribut
 
 **`WebUIManager`:**
 - Owns: `WebServer`
-- Uses: `CMPS14Processor`, `CMPS14Preferences`, SignalKBroker`, `DisplayManager` and `CalMode`
+- Uses: `CMPS14Processor`, `CMPS14Preferences`, `SignalKBroker`, `DisplayManager` and `CalMode`
 - Owned by: `CMPS14Application`
 - Responsible of: providing web user interface, acts as "the webui"
 
@@ -126,7 +126,7 @@ Each class presented in the diagram with their full public API. Private attribut
 - Global enum class for different calibration modes of CMPS14
 
 **`WifiState`:**
-- Global enum class for different WifiStates maintained and shared by CMPS14Application 
+- Global enum class for different WifiStates maintained and shared by `CMPS14Application` 
 
 ## Features
 
@@ -260,7 +260,7 @@ Additionally the user may:
    - Calls `ESP.restart()` of `esp_system`
 9. View the parameters on status block
    - JS generated block that updates at ~1 Hz cycles
-   - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch (leveling factor), roll (leveling factor), 3 calibration status indicators, 5 coeffs of harmonic model, debug heap memory status, debug loop task average runtime and free loop task stack memory, IP address and wifi signal level description, software version.
+   - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch (leveling factor), roll (leveling factor), 3 calibration status indicators, 5 coeffs of harmonic model, debug heap memory status, debug loop task average runtime and free loop task stack memory, IP address and wifi signal level description, software version, CMPS14 firmware version, system uptime
 
 ### Webserver endpoints
 
@@ -290,6 +290,8 @@ Endpoints can of course be used by any http get request. Thus, should one want t
 2. Shows info messages on the way, related to calibration status, user interaction on web UI, OTA update progress etc.
 3. LCD shows messages from a message queue on fifo basis, every 1.5 seconds
 4. To avoid unnecessary blinking the LCD will refresh only if the content to be shown is different from what's already on the display.
+
+Using different display can be done within `DisplayManager` class while ensuring its public API stays intact for backwards compatibility.
 
 ### Two led indicators
 
@@ -400,7 +402,7 @@ Developed and tested using:
 - Espressif Systems esp32 3.3.5 package on Arduino IDE 2.3.6
 - SignalK server verion 2.18.0
 - OpenCPN version 5.12.4-universal and KIP version 4.0.7 for visualization
-- CMPS14 datasheet
+- CMPS14 firmware version 7
 
 Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
 
