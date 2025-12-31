@@ -9,7 +9,7 @@
 
 ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json.
 
-<img src="project5.jpeg" width="360">
+<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120">
 
 Applies installation offset, deviation and magnetic variation to raw angle to determine compass heading, magnetic heading and optionally true heading. Computes deviation at any compass heading, based on user-measured deviations at 8 cardinal and intercardinal directions. Subscribes magnetic variation from SignalK server. This is prioritized over manually entered variation to determine true heading.
 
@@ -81,9 +81,54 @@ void loop() {
 ```
 ### Class diagram
 
-<img src="class_diagram.png" width="360">
+<img src="class_diagram.png" width="480">
 
-Each class presented with their full public API. Private attributes only to show class relationships.
+Each class presented in the diagram with their full public API. Private attributes only to demonstrate class relationships.
+
+**CMPS14Processor:** 
+- Owns: DeviationLookup
+- Uses: DeviationLookup, CalMode and TwoWire
+- Owned by: CMPS14Application
+- Responsible of: the main business logic, acts as "the compass"
+
+**CMPS14Preferences:** 
+- Owns: Preferences
+- Uses: CMPS14Processor and CalMode
+- Owned by: CMPS14Application
+- Responsible of; loading and saving configuration data to ESP32 NVS
+
+**SignalKBroker:** 
+- Owns: WebsocketsClient
+- Uses: CMPS14Processor
+- Owned by: CMPS14Application
+- Responsible of: communication with SignalK server
+
+**DisplayManager:**
+- Owns: LiquidCrystal_I2C
+- Uses: CMPS14Processor, SignalKBroder, WifiState and CalMode
+- Owned by: CMPS14Application
+- Responsible of: LCD display and LEDs, acts as "the display"
+
+**WebUIManager:**
+- Owns: WebServer
+- Uses: CMPS14Processor, CMPS14Preferences, SignalKBroker, DisplayManager and CalMode
+- Owned by: CMPS14Application
+- Responsible of: providing web user interface, acts as "the webui"
+
+**CMPS14Application:**
+- Owns: CMPS14Sensor, CMPS14Processor, CMPS14Preferences, SignalKBroker, DisplayManager and WebUIManager
+- Uses: WifiState and CalMode
+- Responsible of: orchestrating everything within the main program, acts as "the app"
+
+**DeviationLookup:**
+- Owned by: CMPS14Processor
+- Responsible of: deviation lookup table
+
+**CalMode:**
+- Global enum class for different calibration modes of CMPS14
+
+**WifiState:**
+- Global enum class for different WifiStates maintained and shared by CMPS14Application 
 
 ## Features
 
@@ -367,15 +412,17 @@ No paid partnerships.
 
 Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++ until it started wild hallusinations at model 5.1. Claude (code) was used for code review (less hallusination than ChatGPT).
 
-The only "full AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI assisted".
+The only "full AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI assisted" due to their length and complexity.
 
-I have no clue whatsover how these LLMs generate source code. Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional from my side.
+I have no clue whatsover how these LLMs generate source code suggestions. I am the author, thus, I have reviewed all AI suggestions and written all code. Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional from my side.
+
+Check [CONTRIBUTING.md](CONTRIBUTING.md) for further AI assisted development in the project.
 
 I would highly appreciate improvement suggestions as well as any Arduino-style ESP32/C++ coding advice before entering into SensESP/PlatformIO universe in my next project. 😃 
 
 ## Gallery
 
-<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120">
+<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120"> <img src="project5.jpeg" width="120"> <img src="class_diagram.png" width="120">
 
 
 
