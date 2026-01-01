@@ -136,19 +136,19 @@ void CMPS14Application::handleWifi(const unsigned long now) {
 
 // OTA
 void CMPS14Application::handleOTA() {
-  if (!WiFi.isConnected()) return;
+  if (wifi_state != WifiState::CONNECTED) return;
   ArduinoOTA.handle();
 }
 
 // Webserver
 void CMPS14Application::handleWebUI() {
-  if (!WiFi.isConnected()) return;
+  if (wifi_state != WifiState::CONNECTED) return;
   webui.handleRequest();
 }
 
 // Websocket poll and reconnect
 void CMPS14Application::handleWebsocket(const unsigned long now) {
-  if (!WiFi.isConnected()) {
+  if (wifi_state != WifiState::CONNECTED) {
     compass.setUseManualVariation(true);
     return;
   }
@@ -192,7 +192,7 @@ void CMPS14Application::handleCompass(const unsigned long now) {
 
 // SignalK delta sending
 void CMPS14Application::handleSignalK(const unsigned long now) {
-  if (!WiFi.isConnected()) return;
+  if (wifi_state != WifiState::CONNECTED) return;
 
   // Send heading, pitch and roll to SignalK server
   if ((long)(now - last_tx_ms) >= MIN_TX_INTERVAL_MS) {
