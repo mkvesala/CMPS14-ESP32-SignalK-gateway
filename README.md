@@ -21,11 +21,13 @@ Led indicators for calibration mode and connection status (two leds).
 
 ## Purpose of the project
 
-1. Needed a reliable low-cost digital compass that could be connected to SignalK server of my vessel
-2. To learn ESP32 capabilities for other digital boat projects that are on my backlog
-3. To refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
+This is one of my individual digital boat projects.
 
-Started the project Arduino-style by copying code from a previous project (VEDirect-ESP32-SignalK-gateway). Then, just kept playing around with Arduino. The next project will be most likely based on SensESP/PlatformIO to keep things less complicated.
+1. I needed a reliable low-cost digital compass that could be connected to SignalK server of my vessel
+2. I wanted to learn ESP32 capabilities for other digital boat projects that are on my backlog
+3. I felt I had to refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
+
+I started the project Arduino-style by copying code from a previous project (VEDirect-ESP32-SignalK-gateway). Then, I just kept playing around with Arduino. The next project will be most likely based on SensESP/PlatformIO to keep things less complicated.
 
 ## Release history
 
@@ -325,7 +327,13 @@ Using different display can be done within `DisplayManager` class while ensuring
 - CMPS14Application.h    | CMPS14Application.cpp   // Class CMPS14Application, the "app"
 ```
 
-## Hardware used
+## Hardware
+
+### Schematic
+
+<img src="schematic.png" width="480">
+
+### Bill of materials
 
 1. ESP32 module (developed and tested with [SH-ESP32](https://docs.hatlabs.fi/sh-esp32/) board)
 2. CMPS14 sensor (I2C mode) connected with 1.2 m CAT5E network cable

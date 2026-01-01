@@ -21,6 +21,7 @@ Before creating bug reports, please check existing issues to avoid duplicates. W
   - ESP32 board package version
   - Hardware used
   - Library versions
+  - CMPS14 firmware version
 - Output (Serial monitor, LCD, LEDs)
 - Screenshots, if applicable, especially for web UI issues
 
@@ -55,16 +56,16 @@ Feature requests are welcome! Please:
    git commit -m "Add brief description of your changes"
    ```
    - Use clear commit messages
-6. Push to your fork and submit a PR
+6. Push to your fork and submit a PR:
    ```
    git push origin feature/your-feature-name
    ```
-7. Wait for maintainers review and feedback
+7. Wait for maintainer's review and feedback
 
 ## Coding guidelines
 
 1. Use consistent indentation
-2. Opening brace on the same line for functions and control structures
+2. Opening brace on the same line for functions and control structures:
   ```
    void myFunction() {
       if (condition) {
@@ -72,11 +73,11 @@ Feature requests are welcome! Please:
       }
    }
    ```
-3. No braces if one line of code
+3. No braces if one line of code like in:
    ```
    if (condition) return;
    ```
-4. Naming
+4. Naming:
    - Classes `PascalCase`
    - Functions/methods `camelCase`
    - Variables `camelCase` or `snake_case` - be consistent
