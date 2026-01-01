@@ -6,7 +6,7 @@ Thank you for considering contributing to this project! This document provides g
 
 ### About the project
 
-This is a *learning project* by me. Please refer to [README.md](README.md) for the purpose of the project. While new feature suggestions and bug fixes are welcome, the most precious are any advice that might help the me improving my knowledge in ESP32 programming.
+This is an individual *learning project* by me. Please refer to [README.md](README.md) for the purpose of the project. While new feature suggestions and bug fixes are welcome, the most precious are any advice that might help the me improving my knowledge in ESP32 programming.
 
 ### Reporting Bugs
 
@@ -85,11 +85,12 @@ Feature requests are welcome! Please:
    - Timers: use `_ms`, `_MS`, `_us` to indicate the units for example `NEXT_TRY_MS`
 5. Use `//` in single line comments
 6. Avoid `#DEFINE` macros, use `const` and `constexpr` where appropriate
-7. Use `delay()` in loop task *only* when absolutely necessary
-8. Minimize dynamic memory allocation - prefer stack allocation
-9. Handle I2C with care and prefer returning `bool` in methods which communicate with I2C
-10. Avoid making the currently lengthy web UI html/js parsing any more complex
-11. Respect ESP32 limited resources and core 0/core 1 task responsibilities if such applied
+7. Avoid String variables
+8. Use `delay()` in loop task *only* when absolutely necessary
+9. Minimize dynamic memory allocation - prefer stack allocation
+10. Handle I2C with care and prefer returning `bool` in methods which communicate with I2C
+11. Avoid making the currently lengthy web UI html/js parsing any more complex
+12. Respect ESP32 limited resources and core 0/core 1 task responsibilities if such applied
 
 ## Testing checklist
 
@@ -143,14 +144,14 @@ Feature requests are welcome! Please:
 2. **Check security** - ensure that there are no vulnerabilities
 3. **Match style** - verify that the code follows the project's conventions and coding guidelines
 4. **Share learnings** - if AI helped to to solve a problem, share it in comments, PRs or discussions
-5. **Focus on prompting** - at least prompt *role, task, tone, audience, restrictions/limits/guardrails, output format, output verification, list of sources*
+5. **Focus on prompting** - at least prompt: *role, task, tone, audience, restrictions/limits/guardrails, output format, output verification, list of sources used*
 6. **Use different tools and prompts** - prompt several times, with different AI tools, different day, seek cross-verification
 
 ### Avoid
 
-1. **Copy-paste code without understanding what it does**
-2. **Blindly trust AI tools without validation**
-3. **Shift responsiblitity AI - you are the author**
+1. **Copy-pasting code without understanding what it does**
+2. **Blindly trusting AI tools without validation**
+3. **Shifting responsiblitity to AI - you are the author**
 
 ### Copyright
 

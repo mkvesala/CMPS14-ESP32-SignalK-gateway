@@ -430,7 +430,7 @@ I would highly appreciate improvement suggestions as well as any Arduino-style E
 
 ## Gallery
 
-<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120"> <img src="project5.jpeg" width="120"> <img src="project6.jpeg" width="120"> <img src="class_diagram.png" width="120">
+<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120"> <img src="project5.jpeg" width="120"> <img src="project6.jpeg" width="120"> <img src="class_diagram.png" width="120"> <img src="schematic.png" width="120">
 
 
 
