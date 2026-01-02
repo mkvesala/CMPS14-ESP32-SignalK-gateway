@@ -286,6 +286,8 @@ Path                Description               Parameters
 ```
 Endpoints can of course be used by any http get request. Thus, should one want to add leveling of attitude to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauges on the dashboard.
 
+**SECURITY: note that webserver is not using https! Do not connect to Internet or public access points.**
+
 ### LCD 16x2
 
 1. Shows heading (true or magnetic, depending on user preference on web UI)
@@ -387,12 +389,16 @@ Using different display can be done within `DisplayManager` class while ensuring
 7. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
 8. Open browser --> navigate to ESP32 webserver's ip-address for web UI (make sure you are in the same network with the ESP32)
 
+**SECURITY: note that SignalK token is part of websocket URL. Keep SignalK and ESP32 in the same private LAN. Do not connect to Internet or public AP.**
+
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
 ## Todo
 
-- Replace the timers within `loop()` with separate tasks pinned to core 0 and 1 to improve performance
+- Implement asynchronous webserver to replace the classic webserver to improve performance and remove `loop()` blocking
+- Replace the rest of stuff within `loop()` with separate FreeRTOS tasks pinned to core 0 and 1
 - Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers
+- Improve security
 
 ## Debug
 
