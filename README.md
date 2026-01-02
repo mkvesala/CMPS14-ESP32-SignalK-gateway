@@ -19,7 +19,12 @@ OTA updates and persistent storage of configuration in ESP32 NVS are enabled.
 
 Led indicators for calibration mode and connection status (two leds).
 
-Developed and tested on [SH-ESP32](https://docs.hatlabs.fi/sh-esp32/) development board (2.2.1) + [esp32 board package](https://github.com/espressif/arduino-esp32) (3.3.5) on [Arduino IDE](https://www.arduino.cc/en/software/) (2.3.6) + SignalK Server (2.18.0) + CMPS14 (V7).
+Developed and tested on:
+- [SH-ESP32](https://docs.hatlabs.fi/sh-esp32/) development board (2.2.1)
+- [ESP32 board package](https://github.com/espressif/arduino-esp32) (3.3.5)
+- [Arduino IDE](https://www.arduino.cc/en/software/) (2.3.6)
+- SignalK Server (2.18.0)
+- CMPS14 sensor (V7)
 
 ## Purpose of the project
 
