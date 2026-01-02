@@ -416,13 +416,13 @@ Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connecte
 
 ## Security
 
-**- SignalK token is an optional part of websocket url and it is visible in the websocket url!**
-**- Keep ESP32 and SignalK server in the same private LAN!**
-**- Webserver does not use https!**
-**- Do not connect the system as-is to internet or public wifi access point!**
-**- List the secrets.h or any other source of credentials in your `.gitignore` file
+- **SignalK token is an optional part of websocket url and it is visible in the websocket url!**
+- **Keep ESP32 and SignalK server in the same private LAN!**
+- **Webserver does not use https!**
+- **Do not connect the system as-is to internet or public wifi access point!**
+- **List the secrets.h or any other source of credentials in your `.gitignore` file**
 
-**- Use at your own risk - not for safety-critical navigation!**
+- **Use at your own risk - not for safety-critical navigation!**
 
 ## Credits
 
