@@ -343,7 +343,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 
 ### Bill of materials
 
-1. ESP32 module (developed and tested with [SH-ESP32](https://docs.hatlabs.fi/sh-esp32/) board)
+1. ESP32 module (developed and tested with SH-ESP32 board)
 2. CMPS14 sensor (I2C mode) connected with 1.2 m CAT5E network cable
 3. LCD 16x2 module(with I2C backpack) connected with 1.2 m CAT5E network cable
 4. LEDs
@@ -397,7 +397,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 
 **Please refer to Security section of this file.**
 
-Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
+Calibration procedure is documented on CMPS14 datasheet.
 
 ## Todo
 
