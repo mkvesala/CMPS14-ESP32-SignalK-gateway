@@ -170,6 +170,8 @@ Connects to:
 ws://<server>:<port>/signalk/v1/stream?token=<optional>
 ```
 
+<img src="paths.jpeg" width="480">
+
 **Sends** at maximum ~10 Hz frequency, in radians, with a deadband of 0.25°:
 
 1. *navigation.headingMagnetic*
@@ -189,6 +191,8 @@ The min and max values reset to zero on ESP32 restart and after applying attitud
 **Receives** at ~1 Hz frequency, in radians:
 
 1. *navigation.magneticVariation* (if available at SignalK)
+
+**SECURITY: note that SignalK token is (an optional) part of websocket URL. Keep SignalK and ESP32 in the same private LAN. Do not connect to Internet or public AP.**
 
 ### Calibration modes
 
@@ -377,11 +381,11 @@ Using different display can be done within `DisplayManager` class while ensuring
 2. Alternatively, download the code as zip
 3. Set up your credentials in `secrets.h` (first by renaming the `secrets.example.h` to `secrets.h`)
    ```
-   #define WIFI_SSID   "your_wifi"
-   #define WIFI_PASS   "your_pass"
-   #define SK_HOST     "ip or hostname of SignalK server"
-   #define SK_PORT     3000 or whatever you have defined on SignalK server
-   #define SK_TOKEN    "your_token"
+   inline constexpr const char* WIFI_SSID = "your_wifi_ssid_here";
+   inline constexpr const char* WIFI_PASS = "your_wifi_password_here";
+   inline constexpr const char* SK_HOST = "your_signalk_address_here";
+   inline constexpr const char* SK_PORT = "your_signalk_port_here";
+   inline constexpr const char* SK_TOKEN = "your_signalk_auth_token_here";
    ```
 4. **SECURITY: make sure that `secrets.h` is listed in your `.gitignore` file**
 5. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
@@ -389,7 +393,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 7. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
 8. Open browser --> navigate to ESP32 webserver's ip-address for web UI (make sure you are in the same network with the ESP32)
 
-**SECURITY: note that SignalK token is part of websocket URL. Keep SignalK and ESP32 in the same private LAN. Do not connect to Internet or public AP.**
+**SECURITY: note that SignalK token is (an optional) part of websocket URL. Keep SignalK and ESP32 in the same private LAN. Note that the webserver does not use https. Do not connect the system to Internet or public AP.**
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
@@ -436,7 +440,7 @@ I would highly appreciate improvement suggestions as well as any Arduino-style E
 
 ## Gallery
 
-<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120"> <img src="project5.jpeg" width="120"> <img src="project6.jpeg" width="120"> <img src="class_diagram.png" width="120"> <img src="schematic.png" width="120">
+<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120"> <img src="project5.jpeg" width="120"> <img src="project6.jpeg" width="120"> <img src="class_diagram.png" width="120"> <img src="schematic.png" width="120"> <img src="paths.jpeg" width="120">
 
 
 

@@ -12,7 +12,7 @@ SignalKBroker::SignalKBroker(CMPS14Processor &compassref)
 
 // Begin
 bool SignalKBroker::begin() {
-    if (strlen(SK_HOST)<= 0 || SK_PORT <= 0) return false;
+    if (strlen(SK_HOST)<= 0 || strlen(SK_PORT) <= 0) return false;
     this->setSignalKURL();
     this->setSignalKSource();
     return this->connectWebsocket();
@@ -173,9 +173,9 @@ float SignalKBroker::computeAngDiffRad(float a, float b) {
 // Create SignalK server URL for websocket
 void SignalKBroker::setSignalKURL() {
   if (strlen(SK_TOKEN) > 0)
-    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream?token=%s", SK_HOST, SK_PORT, SK_TOKEN);
+    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%s/signalk/v1/stream?token=%s", SK_HOST, SK_PORT, SK_TOKEN);
   else
-    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%d/signalk/v1/stream", SK_HOST, SK_PORT);
+    snprintf(SK_URL, sizeof(SK_URL), "ws://%s:%s/signalk/v1/stream", SK_HOST, SK_PORT);
 }
 
 // Set ESP32's SignalK source based on ESP32's MAC address tail

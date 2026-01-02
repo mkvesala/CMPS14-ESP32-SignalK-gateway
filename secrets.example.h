@@ -5,8 +5,8 @@
 // - Rename the file --> secrets.h
 // - Replace the dummy credentials with yours
 
-#define WIFI_SSID "ssid"
-#define WIFI_PASS "pwd"
-#define SK_HOST "host.name"
-#define SK_PORT 3000
-#define SK_TOKEN "token"
+inline constexpr const char* WIFI_SSID = "your_wifi_ssid_here";
+inline constexpr const char* WIFI_PASS = "your_wifi_password_here";
+inline constexpr const char* SK_HOST = "your_signalk_address_here";
+inline constexpr const char* SK_PORT = "your_signalk_port_here";
+inline constexpr const char* SK_TOKEN = "your_signalk_auth_token_here";
