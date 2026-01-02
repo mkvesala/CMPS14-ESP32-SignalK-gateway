@@ -19,9 +19,11 @@ OTA updates and persistent storage of configuration in ESP32 NVS are enabled.
 
 Led indicators for calibration mode and connection status (two leds).
 
+Developed and tested on SH-ESP32 development board (2.2.1) + esp32 board package (3.3.5) on Arduino IDE (2.3.6) + SignalK Server (2.18.0) + CMPS14 (V7).
+
 ## Purpose of the project
 
-This is one of my individual digital boat projects.
+This is one of my individual digital boat projects. Use at your own risk. Not for safety-critical navigation.
 
 1. I needed a reliable low-cost digital compass that could be connected to SignalK server of my vessel
 2. I wanted to learn ESP32 capabilities for other digital boat projects that are on my backlog
@@ -42,7 +44,7 @@ v0.5.1     legacy/procedural-0.5.x    Last fully procedural version.
 
 ### Class CMPS14Sensor
 
-The heart of the project is the modest librarish class `CMPS14Sensor` which communicates with the CMPS14 device. It has the following public API:
+The heart of the project is the modest library-like class `CMPS14Sensor` which communicates with the CMPS14 device. It has the following public API:
 
 ```
 bool    begin(TwoWire &wirePort) 
@@ -192,7 +194,7 @@ The min and max values reset to zero on ESP32 restart and after applying attitud
 
 1. *navigation.magneticVariation* (if available at SignalK)
 
-**SECURITY: note that SignalK token is (an optional) part of websocket URL. Keep SignalK and ESP32 in the same private LAN. Do not connect to Internet or public AP.**
+**Please refer to Security section of this file.**
 
 ### Calibration modes
 
@@ -290,7 +292,7 @@ Path                Description               Parameters
 ```
 Endpoints can of course be used by any http get request. Thus, should one want to add leveling of attitude to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauges on the dashboard.
 
-**SECURITY: note that webserver is not using https! Do not connect to Internet or public access points.**
+**Please refer to Security section of this file.**
 
 ### LCD 16x2
 
@@ -354,7 +356,7 @@ Using different display can be done within `DisplayManager` class while ensuring
    - Soldered logic level converter onto the board and used 5 V both for CMPS14 and LCD (I2C comms)
 6. Joy-IT step-down [voltage converter](https://joy-it.net/en/products/SBC-Buck04-5V)
    - SH-ESP32 accepts 8 - 32 V, this is step-down to 5 V for CMPS14 and LCD
-7. IP67 enclosures for CMPS14 and SH-ESP32, cable clands and SP13 connectors
+7. IP67 enclosures for CMPS14 and SH-ESP32, cable glands and SP13 connectors
 8. Jumper wires, male row headers (2.54 mm)
 9. 3D printed [panel mount bezel](https://www.printables.com/model/158413-panel-mount-16x2-lcd-bezel) for LCD 16x2 (temporarily a black 2 x 4 x 1 inch plastic box with a cut hole)
 10. Wifi router providing wireless LAN AP
@@ -387,13 +389,13 @@ Using different display can be done within `DisplayManager` class while ensuring
    inline constexpr const char* SK_PORT = "your_signalk_port_here";
    inline constexpr const char* SK_TOKEN = "your_signalk_auth_token_here";
    ```
-4. **SECURITY: make sure that `secrets.h` is listed in your `.gitignore` file**
+4. **Make sure that `secrets.h` is listed in your `.gitignore` file**
 5. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
 6. Connect and power up the ESP32 with the USB cable
 7. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
 8. Open browser --> navigate to ESP32 webserver's ip-address for web UI (make sure you are in the same network with the ESP32)
 
-**SECURITY: note that SignalK token is (an optional) part of websocket URL. Keep SignalK and ESP32 in the same private LAN. Note that the webserver does not use https. Do not connect the system to Internet or public AP.**
+**Please refer to Security section of this file.**
 
 Calibration procedure is documented on CMPS14 [datasheet](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 
@@ -412,13 +414,23 @@ Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connecte
 - Loop runtime exponential moving average (alpha 0.01): approximately 1 ms
 - Loop task free stack (from `uxTaskGetStackHighWaterMark(NULL)`): stays above 4300 bytes
 
+## Security
+
+**- SignalK token is an optional part of websocket url and it is visible in the websocket url!**
+**- Keep ESP32 and SignalK server in the same private LAN!**
+**- Webserver does not use https!**
+**- Do not connect the system as-is to internet or public wifi access point!**
+**- List the secrets.h or any other source of credentials in your `.gitignore` file
+
+**- Use at your own risk - not for safety-critical navigation!**
+
 ## Credits
 
 Developed and tested using:
 
-- SH-ESP32 board Rev 2.2.1
+- SH-ESP32 board rev 2.2.1
 - Espressif Systems esp32 3.3.5 package on Arduino IDE 2.3.6
-- SignalK server verion 2.18.0
+- SignalK Server version 2.18.0
 - OpenCPN version 5.12.4-universal and KIP version 4.0.7 for visualization
 - CMPS14 firmware version 7
 
@@ -428,13 +440,13 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++ until it started wild hallusinations at model 5.1. Claude (code) was used for code review (less hallusination than ChatGPT).
+Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++. Claude (code) was used for code review and performance analysis.
 
-The only "full AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI assisted" due to their length and complexity.
+The "full-AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI-assisted" due to their length and complexity.
 
-I have no clue whatsover how these LLMs generate source code suggestions. I am the author, thus, I have reviewed all AI suggestions and written all code. Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional from my side.
+Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional.
 
-Check [CONTRIBUTING.md](CONTRIBUTING.md) for further AI assisted development in the project.
+Check [CONTRIBUTING.md](CONTRIBUTING.md) for further AI-assisted development in the project.
 
 I would highly appreciate improvement suggestions as well as any Arduino-style ESP32/C++ coding advice before entering into SensESP/PlatformIO universe in my next project. 😃 
 
