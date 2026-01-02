@@ -1,4 +1,4 @@
-![Logo](projectlogo.svg)
+![Logo](docs/projectlogo.svg)
 
 # CMPS14-ESP32-SignalK Gateway
 
@@ -81,7 +81,7 @@ void loop() {
 ```
 ### Other classes
 
-<img src="class_diagram.png" width="480">
+<img src="docs/class_diagram.png" width="480">
 
 Each class presented in the diagram with their full public API. Private attributes only to demonstrate class relationships.
 
@@ -170,7 +170,7 @@ Connects to:
 ws://<server>:<port>/signalk/v1/stream?token=<optional>
 ```
 
-<img src="paths.jpeg" width="480">
+<img src="docs/paths.jpeg" width="480">
 
 **Sends** at maximum ~10 Hz frequency, in radians, with a deadband of 0.25°:
 
@@ -215,7 +215,7 @@ The calibration profile is saved on CMPS14 internally, *not* in ESP32 NVS.
 
 ### Web UI (ESP32 Webserver)
 
-<img src="ui1.jpeg" width="120"> <img src="ui2.jpeg" width="120"> <img src="ui3.jpeg" width="120"> <img src="ui4.jpeg" width="120">
+<img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120">
 
 Webserver provides simple responsive HTML/JS user interface for user to configure:
 
@@ -337,7 +337,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 
 ### Schematic
 
-<img src="schematic.png" width="480">
+<img src="docs/schematic.png" width="480">
 
 ### Bill of materials
 
@@ -440,7 +440,7 @@ I would highly appreciate improvement suggestions as well as any Arduino-style E
 
 ## Gallery
 
-<img src="project1.jpeg" width="120"> <img src="project2.jpeg" width="120"> <img src="project3.jpeg" width="120"> <img src="project4.jpeg" width="120"> <img src="project5.jpeg" width="120"> <img src="project6.jpeg" width="120"> <img src="class_diagram.png" width="120"> <img src="schematic.png" width="120"> <img src="paths.jpeg" width="120">
+<img src="docs/project1.jpeg" width="120"> <img src="docs/project2.jpeg" width="120"> <img src="docs/project3.jpeg" width="120"> <img src="docs/project4.jpeg" width="120"> <img src="docs/project5.jpeg" width="120"> <img src="docs/project6.jpeg" width="120"> <img src="docs/class_diagram.png" width="120"> <img src="docs/schematic.png" width="120"> <img src="docs/paths.jpeg" width="120">
 
 
 
