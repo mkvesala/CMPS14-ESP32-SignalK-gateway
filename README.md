@@ -39,11 +39,11 @@ I started the project Arduino-style by copying code from a previous project (VED
 ## Release history
 
 ```
-Release    Branch                     Comment
+Release   Branch                    Comment
 
-v1.0.0     main                       Latest release. Refactored into classes
-                                      with new features not implemented in 0.5.x.
-v0.5.1     legacy/procedural-0.5.x    Last fully procedural version.
+v1.0.1    main                      Latest release. See CHANGELOG for details.
+v1.0.0    main                      Refactored into classes with new features not implemented in 0.5.x.
+v0.5.1    legacy/procedural-0.5.x   Last fully procedural version.
 ```
 ## Classes
 

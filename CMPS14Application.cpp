@@ -222,7 +222,7 @@ void CMPS14Application::initWifiServices() {
 
   // OTA
   ArduinoOTA.setHostname(signalk.getSignalKSource());
-  ArduinoOTA.setPassword(WIFI_PASS);
+  ArduinoOTA.setPassword(OTA_PASS);
   // ArduinoOTA.onStart([](){});
   // ArduinoOTA.onEnd([](){});
   // ArduinoOTA.onProgress([](unsigned int progress, unsigned int total){});

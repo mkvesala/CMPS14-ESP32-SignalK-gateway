@@ -58,9 +58,10 @@ void SignalKBroker::closeWebsocket() {
 
 // Send heading, pitch and roll to SignalK server
 void SignalKBroker::sendHdgPitchRollDelta() {
-    auto delta = compass.getHeadingDelta();
   
     if (!ws_open) return; 
+    
+    auto delta = compass.getHeadingDelta();
     if (!validf(delta.heading_rad) || !validf(delta.pitch_rad) || !validf(delta.roll_rad)) return; 
 
     static float last_h = NAN, last_p = NAN, last_r = NAN;
@@ -112,10 +113,10 @@ void SignalKBroker::sendHdgPitchRollDelta() {
 
 // Send pitch and roll min/max values to SignalK
 void SignalKBroker::sendPitchRollMinMaxDelta() {
-    
-    auto delta = compass.getMinMaxDelta();
   
     if (!ws_open) return; 
+
+    auto delta = compass.getMinMaxDelta();
 
     static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
 
