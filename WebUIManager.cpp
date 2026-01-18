@@ -722,7 +722,21 @@ void WebUIManager::handleLogin() {
     server.send(500, "text/plain", "Password not configured");
     return;
   }
-  
+
+  // DEBUG: Print hashes to Serial
+  // Serial.println("=== LOGIN DEBUG ===");
+  // Serial.print("Input hash  : ");
+  // Serial.println(input_hash);
+  // Serial.print("Stored hash : ");
+  // Serial.println(stored_hash);
+  // Serial.print("Input len   : ");
+  // Serial.println(strlen(input_hash));
+  // Serial.print("Stored len  : ");
+  // Serial.println(strlen(stored_hash));
+  // Serial.print("strcmp result: ");
+  // Serial.println(strcmp(input_hash, stored_hash));
+  // Serial.println("==================");
+
   // Compare
   if (strcmp(input_hash, stored_hash) != 0) {
     display.showSuccessMessage("LOGIN", false);
