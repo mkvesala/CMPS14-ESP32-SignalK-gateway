@@ -40,8 +40,10 @@ I started the project Arduino-style by copying code from a previous project (VED
 
 ```
 Release   Branch                    Comment
+-------   ------                    -------
 
-v1.0.1    main                      Latest release. See CHANGELOG for details.
+v1.1.0    main                      Latest release. Added web authentication. See CHANGELOG for details.
+v1.0.1    main                      See CHANGELOG for details.
 v1.0.0    main                      Refactored into classes with new features not implemented in v0.5.x.
 v0.5.1    legacy/procedural-0.5.x   Last fully procedural version.
 ```
@@ -52,13 +54,13 @@ v0.5.1    legacy/procedural-0.5.x   Last fully procedural version.
 The heart of the project is the modest library-like class `CMPS14Sensor` which communicates with the CMPS14 device. It has the following public API:
 
 ```
-bool    begin(TwoWire &wirePort) 
-bool    available()
-bool    read(float &angle_deg, float &pitch_deg, float &roll_deg)
-bool    sendCommand(uint8_t cmd)
-uint8_t readRegister(uint8_t reg)
-bool    isAck(uint8_t byte)
-bool    isNack(uint8_t byte)
+begin(TwoWire &wirePort): bool 
+available(): bool
+read(float &angle_deg, float &pitch_deg, float &roll_deg): bool
+sendCommand(uint8_t cmd): bool
+readRegister(uint8_t reg): uint8_t
+isAck(uint8_t byte): bool
+isNack(uint8_t byte): bool
 ```
 The simple usage of CMPS14Sensor could be:
 
@@ -71,7 +73,7 @@ CMPS14Sensor sensor(0x60); // I2C address
 
 void setup() {
    Serial.begin(115200);
-   Wire.begin(16, 17);     // SDA, SCL
+   Wire.begin(16, 17); // SDA, SCL
    delay(100);
    sensor.begin(Wire);
 }
@@ -280,7 +282,7 @@ Additionally the user may:
 ```
 Path                Description               Parameters
 ----                -----------               ----------
-/                   Main UI                   none
+/config             Main UI                   none
 /cal/on             Start calibration         none
 /cal/off            Stop calibration          none
 /store/on           Save calibration profile  none
@@ -448,7 +450,7 @@ No paid partnerships.
 
 Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++. Claude (code) was used for code review and performance analysis.
 
-The "full-AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager::handleRoot()`, `WebUIManager::handleRestart()` and `WebUIManager::handleDeviationTable()` are heavily "AI-assisted" due to their length and complexity.
+The "full-AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager` class is heavily "AI-assisted" due to its lengthy methods and http logic.
 
 Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional.
 

@@ -725,6 +725,7 @@ void WebUIManager::handleLogin() {
   
   // Compare
   if (strcmp(input_hash, stored_hash) != 0) {
+    display.showSuccessMessage("LOGIN", false);
     delay(2000);
     this->handleLoginPage();
     return;
