@@ -100,6 +100,9 @@ private:
   char* createSession();
   void cleanExpiredSessions();
 
+  // Cookie parser helper
+  bool parseSessionToken(const char* cookies, char* token_out_33bytes);
+  
   // SHA256 hash helper
   void sha256_hash(const char* input, char* output_hex_64bytes);
 

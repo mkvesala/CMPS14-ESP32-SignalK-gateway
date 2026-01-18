@@ -710,11 +710,11 @@ void WebUIManager::handleLogin() {
     return;
   }
   
-  String password = server.arg("password");
+  const char* password = server.arg("password").c_str();
   
   // SHA
   char input_hash[65];
-  sha256_hash(password.c_str(), input_hash);
+  sha256_hash(password, input_hash);
   
   // Load stored password hash
   char stored_hash[65];
@@ -734,8 +734,8 @@ void WebUIManager::handleLogin() {
   char* token = this->createSession();
   
   // Set session cookie for 6 h
-  String cookie = "session=" + String(token) + 
-                  "; Path=/; Max-Age=21600; HttpOnly";
+  char cookie[128];
+  snprintf(cookie, sizeof(cookie), "session=%s; Path=/; Max-Age=21600; HttpOnly", token);
   server.sendHeader("Set-Cookie", cookie);
   server.sendHeader("Location", "/config");
   server.send(302, "text/plain", "");
@@ -787,88 +787,63 @@ void WebUIManager::handleLoginPage() {
   server.sendContent("");
 }
 
-
 // Web UI handler for logout
 void WebUIManager::handleLogout() {
   // Empty session
   if (server.hasHeader("Cookie")) {
-    String cookies = server.header("Cookie");
-    int start = cookies.indexOf("session=");
-    if (start != -1) {
-      start += 8;
-      int end = cookies.indexOf(";", start);
-      if (end == -1) end = cookies.length();
-      String token = cookies.substring(start, end);
-      token.trim();
-      
+    const char* cookies = server.header("Cookie").c_str();
+    char token[33];
+
+    if (parseSessionToken(cookies, token)) {
       // Remove session
       for (uint8_t i = 0; i < MAX_SESSIONS; i++) {
-        if (strcmp(sessions[i].token, token.c_str()) == 0) {
+        if (strcmp(sessions[i].token, token) == 0) {
           sessions[i].token[0] = '\0';
           break;
         }
       }
     }
   }
-  
+
   // Clear cookie in browser
   server.sendHeader("Set-Cookie", "session=; Path=/; Max-Age=0");
   server.sendHeader("Location", "/");
   server.send(302, "text/plain", "Logged out");
 }
 
-
 // Authentication
 bool WebUIManager::requireAuth() {
-  
-  // Check cookie
   if (!server.hasHeader("Cookie")) {
     server.send(401, "text/plain", "Unauthorized");
     return false;
   }
   
-  String cookies = server.header("Cookie");
+  const char* cookies = server.header("Cookie").c_str();
+  char token[33];
   
-  // Parse session=XXX cookie
-  int start = cookies.indexOf("session=");
-  if (start == -1) {
+  if (!parseSessionToken(cookies, token)) {
     server.send(401, "text/plain", "Unauthorized");
     return false;
   }
-  start += 8;
   
-  int end = cookies.indexOf(";", start);
-  if (end == -1) end = cookies.length();
-  
-  String token = cookies.substring(start, end);
-  token.trim();
-  
-  // Validate token
-  if (!this->validateSession(token.c_str())) {
+  if (!this->validateSession(token)) {
     server.send(401, "text/plain", "Session expired");
     return false;
   }
   
   return true;
-
 }
 
 // Check authentication without any http response
 bool WebUIManager::isAuthenticated() {
   if (!server.hasHeader("Cookie")) return false;
-  
-  String cookies = server.header("Cookie");
-  int start = cookies.indexOf("session=");
-  if (start == -1) return false;
-  
-  start += 8;
-  int end = cookies.indexOf(";", start);
-  if (end == -1) end = cookies.length();
-  
-  String token = cookies.substring(start, end);
-  token.trim();
-  
-  return this->validateSession(token.c_str());
+
+  const char* cookies = server.header("Cookie").c_str();
+  char token[33];
+
+  if (!parseSessionToken(cookies, token)) return false;
+
+  return this->validateSession(token);
 }
 
 // Create a new session
@@ -963,45 +938,45 @@ void WebUIManager::cleanExpiredSessions() {
 // Web UI handler for password change
 void WebUIManager::handleChangePassword() {
   if (!this->requireAuth()) return;
-  
+
   if (!server.hasArg("old") || !server.hasArg("new") || !server.hasArg("confirm")) {
     server.send(400, "text/plain", "Bad Request");
     return;
   }
-  
-  String old_pw = server.arg("old");
-  String new_pw = server.arg("new");
-  String confirm_pw = server.arg("confirm");
-  
+
+  const char* old_pw = server.arg("old").c_str();
+  const char* new_pw = server.arg("new").c_str();
+  const char* confirm_pw = server.arg("confirm").c_str();
+
   // Validate
-  if (new_pw != confirm_pw) {
+  if (strcmp(new_pw, confirm_pw) != 0) {
     server.send(400, "text/plain", "Passwords do not match");
     return;
   }
-  
-  if (new_pw.length() < 8) {
+
+  if (strlen(new_pw) < 8) {
     server.send(400, "text/plain", "Password too short (min 8 chars)");
     return;
   }
-  
+
   // Check old password
   char old_hash[65];
-  sha256_hash(old_pw.c_str(), old_hash);
-  
+  sha256_hash(old_pw, old_hash);
+
   char stored_hash[65];
   compass_prefs.loadWebPasswordHash(stored_hash);
-  
+
   if (strcmp(old_hash, stored_hash) != 0) {
     delay(2000);
     server.send(401, "text/plain", "Wrong password");
     return;
   }
-  
+
   // Save new password
   char new_hash[65];
-  sha256_hash(new_pw.c_str(), new_hash);
+  sha256_hash(new_pw, new_hash);
   compass_prefs.saveWebPassword(new_hash);
-  
+
   display.showSuccessMessage("PASSWORD CHANGED", true);
   server.sendHeader("Location", "/config");
   server.send(302, "text/plain", "");
@@ -1060,6 +1035,43 @@ void WebUIManager::handleChangePasswordPage() {
   server.sendContent("");
 }
 
+// Cookie parser helper
+bool WebUIManager::parseSessionToken(const char* cookies, char* token_out_33bytes) {
+  if (!cookies) return false;
+  
+  const char* session_start = strstr(cookies, "session=");
+  if (!session_start) return false;
+  
+  session_start += 8;  // Skip "session="
+  
+  const char* session_end = strchr(session_start, ';');
+  size_t token_len;
+  if (session_end) {
+    token_len = session_end - session_start;
+  } else {
+    token_len = strlen(session_start);
+  }
+  
+  if (token_len > 32) token_len = 32;
+  strncpy(token_out_33bytes, session_start, token_len);
+  token_out_33bytes[token_len] = '\0';
+  
+  // Trim whitespace
+  char* trimmed = token_out_33bytes;
+  while (*trimmed == ' ' || *trimmed == '\t') {
+    memmove(token_out_33bytes, trimmed + 1, strlen(trimmed));
+    trimmed = token_out_33bytes;
+  }
+  
+  char* end = token_out_33bytes + strlen(token_out_33bytes) - 1;
+  while (end > token_out_33bytes && (*end == ' ' || *end == '\t')) {
+    *end = '\0';
+    end--;
+  }
+  
+  return strlen(token_out_33bytes) == 32;  // Valid token is exactly 32 chars
+}
+
 // SHA256 hash helper
 void WebUIManager::sha256_hash(const char* input, char* output_hex_64bytes) {
   mbedtls_md_context_t ctx;
@@ -1080,9 +1092,6 @@ void WebUIManager::sha256_hash(const char* input, char* output_hex_64bytes) {
   }
   output_hex_64bytes[64] = '\0';
 }
-
-
-
 
 // Web UI handler for software restart of ESP32
 void WebUIManager::handleRestart() {
