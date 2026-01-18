@@ -11,3 +11,4 @@ inline constexpr const char* SK_HOST = "your_signalk_address_here";
 inline constexpr uint16_t SK_PORT = 3000; // <-- replace with your signalk server port
 inline constexpr const char* SK_TOKEN = "your_signalk_auth_token_here";
 inline constexpr const char* OTA_PASS = "your_OTA_password_here";
+inline constexpr const char* DEFAULT_WEB_PASSWORD = "your_default_web_password_here";

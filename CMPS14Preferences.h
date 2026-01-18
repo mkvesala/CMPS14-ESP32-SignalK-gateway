@@ -8,7 +8,7 @@
 
 // === C M P S 1 4 P R E F E R E N C E S  C L A S S ===
 //
-// - Class CMPS14Preferences - "the compass_prefs" responsible of managing ESP32 NVS
+// - Class CMPS14Preferences - "the compass_prefs" responsible for managing ESP32 NVS
 // - Provides public API to save config persistently to NVS
 //   - Installation offset
 //   - Manual variation
@@ -18,6 +18,7 @@
 //   - Timeout for FULL AUTO calibration mode
 //   - Heading mode: HDG(T) / HDG(M)
 // - Provides public API to load config from NVS
+// - Provides public API to save and load sha password for web UI
 // - Uses: CMPS14Processor ("the compass"), CalMode
 // - Owns: Preferences
 
@@ -32,6 +33,9 @@ public:
     void saveDeviationSettings(const float dev[8], const HarmonicCoeffs &hc);
     void saveCalibrationSettings(CalMode mode, unsigned long ms);
     void saveSendHeadingTrue(bool enable);
+    void saveWebPassword(const char* password_sha256_hex);
+    bool loadWebPasswordHash(char* out_hash_64bytes);
+    bool hasWebPassword();
 
 private:
     const char* ns = "cmps14";

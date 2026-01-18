@@ -42,7 +42,7 @@ I started the project Arduino-style by copying code from a previous project (VED
 Release   Branch                    Comment
 
 v1.0.1    main                      Latest release. See CHANGELOG for details.
-v1.0.0    main                      Refactored into classes with new features not implemented in 0.5.x.
+v1.0.0    main                      Refactored into classes with new features not implemented in v0.5.x.
 v0.5.1    legacy/procedural-0.5.x   Last fully procedural version.
 ```
 ## Classes
@@ -96,40 +96,40 @@ Each class presented in the diagram with their full public API. Private attribut
 - Owns: `DeviationLookup`
 - Uses: `CMPS14Sensor`, `CalMode` and `TwoWire`
 - Owned by: `CMPS14Application`
-- Responsible of: the main business logic, acts as "the compass"
+- Responsible for: the main business logic, acts as "the compass"
 
 **`CMPS14Preferences`:** 
 - Owns: `Preferences`
 - Uses: `CMPS14Processor` and `CalMode`
 - Owned by: `CMPS14Application`
-- Responsible of: loading and saving configuration data to ESP32 NVS
+- Responsible for: loading and saving configuration data to ESP32 NVS
 
 **`SignalKBroker`:** 
 - Owns: `WebsocketsClient`
 - Uses: `CMPS14Processor`
 - Owned by: `CMPS14Application`
-- Responsible of: communication with SignalK server
+- Responsible for: communication with SignalK server
 
 **`DisplayManager`:**
 - Owns: `LiquidCrystal_I2C`
 - Uses: `CMPS14Processor`, `SignalKBroker`, `WifiState` and `CalMode`
 - Owned by: `CMPS14Application`
-- Responsible of: LCD display and LEDs, acts as "the display"
+- Responsible for: LCD display and LEDs, acts as "the display"
 
 **`WebUIManager`:**
 - Owns: `WebServer`
 - Uses: `CMPS14Processor`, `CMPS14Preferences`, `SignalKBroker`, `DisplayManager` and `CalMode`
 - Owned by: `CMPS14Application`
-- Responsible of: providing web user interface, acts as "the webui"
+- Responsible for: providing web user interface, acts as "the webui"
 
 **`CMPS14Application`:**
 - Owns: `CMPS14Sensor`, `CMPS14Processor`, `CMPS14Preferences`, `SignalKBroker`, `DisplayManager` and `WebUIManager`
 - Uses: `WifiState` and `CalMode`
-- Responsible of: orchestrating everything within the main program, acts as "the app"
+- Responsible for: orchestrating everything within the main program, acts as "the app"
 
 **`DeviationLookup`:**
 - Owned by: `CMPS14Processor`
-- Responsible of: deviation lookup table
+- Responsible for: deviation lookup table
 
 **`CalMode`:**
 - Global enum class for different calibration modes of CMPS14
@@ -220,7 +220,7 @@ The calibration profile is saved on CMPS14 internally, *not* in ESP32 NVS.
 
 **Note that CMPS14's *GYR* indicator for gyro is not monitored. There is a reported firmware bug in CMPS14 that makes *GYR* indicator unreliable.**
 
-### Web UI (ESP32 Webserver)
+### Web UI (WebServer)
 
 <img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120">
 
@@ -406,7 +406,8 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Todo
 
-- Implement asynchronous webserver to replace the classic webserver to improve performance and remove `loop()` blocking
+- Add support for a separate CrowPanel 2.1 inch ESP32 Rotary Display knob screen, to display compass and setup
+- Consider an asynchronous esp_http_server to replace the WebServer to improve performance and remove `loop()` blocking
 - Replace the rest of stuff within `loop()` with separate FreeRTOS tasks pinned to core 0 and 1
 - Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers
 - Improve security

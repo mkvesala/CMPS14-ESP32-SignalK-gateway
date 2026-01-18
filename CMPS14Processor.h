@@ -8,7 +8,7 @@
 
 // === C M P S 1 4 P R O C E S S O R  C L A S S ===
 //
-// - Class CMPS14Processor - acts as "the compass" responsible of main "business logic"
+// - Class CMPS14Processor - acts as "the compass" responsible for main "business logic"
 // - Initialise: compass.begin(Wire)
 // - Read the sensor and process the raw values: compass.update()
 // - Level the attitude output to zero: compass.level()

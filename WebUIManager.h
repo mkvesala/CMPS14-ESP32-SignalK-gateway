@@ -4,6 +4,8 @@
 #include <WebServer.h>
 #include <ArduinoJson.h>
 #include <esp_system.h>
+#include <esp_random.h>
+#include <mbedtls/md.h>
 #include "harmonic.h"
 #include "CalMode.h"
 #include "CMPS14Processor.h"
@@ -14,8 +16,10 @@
 
 // === W E B U I M A N A G E R  C L A S S ===
 //
-// - Class WebUIManager - "the webui" responsible of providing
+// - Class WebUIManager - "the webui" responsible for providing
 //   a web based UI for the user to configure the compass
+// - Session based authentication with SHA256 password and
+//   random 128-bit session token
 // - Init (start the WebServer): webui.begin()
 // - Handle client request: webui.handleRequest() - this actually
 //   wraps WebServer.handleClient() to be called in loop()
@@ -70,6 +74,34 @@ private:
   void handleSaveCalibration();
   void handleReset();
   void handleLevel();
+  void handleLogin();
+  void handleLoginPage();
+  void handleLogout();
+  void handleChangePassword();
+  void handleChangePasswordPage();
+
+
+  // 128-bit random token (32 hex chars + null)
+  struct Session {
+    char token[33];
+    unsigned long created_ms; 
+    unsigned long last_seen_ms;
+  };
+  
+  static constexpr uint8_t MAX_SESSIONS = 3;
+  static constexpr unsigned long SESSION_TIMEOUT_MS = 21600000; // 6 hours
+  
+  Session sessions[MAX_SESSIONS];
+  
+  // Authentication
+  bool requireAuth();
+  bool isAuthenticated();
+  bool validateSession(const char* token);
+  char* createSession();
+  void cleanExpiredSessions();
+
+  // SHA256 hash helper
+  void sha256_hash(const char* input, char* output_hex_64bytes);
 
   // Milliseconds to hh:mm:ss
   const char* ms_to_hms_str(unsigned long ms) {

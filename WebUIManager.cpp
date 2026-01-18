@@ -1,4 +1,5 @@
 #include "WebUIManager.h"
+#include "secrets.h"
 
 // === P U B L I C ===
 
@@ -12,10 +13,22 @@ WebUIManager::WebUIManager(
         compass(compassref),
         compass_prefs(compass_prefsref), 
         signalk(signalkref),
-        display(displayref) {}
+        display(displayref) {
+          for (uint8_t i = 0; i < MAX_SESSIONS; i++) {
+            sessions[i].token[0] = '\0';
+            sessions[i].created_ms = 0;
+            sessions[i].last_seen_ms = 0;
+          }
+        }
 
 // Init the webserver
 void WebUIManager::begin() {
+  if (!compass_prefs.hasWebPassword()) {
+    char hash[65];
+    sha256_hash(DEFAULT_WEB_PASSWORD, hash);
+    compass_prefs.saveWebPassword(hash);
+    display.showInfoMessage("DEFAULT PASSWORD!", "CHANGE NOW!");
+  }
   this->setupRoutes();
   server.begin();
 }
@@ -34,48 +47,86 @@ void WebUIManager::setLoopRuntimeInfo(float avg_us) {
 
 // Set the handlers for webserver endpoints
 void WebUIManager::setupRoutes() {
+  
+  // No authentication
   server.on("/", HTTP_GET, [this]() {
-        this->handleRoot();
-    });
+    if (this->isAuthenticated()) {
+      server.sendHeader("Location", "/config");
+      server.send(302, "text/plain", "");
+    } else this->handleLoginPage();
+  });
+  server.on("/login", HTTP_POST, [this]() {
+    this->handleLogin();
+  });
+  server.on("/logout", HTTP_GET, [this]() {
+    this->handleLogout();
+  });
+  server.on("/changepassword", HTTP_POST, [this]() {
+    this->handleChangePassword();
+  });
+
+  // Requires authentication
+  server.on("/config", HTTP_GET, [this]() {
+    if (!this->requireAuth()) return;
+    this->handleRoot();
+  });
   server.on("/status", HTTP_GET, [this]() {
-        this->handleStatus();
-    });
+    if (!this->requireAuth()) return;
+    this->handleStatus();
+  });
   server.on("/cal/on", HTTP_GET, [this]() {
-        this->handleStartCalibration();
-    });
+    if (!this->requireAuth()) return;
+    this->handleStartCalibration();
+  });
   server.on("/cal/off", HTTP_GET, [this]() {
-        this->handleStopCalibration();
-    });
+    if (!this->requireAuth()) return;
+    this->handleStopCalibration();
+  });
   server.on("/store/on", HTTP_GET, [this]() {
-        this->handleSaveCalibration();
-    });
+    if (!this->requireAuth()) return;
+    this->handleSaveCalibration();
+  });
   server.on("/reset/on", HTTP_GET, [this]() {
-        this->handleReset();
-    });
+    if (!this->requireAuth()) return;
+    this->handleReset();
+  });
   server.on("/offset/set", HTTP_GET, [this]() {
-        this->handleSetOffset();
-    });
+    if (!this->requireAuth()) return;
+    this->handleSetOffset();
+  });
   server.on("/dev8/set", HTTP_GET, [this]() {
-        this->handleSetDeviations();
-    });
+    if (!this->requireAuth()) return;
+    this->handleSetDeviations();
+  });
   server.on("/calmode/set", HTTP_GET, [this]() {
-        this->handleSetCalmode();
-    });
+    if (!this->requireAuth()) return;
+    this->handleSetCalmode();
+  });
   server.on("/magvar/set", HTTP_GET, [this]() {
-        this->handleSetMagvar();
-    });
+    if (!this->requireAuth()) return;
+    this->handleSetMagvar();
+  });
   server.on("/heading/mode", HTTP_GET, [this]() {
-        this->handleSetHeadingMode();
-    });
+    if (!this->requireAuth()) return;
+    this->handleSetHeadingMode();
+  });
   server.on("/restart", HTTP_GET, [this]() {
-        this->handleRestart();
-    });
+    if (!this->requireAuth()) return;
+    this->handleRestart();
+  });
   server.on("/deviationdetails", HTTP_GET, [this]() {
-        this->handleDeviationTable();
-    });
+    if (!this->requireAuth()) return;
+    this->handleDeviationTable();
+  });
   server.on("/level", HTTP_GET, [this]() {
-        this->handleLevel();
-    });
+    if (!this->requireAuth()) return;
+    this->handleLevel();
+  });
+  server.on("/changepassword", HTTP_GET, [this]() {
+    if (!this->requireAuth()) return;
+    this->handleChangePasswordPage();
+  });
+
 }
 
 // Web UI handler for CALIBRATE button
@@ -488,7 +539,13 @@ void WebUIManager::handleRoot() {
         el.innerHTML = html;
       }
       function upd(){
-        fetch('/status').then(r=>r.json()).then(j=>{
+        fetch('/status').then(r=>{
+          if(r.status === 401){
+            location.replace('/');
+            return;
+          }
+          return r.json();
+        }).then(j=>{
           const d=[
             'Installation offset: '+fmt0(j.offset)+'\u00B0',
             'Heading (C): '+fmt0(j.compass_deg)+'\u00B0',
@@ -518,6 +575,8 @@ void WebUIManager::handleRoot() {
   server.sendContent_P(R"(
     <div class='card'>
     <a href="/level"><button class="button">LEVEL CMPS14</button></a>
+    <a href="/changepassword"><button class="button">CHANGE PASSWORD</button></a>
+    <a href="/logout"><button class="button button2">LOGOUT</button></a>
     <a href="/restart?ms=5003"><button class="button button2">RESTART ESP32</button></a></div>
     </body>
     </html>)");
@@ -642,6 +701,388 @@ void WebUIManager::handleDeviationTable(){
   server.sendContent_P(R"(<p style="margin:20px;"><a href="/">BACK</a></p></body></html>)");
   server.sendContent("");
 }
+
+// Web UI handler for login 
+void WebUIManager::handleLogin() {
+
+  if (!server.hasArg("password")) {
+    server.send(400, "text/plain", "Bad Request");
+    return;
+  }
+  
+  String password = server.arg("password");
+  
+  // SHA
+  char input_hash[65];
+  sha256_hash(password.c_str(), input_hash);
+  
+  // Load stored password hash
+  char stored_hash[65];
+  if (!compass_prefs.loadWebPasswordHash(stored_hash)) {
+    server.send(500, "text/plain", "Password not configured");
+    return;
+  }
+  
+  // Compare
+  if (strcmp(input_hash, stored_hash) != 0) {
+    delay(2000);
+    this->handleLoginPage();
+    return;
+  }
+  
+  // Password correct, create session
+  char* token = this->createSession();
+  
+  // Set session cookie for 6 h
+  String cookie = "session=" + String(token) + 
+                  "; Path=/; Max-Age=21600; HttpOnly";
+  server.sendHeader("Set-Cookie", cookie);
+  server.sendHeader("Location", "/config");
+  server.send(302, "text/plain", "");
+
+}
+
+// Web UI handler for login page
+void WebUIManager::handleLoginPage() {
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.sendHeader("Connection", "close");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
+  server.send(200, "text/html; charset=utf-8", "");
+  
+  server.sendContent_P(R"(
+    <!DOCTYPE html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>CMPS14 Login</title>
+    <style>
+      body { background: #000; color: #fff; font-family: Helvetica; 
+             text-align: center; padding-top: 20vh; margin: 0; }
+      h1 { font-size: 6vmin; margin: 20px 0; }
+      form { margin: 40px auto; max-width: 300px; }
+      input[type=password] { font-size: 4vmin; padding: 12px; 
+                             border-radius: 6px; width: 240px; 
+                             border: 1px solid #333; background: #111; 
+                             color: #fff; margin: 10px 0; }
+      .button { background: #00A300; border: none; color: white; 
+                padding: 12px 40px; font-size: 4vmin; border-radius: 6px; 
+                cursor: pointer; margin: 10px 0; }
+      .button:hover { background: #00C300; }
+      .info { color: #888; font-size: 2.5vmin; margin: 20px; }
+    </style>
+    </head>
+    <body>
+      <h1>CMPS14 Gateway</h1>
+      <form method="POST" action="/login">
+        <input type="password" name="password" placeholder="Password" required autofocus>
+        <br>
+        <button type="submit" class="button">LOGIN</button>
+      </form>
+      <div class="info">Enter password to access configuration</div>
+    </body>
+    </html>
+  )");
+  
+  server.sendContent("");
+}
+
+
+// Web UI handler for logout
+void WebUIManager::handleLogout() {
+  // Empty session
+  if (server.hasHeader("Cookie")) {
+    String cookies = server.header("Cookie");
+    int start = cookies.indexOf("session=");
+    if (start != -1) {
+      start += 8;
+      int end = cookies.indexOf(";", start);
+      if (end == -1) end = cookies.length();
+      String token = cookies.substring(start, end);
+      token.trim();
+      
+      // Remove session
+      for (uint8_t i = 0; i < MAX_SESSIONS; i++) {
+        if (strcmp(sessions[i].token, token.c_str()) == 0) {
+          sessions[i].token[0] = '\0';
+          break;
+        }
+      }
+    }
+  }
+  
+  // Clear cookie in browser
+  server.sendHeader("Set-Cookie", "session=; Path=/; Max-Age=0");
+  server.sendHeader("Location", "/");
+  server.send(302, "text/plain", "Logged out");
+}
+
+
+// Authentication
+bool WebUIManager::requireAuth() {
+  
+  // Check cookie
+  if (!server.hasHeader("Cookie")) {
+    server.send(401, "text/plain", "Unauthorized");
+    return false;
+  }
+  
+  String cookies = server.header("Cookie");
+  
+  // Parse session=XXX cookie
+  int start = cookies.indexOf("session=");
+  if (start == -1) {
+    server.send(401, "text/plain", "Unauthorized");
+    return false;
+  }
+  start += 8;
+  
+  int end = cookies.indexOf(";", start);
+  if (end == -1) end = cookies.length();
+  
+  String token = cookies.substring(start, end);
+  token.trim();
+  
+  // Validate token
+  if (!this->validateSession(token.c_str())) {
+    server.send(401, "text/plain", "Session expired");
+    return false;
+  }
+  
+  return true;
+
+}
+
+// Check authentication without any http response
+bool WebUIManager::isAuthenticated() {
+  if (!server.hasHeader("Cookie")) return false;
+  
+  String cookies = server.header("Cookie");
+  int start = cookies.indexOf("session=");
+  if (start == -1) return false;
+  
+  start += 8;
+  int end = cookies.indexOf(";", start);
+  if (end == -1) end = cookies.length();
+  
+  String token = cookies.substring(start, end);
+  token.trim();
+  
+  return this->validateSession(token.c_str());
+}
+
+// Create a new session
+char* WebUIManager::createSession() {
+  this->cleanExpiredSessions();
+  
+  // Search a free slot
+  for (uint8_t i = 0; i < MAX_SESSIONS; i++) {
+    if (sessions[i].token[0] == '\0' || 
+        (millis() - sessions[i].last_seen_ms) > SESSION_TIMEOUT_MS) {
+      
+      // Generate 128-bit random token
+      uint8_t random_bytes[16];
+      esp_fill_random(random_bytes, 16); // Laitteiston RNG
+      
+      // Hex transformation
+      for (uint8_t j = 0; j < 16; j++) {
+        sprintf(&sessions[i].token[j*2], "%02x", random_bytes[j]);
+      }
+      sessions[i].token[32] = '\0';
+      
+      sessions[i].created_ms = millis();
+      sessions[i].last_seen_ms = millis();
+      
+      return sessions[i].token;
+    }
+  }
+  
+  // No free slots, overwrite oldest
+  uint8_t oldest = 0;
+  for (uint8_t i = 1; i < MAX_SESSIONS; i++) {
+    if (sessions[i].created_ms < sessions[oldest].created_ms) {
+      oldest = i;
+    }
+  }
+  
+  // Generate new token for oldest slot
+  uint8_t random_bytes[16];
+  esp_fill_random(random_bytes, 16);
+  
+  for (uint8_t j = 0; j < 16; j++) {
+    sprintf(&sessions[oldest].token[j*2], "%02x", random_bytes[j]);
+  }
+  sessions[oldest].token[32] = '\0';
+  sessions[oldest].created_ms = millis();
+  sessions[oldest].last_seen_ms = millis();
+  
+  return sessions[oldest].token;
+
+}
+
+// Validate session token
+bool WebUIManager::validateSession(const char* token) {
+  if (!token || strlen(token) != 32) {
+    return false;
+  }
+  
+  unsigned long now = millis();
+  
+  for (uint8_t i = 0; i < MAX_SESSIONS; i++) {
+    if (sessions[i].token[0] != '\0' && 
+        strcmp(sessions[i].token, token) == 0) {
+      
+      // Check timeout
+      if ((now - sessions[i].last_seen_ms) > SESSION_TIMEOUT_MS) {
+        // Session expired
+        sessions[i].token[0] = '\0';
+        return false;
+      }
+      
+      // Update last seen
+      sessions[i].last_seen_ms = now;
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Clean expired sessions
+void WebUIManager::cleanExpiredSessions() {
+  unsigned long now = millis();
+  
+  for (uint8_t i = 0; i < MAX_SESSIONS; i++) {
+    if (sessions[i].token[0] != '\0' && 
+        (now - sessions[i].last_seen_ms) > SESSION_TIMEOUT_MS) {
+      sessions[i].token[0] = '\0';
+    }
+  }
+}
+
+// Web UI handler for password change
+void WebUIManager::handleChangePassword() {
+  if (!this->requireAuth()) return;
+  
+  if (!server.hasArg("old") || !server.hasArg("new") || !server.hasArg("confirm")) {
+    server.send(400, "text/plain", "Bad Request");
+    return;
+  }
+  
+  String old_pw = server.arg("old");
+  String new_pw = server.arg("new");
+  String confirm_pw = server.arg("confirm");
+  
+  // Validate
+  if (new_pw != confirm_pw) {
+    server.send(400, "text/plain", "Passwords do not match");
+    return;
+  }
+  
+  if (new_pw.length() < 8) {
+    server.send(400, "text/plain", "Password too short (min 8 chars)");
+    return;
+  }
+  
+  // Check old password
+  char old_hash[65];
+  sha256_hash(old_pw.c_str(), old_hash);
+  
+  char stored_hash[65];
+  compass_prefs.loadWebPasswordHash(stored_hash);
+  
+  if (strcmp(old_hash, stored_hash) != 0) {
+    delay(2000);
+    server.send(401, "text/plain", "Wrong password");
+    return;
+  }
+  
+  // Save new password
+  char new_hash[65];
+  sha256_hash(new_pw.c_str(), new_hash);
+  compass_prefs.saveWebPassword(new_hash);
+  
+  display.showSuccessMessage("PASSWORD CHANGED", true);
+  server.sendHeader("Location", "/config");
+  server.send(302, "text/plain", "");
+
+}
+
+// Web UI handler for change password page
+void WebUIManager::handleChangePasswordPage() {
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.sendHeader("Connection", "close");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
+  server.send(200, "text/html; charset=utf-8", "");
+  
+  server.sendContent_P(R"(
+    <!DOCTYPE html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Change Password</title>
+    <style>
+      html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}
+      body { background:#000; color:#fff; }
+      .button { background-color: #00A300; border: none; color: white; 
+                padding: 8px 24px; text-decoration: none; font-size: 3vmin; 
+                margin: 8px; cursor: pointer; border-radius:6px; }
+      .button2 { background-color: #D10000; }
+      .card { width:92%; margin:10px auto; padding:10px; background:#0b0b0b; 
+              border-radius:6px; box-shadow:0 0 0 1px #222 inset; }
+      h2 { margin:16px 0; font-size: 4vmin; }
+      label { display:block; text-align:left; margin:8px 0 4px 0; }
+      input[type=password] { font-size: 3vmin; width: 90%; padding:8px; 
+                             margin:4px 0; border-radius:6px; border:1px solid #333; 
+                             background:#111; color:#fff; }
+    </style>
+    </head>
+    <body>
+      <h2><a href="/config" style="color:white; text-decoration:none;">CHANGE PASSWORD</a></h2>
+      <div class='card'>
+        <form method="POST" action="/changepassword">
+          <label>Current password:</label>
+          <input type="password" name="old" required>
+          <label>New password (min 8 chars):</label>
+          <input type="password" name="new" required minlength="8">
+          <label>Confirm new password:</label>
+          <input type="password" name="confirm" required>
+          <br><br>
+          <button type="submit" class="button">SAVE</button>
+          <a href="/config"><button type="button" class="button button2">CANCEL</button></a>
+        </form>
+      </div>
+    </body>
+    </html>
+  )");
+  
+  server.sendContent("");
+}
+
+// SHA256 hash helper
+void WebUIManager::sha256_hash(const char* input, char* output_hex_64bytes) {
+  mbedtls_md_context_t ctx;
+  mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+  
+  mbedtls_md_init(&ctx);
+  mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(md_type), 0);
+  mbedtls_md_starts(&ctx);
+  mbedtls_md_update(&ctx, (const unsigned char*)input, strlen(input));
+  
+  unsigned char hash[32];
+  mbedtls_md_finish(&ctx, hash);
+  mbedtls_md_free(&ctx);
+  
+  // Convert to hex string
+  for (int i = 0; i < 32; i++) {
+    sprintf(&output_hex_64bytes[i * 2], "%02x", hash[i]);
+  }
+  output_hex_64bytes[64] = '\0';
+}
+
+
+
 
 // Web UI handler for software restart of ESP32
 void WebUIManager::handleRestart() {

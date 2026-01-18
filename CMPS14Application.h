@@ -15,7 +15,7 @@
 
 // === C M P S 1 4 A P P L I C A T I O N  C L A S S ===
 //
-// - Class CMPS14Application - "the app" responsible of orchestrating everything
+// - Class CMPS14Application - "the app" responsible for orchestrating everything
 // - Owns:
 //   - CMPS14Sensor, "the sensor"
 //   - CMPS14Processor, "the compass"

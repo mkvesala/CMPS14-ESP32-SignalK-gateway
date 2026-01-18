@@ -5,7 +5,7 @@
 
 // === C M P S 1 4 S E N S O R  C L A S S ===
 //
-// - Class CMPS14Sensor - "the sensor" responsible of the actual CMPS14 device
+// - Class CMPS14Sensor - "the sensor" responsible for the actual CMPS14 device
 // - Initialise: if (sensor.begin(Wire)) ...
 // - Read raw data to float variables:
 //      float angle_deg, pitch_deg, roll_deg;

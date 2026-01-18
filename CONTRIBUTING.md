@@ -136,7 +136,7 @@ Feature requests are welcome! Please:
 
 1. **Using AI tools is allowed and encouraged** - ChatGPT, Claude Code, Github Copilot or IDE AI copilots, whatever works for you
 2. **Transparency is important**  - be open and mention in code comments, commit messages and PRs that AI has assisted you in development
-3. **Understanding first** - you are responsible of not only the code itself but also being able to explain it
+3. **Understanding first** - you are responsible for not only the code itself but also being able to explain it
 
 ### Best practises
 

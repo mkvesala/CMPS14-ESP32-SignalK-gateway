@@ -20,7 +20,7 @@ void setup() {
 
   if (!app.compassOk()) { 
     Serial.println("CMPS14 INIT FAILED! CHECK SYSTEM!");
-    while(true); 
+    while(1) delay(1999); // Stop here if no compass
   }
   
 }

@@ -10,7 +10,7 @@
 
 // === D I S P L A Y M A N A G E R  C L A S S ===
 //
-// - Class DisplayManager - "the display" responsible of LCD and LEDs
+// - Class DisplayManager - "the display" responsible for LCD and LEDs
 // - Init: display.begin()
 // - Provides public API to
 //   - Handle message queue at regular intevals (fifo) for LCD

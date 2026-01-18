@@ -99,3 +99,34 @@ void CMPS14Preferences::saveSendHeadingTrue(bool enable) {
     prefs.putBool("send_hdg_true", enable);
     prefs.end();
 }
+
+// Save web password hash to NVS
+void CMPS14Preferences::saveWebPassword(const char* password_sha256_hex) {
+  prefs.begin(ns, false);
+  prefs.putString("web_pass", password_sha256_hex);
+  prefs.end();
+}
+
+// Load web password hash from NVS
+bool CMPS14Preferences::loadWebPasswordHash(char* out_hash_64bytes) {
+  prefs.begin(ns, true);
+  String hash = prefs.getString("web_pass", "");
+  prefs.end();
+  
+  if (hash.length() != 64) {
+    return false;
+  }
+  
+  strcpy(out_hash_64bytes, hash.c_str());
+  return true;
+}
+
+// Check if web password is set
+bool CMPS14Preferences::hasWebPassword() {
+  prefs.begin(ns, true);
+  String hash = prefs.getString("web_pass", "");
+  prefs.end();
+  
+  return (hash.length() == 64);
+}
+

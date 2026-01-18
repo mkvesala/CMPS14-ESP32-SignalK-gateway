@@ -8,7 +8,7 @@
 
 // === S I G N A L K B R O K E R  C L A S S ===
 //
-// - Class SignalKBroker - "the signalk" responsible of 
+// - Class SignalKBroker - "the signalk" responsible for 
 //   communicating with SignalK server over websocket
 // - Init: signalk.begin()
 // - Provides public API to
