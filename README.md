@@ -13,9 +13,9 @@ Applies installation offset, deviation and magnetic variation to raw angle to de
 
 Uses LCD 16x2 to show status messages and heading. If no wifi around, runs on LCD only.
 
-Runs a webserver to provide web UI for CMPS14 configuration. Configurable parameters: calibration mode (full auto, auto, manual), installation offset, measured deviations, manual variation, heading mode (true, magnetic) and attitude leveling.
+Runs a webserver to provide web UI for CMPS14 configuration. Configurable parameters: calibration mode (full auto, auto, manual), installation offset, measured deviations, manual variation, heading mode (true, magnetic) and attitude leveling. Web UI protected with session-based authentication.
 
-OTA updates and persistent storage of configuration in ESP32 NVS are enabled.
+OTA updates and persistent storage of configuration and web UI password in ESP32 NVS are enabled.
 
 Led indicators for calibration mode and connection status (two leds).
 
@@ -288,7 +288,7 @@ Additionally the user may:
 
 The web UI is protected by session-based authentication.
 
-**Default password:** `cmps14admin` (defined in `secrets.h`)
+**Default password:** defined in `secrets.h`.
 
 **First login:**
 1. On first boot, LCD displays "DEFAULT PASSWORD! CHANGE NOW!"
@@ -363,6 +363,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 | File(s) | Description |
 |----------|-------------|
 | `CMPS14-ESP32-SignalK-gateway.ino` | Owns CMPS14Application app, contains setup() and loop() |
+| `secrets.example.h`| Example credentials. Rename to `secrets.h´ and populate with your credentials. |
 | `version.h` | Software version |
 | `CalMode.h` | Enum class for CMPS14 calibration modes |
 | `WifiState.h` | Enum class for wifi states |
@@ -477,7 +478,7 @@ WebServer endpoints are protected by session-based authentication:
 
 1. **HTTP only (No HTTPS)**
    - Passwords and session tokens transmitted in plaintext
-   - **Recommendation:** Use only on private, trusted networks
+   - Use only on private, trusted networks
 
 2. **LAN deployment only**
    - Do NOT expose to public internet
@@ -497,6 +498,9 @@ WebServer endpoints are protected by session-based authentication:
    - 2-second delay on failed login attempts
    - Light protection against brute-force attacks
    - Still vulnerable for serious attacks
+  
+6. **`secrets.h`**
+   - Make sure that `secrets.h` is listed in your `.gitignore` file
 
 ### Deployment
 
