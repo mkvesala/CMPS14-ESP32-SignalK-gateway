@@ -279,23 +279,22 @@ Additionally the user may:
    - JS generated block that updates at ~1 Hz cycles
    - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch (leveling factor), roll (leveling factor), 3 calibration status indicators, 5 coeffs of harmonic model, debug heap memory status, debug loop task average runtime and free loop task stack memory, IP address and wifi signal level description, software version, CMPS14 firmware version, system uptime
 10. *CHANGE PASSWORD* for web UI authentication
-   - Opens a page for user to change the web UI password
-   - Minimum 8 characters
+    - Opens a page for user to change the web UI password
+    - Minimum 8 characters
 11. *LOGOUT* from web UI
-   - Clears session
+    - Clears session
 
 ### Web UI authentication
 
 The web UI is protected by session-based authentication.
 
-**Default credentials:**
-- Password: `cmps14admin` (defined in `secrets.h`)
+**Default password:** `cmps14admin` (defined in `secrets.h`)
 
 **First login:**
 1. On first boot, LCD displays "DEFAULT PASSWORD! CHANGE NOW!"
-2. Navigate to http://<esp32ipaddress>/
+2. Navigate to `http://<esp32ipaddress>/`
 3. Enter default password
-4. Change password immediately after first login via "CHANGE PASSWORD" button
+4. Change password immediately after first login via *CHANGE PASSWORD* button
 
 **Password requirements:**
 - Minimum 8 characters
