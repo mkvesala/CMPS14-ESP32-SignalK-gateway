@@ -38,30 +38,29 @@ I started the project Arduino-style by copying code from a previous project (VED
 
 ## Release history
 
-```
-Release   Branch                    Comment
--------   ------                    -------
+| Release | Branch                  | Comment                                                                    |
+|---------|-------------------------|----------------------------------------------------------------------------|
+| v1.1.0  | main                    | Latest release. Added web authentication. See CHANGELOG for details.       |
+| v1.0.1  | main                    | See CHANGELOG for details.                                                 |
+| v1.0.0  | main                    | Refactored into classes with new features not implemented in v0.5.x.       |
+| v0.5.1  | legacy/procedural-0.5.x | Last fully procedural version.                                             |
 
-v1.1.0    main                      Latest release. Added web authentication. See CHANGELOG for details.
-v1.0.1    main                      See CHANGELOG for details.
-v1.0.0    main                      Refactored into classes with new features not implemented in v0.5.x.
-v0.5.1    legacy/procedural-0.5.x   Last fully procedural version.
-```
 ## Classes
 
 ### Class CMPS14Sensor
 
 The heart of the project is the modest library-like class `CMPS14Sensor` which communicates with the CMPS14 device. It has the following public API:
 
-```
-begin(TwoWire &wirePort): bool 
-available(): bool
-read(float &angle_deg, float &pitch_deg, float &roll_deg): bool
-sendCommand(uint8_t cmd): bool
-readRegister(uint8_t reg): uint8_t
-isAck(uint8_t byte): bool
-isNack(uint8_t byte): bool
-```
+| Method | Returns | Comment |
+|--------|----------------|--------|
+| `begin(TwoWire &wirePort)` | `bool` | Initialize sensor |
+| `available()` | `bool` | Check the availablility of the sensor |
+| `read(float &angle_deg, float &pitch_deg, float &roll_deg)` | `bool` | Read sensor raw values (degrees) to the float variables |
+| `sendCommand(uint8_t cmd)` | `bool` | Send any command to the sensor |
+| `readRegister(uint8_t reg)` | `uint8_t` | Read any register of the sensor |
+| `isAck(uint8_t byte)` | `bool` | Return true if byte is ACK |
+| `isNack(uint8_t byte)` | `bool` | Return true if byte is NACK |
+
 The simple usage of CMPS14Sensor could be:
 
 ```
@@ -79,7 +78,10 @@ void setup() {
 }
 
 void loop() {
-   float angle_deg, pitch_deg, roll_deg = 0.0f;
+   const unsigned long now = millis();
+   static unsigned long last = 0;
+   if ((long)(now - last) < 1000) return; // Read at 1 Hz
+   float angle_deg = 0.0f, pitch_deg = 0.0f, roll_deg = 0.0f;
    if (sensor.available() && sensor.read(angle_deg, pitch_deg, roll_deg)) {
       Serial.println(angle_deg);
       Serial.println(pitch_deg);
@@ -104,7 +106,7 @@ Each class presented in the diagram with their full public API. Private attribut
 - Owns: `Preferences`
 - Uses: `CMPS14Processor` and `CalMode`
 - Owned by: `CMPS14Application`
-- Responsible for: loading and saving configuration data to ESP32 NVS
+- Responsible for: loading and saving data to ESP32 NVS
 
 **`SignalKBroker`:** 
 - Owns: `WebsocketsClient`
@@ -236,9 +238,9 @@ Webserver provides simple responsive HTML/JS user interface for user to configur
    - Negative offset corrects the heading *towards* port side, meaning that the compass mounting is tilted starboard
    - Effective immediately
 4. Measured deviations at 8 cardinal and intercardinal directions (degrees)
-   - Assumes the user has measured deviations with the standard navigation routine:
+   - Assumes the user has measured deviations with the standard maritime navigation routine:
      ```
-     HDG (C) | Dev | HDG (M) | Var | HDG (T)
+     HDG(C) -> Dev -> HDG(M) -> Var -> HDG(T)
      ```
    - Effective immediately
 5. Manual magnetic variation (degrees)
@@ -276,28 +278,61 @@ Additionally the user may:
 9. View the parameters on status block
    - JS generated block that updates at ~1 Hz cycles
    - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch (leveling factor), roll (leveling factor), 3 calibration status indicators, 5 coeffs of harmonic model, debug heap memory status, debug loop task average runtime and free loop task stack memory, IP address and wifi signal level description, software version, CMPS14 firmware version, system uptime
+10. *CHANGE PASSWORD* for web UI authentication
+   - Opens a page for user to change the web UI password
+   - Minimum 8 characters
+11. *LOGOUT* from web UI
+   - Clears session
+
+### Web UI authentication
+
+The web UI is protected by session-based authentication.
+
+**Default credentials:**
+- Password: `cmps14admin` (defined in `secrets.h`)
+
+**First login:**
+1. On first boot, LCD displays "DEFAULT PASSWORD! CHANGE NOW!"
+2. Navigate to http://<esp32ipaddress>/
+3. Enter default password
+4. Change password immediately after first login via "CHANGE PASSWORD" button
+
+**Password requirements:**
+- Minimum 8 characters
+- Stored as SHA256 hash in NVS
+- Persistent, survives ESP32 reboots
+
+**Session Management:**
+- Sessions valid for 6 hours
+- Automatic timeout on inactivity
+- Up to 3 concurrent users
+- Logout button available on all pages
 
 ### Webserver endpoints
 
-```
-Path                Description               Parameters
-----                -----------               ----------
-/config             Main UI                   none
-/cal/on             Start calibration         none
-/cal/off            Stop calibration          none
-/store/on           Save calibration profile  none
-/reset/on           Reset CMPS14              none
-/calmode/set        Save calibration mode     ?c=<0|1|2|3>&t=<0...60> // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE
-/offset/set         Installation offset       ?v=<-180...180> // Degrees (-) correct towards port side, (+) correct towards starboard
-/dev8/set           Eight deviation points    ?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n> // <n> = deviation in degrees
-/deviationdetails   Deviation curve and table none
-/magvar/set         Manual variation          ?v=<-180...180> // Degrees (-) west, (+) east
-/heading/mode       Heading mode              ?m=<1|0> // 1 = HDG(T), 0 = HDG(M)
-/status             Status block              none
-/restart            Restart ESP32             ?ms=5003 // Delay before actual restart in ms
-/level              Level CMPS14 attitude     none
-```
-Endpoints can of course be used by any http get request. Thus, should one want to add leveling of attitude to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauges on the dashboard.
+| Path | Auth | Description | Parameters |
+|------|------|-------------|------------|
+| GET `/` | No | Login page or redirect to `/config` | none |
+| POST `/login` | No | Login handler | `password=<password>` (POST body) |
+| GET `/logout` | No | Logout and clear session | none |
+| GET `/changepassword` | Yes | Password change form | none |
+| POST `/changepassword` | Yes | Password change handler | `old=<old_pw>&new=<new_pw>&confirm=<confirm_pw>` (POST body) |
+| GET `/config` | Yes | Main UI | none |
+| GET `/cal/on` | Yes | Start calibration | none |
+| GET `/cal/off` | Yes | Stop calibration | none |
+| GET `/store/on` | Yes | Save calibration profile | none |
+| GET `/reset/on` | Yes | Reset CMPS14 | none |
+| GET `/calmode/set` | Yes | Save calibration mode | `?c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
+| GET `/offset/set` | Yes | Installation offset | `?v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard |
+| GET `/dev8/set` | Yes | Eight deviation points | `?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
+| GET `/deviationdetails` | Yes | Deviation curve and table | none |
+| GET `/magvar/set` | Yes | Manual variation | `?v=<-90...90>` // Degrees (-) west, (+) east |
+| GET `/heading/mode` | Yes | Heading mode | `?m=<1\|0>` // 1 = HDG(T), 0 = HDG(M) |
+| GET `/status` | Yes | Status block | none |
+| GET `/restart` | Yes | Restart ESP32 | `?ms=5003` // Delay before actual restart in ms |
+| GET `/level` | Yes | Level CMPS14 attitude | none |
+
+Endpoints can of course be used by any specified http request. Thus, should one want to add leveling of attitude to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauges on the dashboard.
 
 **Please refer to Security section of this file.**
 
@@ -326,21 +361,20 @@ Using different display can be done within `DisplayManager` class while ensuring
   
 ## Project structure
 
-```
-/
-- CMPS14-ESP32-SignalK-gateway.ino                 // Owns CMPS14Application app, contains setup() and loop()
-- version.h                                        // Software version
-- CalMode.h                                        // Enum class for CMPS14 calibration modes
-- WifiState.h                                      // Enum class for wifi states
-- harmonic.h             | harmonic.cpp            // Struct and functions to compute deviations, class DeviationLookup
-- CMPS14Sensor.h         | CMPS14Sensor.cpp        // Class CMPS14Sensor, the "sensor"
-- CMPS14Processor.h      | CMPS14Processor.cpp     // Class CMPS14Processor, the "compass"
-- CMPS14Preferences.h    | CMPS14Preferences.cpp   // Class CMPS14Preferences, the "compass_prefs"
-- SignalKBroker.h        | SignalKBroker.cpp       // Class SignalKBroker, the "signalk"
-- DisplayManager.h       | DisplayManager.cpp      // Class DisplayManager, the "display"
-- WebUIManager.h         | WebUIManager.cpp        // Class WebUIManager, the "webui"
-- CMPS14Application.h    | CMPS14Application.cpp   // Class CMPS14Application, the "app"
-```
+| File(s) | Description |
+|----------|-------------|
+| `CMPS14-ESP32-SignalK-gateway.ino` | Owns CMPS14Application app, contains setup() and loop() |
+| `version.h` | Software version |
+| `CalMode.h` | Enum class for CMPS14 calibration modes |
+| `WifiState.h` | Enum class for wifi states |
+| `harmonic.h/harmonic.cpp` | Struct and functions to compute deviations, class DeviationLookup |
+| `CMPS14Sensor.h/CMPS14Sensor.cpp` | Class CMPS14Sensor, the "sensor" |
+| `CMPS14Processor.h/CMPS14Processor.cpp` | Class CMPS14Processor, the "compass" |
+| `CMPS14Preferences.h/CMPS14Preferences.cpp` | Class CMPS14Preferences, the "compass_prefs" |
+| `SignalKBroker.h/SignalKBroker.cpp` | Class SignalKBroker, the "signalk" |
+| `DisplayManager.h/DisplayManager.cpp` | Class DisplayManager, the "display" |
+| `WebUIManager.h/WebUIManager.cpp` | Class WebUIManager, the "webui" |
+| `CMPS14Application.h/CMPS14Application.cpp` | Class CMPS14Application, the "app" |
 
 ## Hardware
 
@@ -395,12 +429,15 @@ Using different display can be done within `DisplayManager` class while ensuring
    inline constexpr const char* SK_HOST = "your_signalk_address_here";
    inline constexpr uint16_t SK_PORT = 3000; // <-- replace with your signalk server port
    inline constexpr const char* SK_TOKEN = "your_signalk_auth_token_here";
+   inline constexpr const char* DEFAULT_WEB_PASSWORD = "your_default_web_password_here";
    ```
 4. **Make sure that `secrets.h` is listed in your `.gitignore` file**
 5. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
 6. Connect and power up the ESP32 with the USB cable
 7. Compile and upload with Arduino IDE (ESP tools and required libraries installed)
 8. Open browser --> navigate to ESP32 webserver's ip-address for web UI (make sure you are in the same network with the ESP32)
+9. Login with the default web password
+10. **Change the web password immediately after first login**
 
 **Please refer to Security section of this file.**
 
@@ -416,7 +453,7 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Debug
 
-Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly:
+Long term observations on release v1.1.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly:
 
 - Free heap memory (from `ESP.getFreeHeap()`): approximately 160 kB (60 %) free, total being 277 kB - does not vary that much
 - Loop runtime exponential moving average (alpha 0.01): approximately 1 ms
@@ -424,13 +461,56 @@ Long term observations on release v1.0.0 running on SH-ESP32 board, LCD connecte
 
 ## Security
 
-- **SignalK token is an optional part of websocket url and it is visible in the websocket url!**
-- **Keep ESP32 and SignalK server in the same private LAN!**
-- **Webserver does not use https!**
-- **Do not connect the system as-is to internet or public wifi access point!**
-- **List the secrets.h or any other source of credentials in your `.gitignore` file**
+### Maritime navigation
 
-- **Use at your own risk - not for safety-critical navigation!**
+**Use at your own risk - not for safety-critical navigation!**
+
+### Authentication
+
+WebServer endpoints are protected by session-based authentication:
+- SHA256 password hashing (no plaintext storage)
+- Hardware random session tokens (128-bit)
+- HttpOnly cookies
+- Rate limiting (2 s delay on failed login)
+- Automatic session timeout (6 hours)
+
+### Important security considerations
+
+1. **HTTP only (No HTTPS)**
+   - Passwords and session tokens transmitted in plaintext
+   - **Recommendation:** Use only on private, trusted networks
+
+2. **LAN deployment only**
+   - Do NOT expose to public internet
+   - Keep ESP32 on isolated WiFi
+   - Use WPA2/WPA3 encryption
+
+3. **SignalK token visibility**
+   - SignalK authentication token visible in WebSocket URL
+   - Keep ESP32 and SignalK server on same private network
+
+4. **Change default web password**
+   - Default web password is weak
+   - Change immediately after first login
+   - Use strong password (8+ chars, mixed case, numbers)
+
+5. **Rate limiting**
+   - 2-second delay on failed login attempts
+   - Light protection against brute-force attacks
+   - Still vulnerable for serious attacks
+
+### Deployment
+
+**Recommended:**
+- Deploy on private isolated boat WiFi
+- Change default password immediately
+- Use WPA2/WPA3 WiFi encryption
+
+**Not Recommended:**
+- Public internet exposure
+- Port forwarding to ESP32
+- Using default password in production
+- Sharing WiFi network with untrusted devices
 
 ## Credits
 
