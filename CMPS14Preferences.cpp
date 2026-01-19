@@ -113,26 +113,32 @@ void CMPS14Preferences::saveWebPassword(const char* password_sha256_hex) {
 
 // Load web password hash from NVS
 bool CMPS14Preferences::loadWebPasswordHash(char* out_hash_64bytes) {
-  prefs.begin(ns, true);
+  
+  if (!prefs.begin(ns, true)) {
+    out_hash_64bytes[0] = '\0';
+    return false;
+  }
+
   size_t len = prefs.getString("web_pass", out_hash_64bytes, 65);
   prefs.end();
 
-  if (len != 64) {
+  if (len == 0) {
     out_hash_64bytes[0] = '\0';
     return false;
   }
 
   out_hash_64bytes[64] = '\0';  // Ensure null termination
+  if (strlen(out_hash_64bytes) != 64) {
+    out_hash_64bytes[0] = '\0';
+    return false;
+  }
+
   return true;
 }
 
 // Check if web password is set
 bool CMPS14Preferences::hasWebPassword() {
-  prefs.begin(ns, true);
-  char hash[65];
-  size_t len = prefs.getString("web_pass", hash, 65);
-  prefs.end();
-
-  return (len == 64);
+  char temp[65];
+  return this->loadWebPasswordHash(temp);
 }
 
