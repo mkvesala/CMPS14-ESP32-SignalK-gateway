@@ -363,7 +363,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 | File(s) | Description |
 |----------|-------------|
 | `CMPS14-ESP32-SignalK-gateway.ino` | Owns CMPS14Application app, contains setup() and loop() |
-| `secrets.example.h`| Example credentials. Rename to `secrets.h´ and populate with your credentials. |
+| `secrets.example.h`| Example credentials. Rename to `secrets.h` and populate with your credentials. |
 | `version.h` | Software version |
 | `CalMode.h` | Enum class for CMPS14 calibration modes |
 | `WifiState.h` | Enum class for wifi states |
