@@ -740,8 +740,34 @@ void WebUIManager::handleLogin() {
   // Compare
   if (strcmp(input_hash, stored_hash) != 0) {
     display.showSuccessMessage("LOGIN", false);
-    delay(2000);
-    this->handleLoginPage();
+    String debug;
+    debug.reserve(256);  // varaa etukäteen, estää turhaa reallocointia
+
+    debug += "=== LOGIN DEBUG ===\n";
+    debug += "Input hash  : ";
+    debug += input_hash;
+    debug += "\n";
+
+    debug += "Stored hash : ";
+    debug += stored_hash;
+    debug += "\n";
+
+    debug += "Input len   : ";
+    debug += String(strlen(input_hash));
+    debug += "\n";
+
+    debug += "Stored len  : ";
+    debug += String(strlen(stored_hash));
+    debug += "\n";
+
+    debug += "strcmp result: ";
+    debug += String(strcmp(input_hash, stored_hash));
+    debug += "\n";
+    debug += "==================\n";
+
+    server.send(500, "text/plain", debug);
+    //delay(2000);
+    //this->handleLoginPage();
     return;
   }
   
