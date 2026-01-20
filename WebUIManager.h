@@ -90,6 +90,7 @@ private:
   
   static constexpr uint8_t MAX_SESSIONS = 3;
   static constexpr unsigned long SESSION_TIMEOUT_MS = 21600000; // 6 hours
+  static const char* HEADER_KEYS[1];
   
   Session sessions[MAX_SESSIONS];
   

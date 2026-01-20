@@ -1,6 +1,8 @@
 #include "WebUIManager.h"
 #include "secrets.h"
 
+const char* WebUIManager::HEADER_KEYS[1] = {"Cookie"};
+
 // === P U B L I C ===
 
 // Constructor
@@ -29,6 +31,7 @@ void WebUIManager::begin() {
     compass_prefs.saveWebPassword(hash);
     display.showInfoMessage("DEFAULT PASSWORD!", "CHANGE NOW!");
   }
+  server.collectHeaders(HEADER_KEYS, 1);
   this->setupRoutes();
   server.begin();
 }
@@ -710,11 +713,11 @@ void WebUIManager::handleLogin() {
     return;
   }
   
-  const char* password = server.arg("password").c_str();
+  String password = server.arg("password");
   
   // SHA
   char input_hash[65];
-  sha256_hash(password, input_hash);
+  sha256_hash(password.c_str(), input_hash);
   
   // Load stored password hash
   char stored_hash[65];
@@ -723,51 +726,11 @@ void WebUIManager::handleLogin() {
     return;
   }
 
-  // DEBUG: Print hashes to Serial
-  // Serial.println("=== LOGIN DEBUG ===");
-  // Serial.print("Input hash  : ");
-  // Serial.println(input_hash);
-  // Serial.print("Stored hash : ");
-  // Serial.println(stored_hash);
-  // Serial.print("Input len   : ");
-  // Serial.println(strlen(input_hash));
-  // Serial.print("Stored len  : ");
-  // Serial.println(strlen(stored_hash));
-  // Serial.print("strcmp result: ");
-  // Serial.println(strcmp(input_hash, stored_hash));
-  // Serial.println("==================");
-
   // Compare
   if (strcmp(input_hash, stored_hash) != 0) {
-    display.showSuccessMessage("LOGIN", false);
-    String debug;
-    debug.reserve(256);  // varaa etukäteen, estää turhaa reallocointia
-
-    debug += "=== LOGIN DEBUG ===\n";
-    debug += "Input hash  : ";
-    debug += input_hash;
-    debug += "\n";
-
-    debug += "Stored hash : ";
-    debug += stored_hash;
-    debug += "\n";
-
-    debug += "Input len   : ";
-    debug += String(strlen(input_hash));
-    debug += "\n";
-
-    debug += "Stored len  : ";
-    debug += String(strlen(stored_hash));
-    debug += "\n";
-
-    debug += "strcmp result: ";
-    debug += String(strcmp(input_hash, stored_hash));
-    debug += "\n";
-    debug += "==================\n";
-
-    server.send(500, "text/plain", debug);
-    //delay(2000);
-    //this->handleLoginPage();
+    display.showSuccessMessage("WEB UI LOGIN", false);
+    delay(2000);
+    this->handleLoginPage();
     return;
   }
   
@@ -776,11 +739,12 @@ void WebUIManager::handleLogin() {
   
   // Set session cookie for 6 h
   char cookie[128];
-  snprintf(cookie, sizeof(cookie), "session=%s; Path=/; Max-Age=21600; HttpOnly", token);
+  snprintf(cookie, sizeof(cookie), "session=%s; Path=/; Max-Age=21600; HttpOnly SameSite=Lax", token);
+  server.sendHeader("Cache-Control", "no-store");
   server.sendHeader("Set-Cookie", cookie);
   server.sendHeader("Location", "/config");
-  server.send(302, "text/plain", "");
-
+  server.send(303, "text/plain", "");
+  display.showSuccessMessage("WEB UI LOGIN", true);
 }
 
 // Web UI handler for login page
@@ -832,10 +796,10 @@ void WebUIManager::handleLoginPage() {
 void WebUIManager::handleLogout() {
   // Empty session
   if (server.hasHeader("Cookie")) {
-    const char* cookies = server.header("Cookie").c_str();
+    String cookies = server.header("Cookie");
     char token[33];
 
-    if (parseSessionToken(cookies, token)) {
+    if (parseSessionToken(cookies.c_str(), token)) {
       // Remove session
       for (uint8_t i = 0; i < MAX_SESSIONS; i++) {
         if (strcmp(sessions[i].token, token) == 0) {
@@ -855,15 +819,15 @@ void WebUIManager::handleLogout() {
 // Authentication
 bool WebUIManager::requireAuth() {
   if (!server.hasHeader("Cookie")) {
-    server.send(401, "text/plain", "Unauthorized");
+    server.send(401, "text/plain", "Unauthorized 1");
     return false;
   }
   
-  const char* cookies = server.header("Cookie").c_str();
+  String cookies = server.header("Cookie");
   char token[33];
   
-  if (!parseSessionToken(cookies, token)) {
-    server.send(401, "text/plain", "Unauthorized");
+  if (!parseSessionToken(cookies.c_str(), token)) {
+    server.send(401, "text/plain", "Unauthorized 2");
     return false;
   }
   
@@ -879,10 +843,10 @@ bool WebUIManager::requireAuth() {
 bool WebUIManager::isAuthenticated() {
   if (!server.hasHeader("Cookie")) return false;
 
-  const char* cookies = server.header("Cookie").c_str();
+  String cookies = server.header("Cookie");
   char token[33];
 
-  if (!parseSessionToken(cookies, token)) return false;
+  if (!parseSessionToken(cookies.c_str(), token)) return false;
 
   return this->validateSession(token);
 }
@@ -985,9 +949,12 @@ void WebUIManager::handleChangePassword() {
     return;
   }
 
-  const char* old_pw = server.arg("old").c_str();
-  const char* new_pw = server.arg("new").c_str();
-  const char* confirm_pw = server.arg("confirm").c_str();
+  String oldStr = server.arg("old");
+  const char* old_pw = oldStr.c_str();
+  String newStr = server.arg("new");
+  const char* new_pw = newStr.c_str();
+  String confirmStr = server.arg("confirm");
+  const char* confirm_pw = confirmStr.c_str();
 
   // Validate
   if (strcmp(new_pw, confirm_pw) != 0) {
