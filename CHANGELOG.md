@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 # Changelog
 
-## [1.1.0] - 2026-01-18
+## [1.1.0] - 2026-01-21
 
 ### Added
 
@@ -72,6 +72,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - New session configuration constants in `WebUIManager.h`:
   - `MAX_SESSIONS = 3` (concurrent users)
   - `SESSION_TIMEOUT_MS = 21600000` (6 hours)
+- New static const char* array HEADER_KEYS to be used in WebUIManager::begin() by server.collectHeaders(..)
 
 ### Changed
 
@@ -94,6 +95,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - JavaScript enhancement in `/config`:
   - Automatic redirect to `/` on HTTP 401 response
   - Session expiry detection in status update loop
+- CSS definitions have been updated for better responsiveness
 
 #### Comments & documentation
 - Updated `WebUIManager.h` class description
@@ -149,14 +151,7 @@ No noticeable performance degradation.
 
 #### Code Structure
 - Authentication logic isolated in `WebUIManager` private methods
-- Session management uses fixed-size array (no dynamic allocation)
 - NVS operations in `CMPS14Preferences` for consistency
-
-#### Future Enhancements
-- Consider HTTPS/TLS support
-- Add login attempt logging
-- Implement IP whitelisting option
-- Add TOTP two-factor authentication
 
 ## [1.0.1] - 2026-01-09
 
