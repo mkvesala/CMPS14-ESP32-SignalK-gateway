@@ -25,10 +25,15 @@ WebUIManager::WebUIManager(
 
 // Init the webserver
 void WebUIManager::begin() {
-  if (!compass_prefs.hasWebPassword()) {
-    char hash[65];
-    sha256_hash(DEFAULT_WEB_PASSWORD, hash);
-    compass_prefs.saveWebPassword(hash);
+  char stored_hash[65];
+  char default_hash[65];
+  this->sha256Hash(DEFAULT_WEB_PASSWORD, default_hash);
+  if (!compass_prefs.loadWebPasswordHash(stored_hash)) {
+    // If no password in NVS, save default
+    compass_prefs.saveWebPassword(default_hash);
+    display.showInfoMessage("DEFAULT PASSWORD!", "CHANGE NOW!");
+  } else if (strcmp(stored_hash, default_hash) == 0) {
+    // If NVS password equals the default, warn
     display.showInfoMessage("DEFAULT PASSWORD!", "CHANGE NOW!");
   }
   server.collectHeaders(HEADER_KEYS, 1);
@@ -372,14 +377,14 @@ void WebUIManager::handleRoot() {
     <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><style>
     html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}
     body { background:#000; color:#fff; }
-    .button { background-color: #00A300; border: none; color: white; padding: 6px 20px; text-decoration: none; font-size: 3vmin; max-font-size: 24px; min-font-size: 10px; margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
+    .button { background-color: #00A300; border: none; color: white; padding: 6px 10px; text-decoration: none; font-size: clamp(10px, 3vmin, 24px); margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
     .button2 { background-color: #D10000; }
     .button:disabled, .button2:disabled { opacity:0.5; cursor:not-allowed; }
-    .card { width:92%; margin:2px auto; padding:2px; background:#0b0b0b; border-radius:4px; box-shadow:0 0 0 1px #222 inset; }
-    h1 { margin:12px 0 8px 0; } h2 { margin:8px 0; font-size: 4vmin; max-font-size: 16px; min-font-size: 10px; } h3 { margin:6px 0; font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; }
+    .card { width:92%; margin:2px auto; padding:2px; background:#0b0b0b; border-radius:6px; box-shadow:0 0 0 1px #222 inset; }
+    h1 { margin:12px 0 8px 0; } h2 { margin:8px 0; font-size: clamp(10px, 4vmin, 16px); } h3 { margin:6px 0; font-size: clamp(8px, 3vmin, 14px); }
     label { display:inline-block; min-width:40px; text-align:right; margin-right:6px; }
-    input[type=number]{ font-size: 3vmin; max-font-size: 14px; min-font-size: 8px; width:60px; padding:4px 6px; margin:4px; border-radius:6px; border:1px solid #333; background:#111; color:#fff; }
-    #st { font-size: 2vmin; max-font-size: 18px; min-font-size: 6px; line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 8px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
+    input[type=number]{ font-size: clamp(8px, 3vmin, 14px); width:60px; padding:4px 6px; margin:4px; border-radius:6px; border:1px solid #333; background:#111; color:#fff; }
+    #st { font-size: clamp(6px, 2vmin, 18px); line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 6px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
     </style></head><body>
     <h2><a href="/" style="color:white; text-decoration:none;">CMPS14 CONFIG</a></h2>
     )");
@@ -505,6 +510,10 @@ void WebUIManager::handleRoot() {
     server.sendContent_P(R"(>Magnetic</label>
     <input type="submit" class="button" value="SAVE"></form></div>)");
 
+  // DIV Level attitude
+  server.sendContent_P(R"(<div class='card'>
+    <a href="/level"><button class="button">LEVEL ATTITUDE</button></a></div>)");
+
   // DIV Status
   server.sendContent_P(R"(<div class='card'><div id="st">Loading...</div></div>)");
 
@@ -575,12 +584,13 @@ void WebUIManager::handleRoot() {
       }
       setInterval(upd,1013);upd();
     </script>)");
+  
+  // DIV System buttons
   server.sendContent_P(R"(
     <div class='card'>
-    <a href="/level"><button class="button">LEVEL CMPS14</button></a>
     <a href="/changepassword"><button class="button">CHANGE PASSWORD</button></a>
     <a href="/logout"><button class="button button2">LOGOUT</button></a>
-    <a href="/restart?ms=5003"><button class="button button2">RESTART ESP32</button></a></div>
+    <a href="/restart?ms=5003"><button class="button button2">RESTART</button></a></div>
     </body>
     </html>)");
   server.sendContent("");
@@ -600,12 +610,12 @@ void WebUIManager::handleDeviationTable(){
     <link rel="icon" href="data:,">
     <title>Deviation details</title>
     <style>
-      body{font-size:3vmin;max-font-size:14px;min-font-size:8px;background:#000;color:#fff;font-family:Helvetica;margin:0 auto;text-align:center}
-      .card{font-size:3vmin;max-font-size:14px;min-font-size:8px;width:92%;margin:8px auto;padding:8px;background:#0b0b0b;border-radius:6px;box-shadow:0 0 0 1px #222 inset}
-      table{font-size:3vmin;max-font-size:14px;min-font-size:8px;margin:8px auto;border-collapse:collapse;color:#ddd}
-      td,th{font-size:3vmin;max-font-size:14px;min-font-size:8px;border:1px solid #333;padding:4px 8px}
-      h2{margin:8px 0; font-size: 4vmin; max-font-size: 16px; min-font-size: 10px;}
-      a{color:#fff;text-decoration:none;}
+      body{font-size: clamp(8px, 3vmin, 14px); background:#000; color:#fff; font-family:Helvetica;margin:0 auto; text-align:center}
+      .card{font-size: clamp(8px, 3vmin, 14px); width:92%; margin:8px auto; padding:8px;background:#0b0b0b;border-radius:6px;box-shadow:0 0 0 1px #222 inset}
+      table{font-size:clamp(8px, 3vmin, 14px); margin:8px auto; border-collapse:collapse;color:#ddd}
+      td,th{font-size:clamp(8px, 3vmin, 14px); border:1px solid #333; padding:4px 8px}
+      h2{margin:8px 0; font-size: clamp(10px, 4vmin, 16px);}
+      a{color:#fff; text-decoration:none;}
     </style>
     </head><body>
     <div class="card">
@@ -717,7 +727,7 @@ void WebUIManager::handleLogin() {
   
   // SHA
   char input_hash[65];
-  sha256_hash(password.c_str(), input_hash);
+  this->sha256Hash(password.c_str(), input_hash);
   
   // Load stored password hash
   char stored_hash[65];
@@ -739,7 +749,7 @@ void WebUIManager::handleLogin() {
   
   // Set session cookie for 6 h
   char cookie[128];
-  snprintf(cookie, sizeof(cookie), "session=%s; Path=/; Max-Age=21600; HttpOnly SameSite=Lax", token);
+  snprintf(cookie, sizeof(cookie), "session=%s; Path=/; Max-Age=21600; HttpOnly; SameSite=Lax", token);
   server.sendHeader("Cache-Control", "no-store");
   server.sendHeader("Set-Cookie", cookie);
   server.sendHeader("Location", "/config");
@@ -819,7 +829,7 @@ void WebUIManager::handleLogout() {
 // Authentication
 bool WebUIManager::requireAuth() {
   if (!server.hasHeader("Cookie")) {
-    server.send(401, "text/plain", "Unauthorized 1");
+    server.send(401, "text/plain", "Unauthorized");
     return false;
   }
   
@@ -827,7 +837,7 @@ bool WebUIManager::requireAuth() {
   char token[33];
   
   if (!parseSessionToken(cookies.c_str(), token)) {
-    server.send(401, "text/plain", "Unauthorized 2");
+    server.send(401, "text/plain", "Unauthorized");
     return false;
   }
   
@@ -967,9 +977,14 @@ void WebUIManager::handleChangePassword() {
     return;
   }
 
+  if (strcmp(new_pw, DEFAULT_WEB_PASSWORD) == 0) {
+    server.send(400, "text/plain", "Choose a different password");
+    return;
+  }
+
   // Check old password
   char old_hash[65];
-  sha256_hash(old_pw, old_hash);
+  this->sha256Hash(old_pw, old_hash);
 
   char stored_hash[65];
   compass_prefs.loadWebPasswordHash(stored_hash);
@@ -982,7 +997,7 @@ void WebUIManager::handleChangePassword() {
 
   // Save new password
   char new_hash[65];
-  sha256_hash(new_pw, new_hash);
+  this->sha256Hash(new_pw, new_hash);
   compass_prefs.saveWebPassword(new_hash);
 
   display.showSuccessMessage("PASSWORD CHANGED", true);
@@ -1081,7 +1096,7 @@ bool WebUIManager::parseSessionToken(const char* cookies, char* token_out_33byte
 }
 
 // SHA256 hash helper
-void WebUIManager::sha256_hash(const char* input, char* output_hex_64bytes) {
+void WebUIManager::sha256Hash(const char* input, char* output_hex_64bytes) {
   mbedtls_md_context_t ctx;
   mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
   
@@ -1125,8 +1140,8 @@ void WebUIManager::handleRestart() {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="refresh" content="20; url=/">
     <style>
-      body{background:#000;color:#fff;font-family:Helvetica;text-align:center;margin:18vh 0 0 0}
-      .msg{font-size:5vmin;max-font-size:24px;min-font-size:12px}
+      body{background:#000; color:#fff; font-family:Helvetica; text-align:center; margin:18vh 0 0 0}
+      .msg{font-size: clamp(12px, 5vmin, 24px);}
       p{color:#bbb}
     </style>
     <script>

@@ -226,7 +226,7 @@ The calibration profile is saved on CMPS14 internally, *not* in ESP32 NVS.
 
 ### Web UI (WebServer)
 
-<img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120">
+<img src="docs/ui0.jpeg" width="120"><img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120"><img src="docs/ui5.jpeg" width="120"><img src="docs/ui6.jpeg" width="120">
 
 Webserver provides simple responsive HTML/JS user interface for user to configure:
 
@@ -543,7 +543,7 @@ I would highly appreciate improvement suggestions as well as any Arduino-style E
 
 ## Gallery
 
-<img src="docs/project1.jpeg" width="120"> <img src="docs/project2.jpeg" width="120"> <img src="docs/project3.jpeg" width="120"> <img src="docs/project4.jpeg" width="120"> <img src="docs/project5.jpeg" width="120"> <img src="docs/project6.jpeg" width="120"> <img src="docs/class_diagram.png" width="120"> <img src="docs/schematic.png" width="120"> <img src="docs/paths.jpeg" width="120">
+<img src="docs/project1.jpeg" width="120"> <img src="docs/project2.jpeg" width="120"> <img src="docs/project3.jpeg" width="120"> <img src="docs/project4.jpeg" width="120"> <img src="docs/project5.jpeg" width="120"> <img src="docs/project6.jpeg" width="120"> <img src="docs/class_diagram.png" width="120"> <img src="docs/schematic.png" width="120"> <img src="docs/paths.jpeg" width="120"><img src="docs/ui0.jpeg" width="120"><img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120"><img src="docs/ui5.jpeg" width="120"><img src="docs/ui6.jpeg" width="120">
 
 
 

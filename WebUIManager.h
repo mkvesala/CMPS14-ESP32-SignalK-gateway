@@ -105,7 +105,7 @@ private:
   bool parseSessionToken(const char* cookies, char* token_out_33bytes);
   
   // SHA256 hash helper
-  void sha256_hash(const char* input, char* output_hex_64bytes);
+  void sha256Hash(const char* input, char* output_hex_64bytes);
 
   // Milliseconds to hh:mm:ss
   const char* ms_to_hms_str(unsigned long ms) {

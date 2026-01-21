@@ -135,10 +135,3 @@ bool CMPS14Preferences::loadWebPasswordHash(char* out_hash_64bytes) {
 
   return true;
 }
-
-// Check if web password is set
-bool CMPS14Preferences::hasWebPassword() {
-  char temp[65];
-  return this->loadWebPasswordHash(temp);
-}
-

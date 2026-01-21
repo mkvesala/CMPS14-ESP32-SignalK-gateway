@@ -35,7 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rate limiting on failed login attempts (2-second delay)
 - Password strength validation (minimum 8 characters)
 - Secure password storage in NVS (SHA256 hash only)
-- Default password warning on LCD display at first boot
+- Default password warning on LCD display
 - Session token validation on every endpoint
 - Automatic session cleanup for expired sessions
 
@@ -60,12 +60,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `createSession()` Generate new session token
 - `validateSession()` Validate session token and update `last_seen`
 - `cleanExpiredSessions()` Remove expired sessions from memory
-- `sha256_hash()` Calculate SHA256 hash of password
+- `sha256Hash()` Calculate SHA256 hash of password
 
 **CMPS14Preferences**
 - `saveWebPassword()` Save password hash to NVS
 - `loadWebPasswordHash()` Load password hash from NVS
-- `hasWebPassword()` Check if password is configured
 
 #### Configuration
 - New constant in `secrets.h`: `DEFAULT_WEB_PASSWORD`
@@ -87,9 +86,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 #### UI updates
 - Main configuration page moved from `/` to `/config`
+- *LEVEL CMPS14* button has been replaced above status block and renamed to *LEVEL ATTITUDE*
+- *RESTART ESP32* button has been renamed to *RESTART*
 - New buttons added to main page:
-  - **CHANGE PASSWORD**
-  - **LOGOUT**
+  - *CHANGE PASSWORD*
+  - *LOGOUT*
 - JavaScript enhancement in `/config`:
   - Automatic redirect to `/` on HTTP 401 response
   - Session expiry detection in status update loop
@@ -97,14 +98,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 #### Comments & documentation
 - Updated `WebUIManager.h` class description
 - Added authentication flow documentation
-- Inline comments for security-critical code sections
+- Inline comments in code
 - Corrected typos in README, CONTRIBUTING, and inline comments
 - Updated ToDo in README
 
 ### Security
 
 #### Implemented protections
-- Password never stored in plaintext (SHA256 hash only)
+- Password never stored in plain text (SHA256 hash only)
 - Session tokens cryptographically random (ESP32 TRNG)
 - HttpOnly cookies prevent JavaScript access
 - Rate limiting prevents brute-force attacks
@@ -119,6 +120,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 - Added a delay in the eternal while-loop in main program's `setup()`, which was missing in previous releases.
+- CSS definitions in `<style>` have been updated, syntax errors in previous releases.
 
 ### Deprecated
 - N/A
@@ -128,26 +130,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Performance
 
-#### Memory impact
-- RAM: +250 bytes (session table + auth logic)
-- Flash: +5 KB (HTML pages + auth code)
-- NVS: +64 bytes (password hash)
-
-**Total impact:** Minimal
-
-#### Runtime impact
-- Login: ~50 ms (SHA256 computation)
-- Session validation: <1 ms (token comparison)
-- Session cleanup: <5 ms (per cleanup cycle)
-
 No noticeable performance degradation.
 
 ### Migration Notes
 
 #### Upgrading from v1.0.x
 1. Flash new firmware
-2. ESP32 automatically sets default password on first boot
-3. Login with `cmps14admin`
+2. ESP32 automatically sets default password on first boot based on `secrets.h` constant
+3. Login with default password
 4. **Change password immediately via web UI**
 5. All existing settings (calibration, offsets) preserved
 

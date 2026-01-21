@@ -35,7 +35,6 @@ public:
     void saveSendHeadingTrue(bool enable);
     void saveWebPassword(const char* password_sha256_hex);
     bool loadWebPasswordHash(char* out_hash_64bytes);
-    bool hasWebPassword();
 
 private:
     const char* ns = "cmps14";
