@@ -374,17 +374,20 @@ void WebUIManager::handleRoot() {
 
   // Head and CSS
   server.sendContent_P(R"(
-    <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="data:,"><style>
-    html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}
-    body { background:#000; color:#fff; }
-    .button { background-color: #00A300; border: none; color: white; padding: 6px 10px; text-decoration: none; font-size: clamp(10px, 3vmin, 24px); margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
+    <!DOCTYPE html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes"><link rel="icon" href="data:,">
+    <style>
+    * { box-sizing: border-box } 
+    html { font-family: Helvetica; margin: 0; padding: 0; text-align: center; }
+    body { background:#000; color:#fff; max-width: 768px; margin: 0 auto; padding: 0; font-size: clamp(8px, 3vmin, 14px); }
+    .button { background-color: #00A300; border: none; color: white; padding: 6px 10px; text-decoration: none; font-size: clamp(8px, 3vmin, 14px); margin: 2px; cursor: pointer; border-radius:6px; text-align:center}
     .button2 { background-color: #D10000; }
     .button:disabled, .button2:disabled { opacity:0.5; cursor:not-allowed; }
     .card { width:92%; margin:2px auto; padding:2px; background:#0b0b0b; border-radius:6px; box-shadow:0 0 0 1px #222 inset; }
     h1 { margin:12px 0 8px 0; } h2 { margin:8px 0; font-size: clamp(10px, 4vmin, 16px); } h3 { margin:6px 0; font-size: clamp(8px, 3vmin, 14px); }
     label { display:inline-block; min-width:40px; text-align:right; margin-right:6px; }
     input[type=number]{ font-size: clamp(8px, 3vmin, 14px); width:60px; padding:4px 6px; margin:4px; border-radius:6px; border:1px solid #333; background:#111; color:#fff; }
-    #st { font-size: clamp(6px, 2vmin, 18px); line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 6px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
+    #st { font-size: clamp(6px, 2vmin, 10px); line-height: 1.2; color: #DBDBDB; background-color: #000; padding: 8px; border-radius: 6px; width: 90%; margin: auto; text-align: center; white-space: pre-line; font-family: monospace;}
     </style></head><body>
     <h2><a href="/" style="color:white; text-decoration:none;">CMPS14 CONFIG</a></h2>
     )");
@@ -606,11 +609,13 @@ void WebUIManager::handleDeviationTable(){
   server.send(200, "text/html; charset=utf-8", "");
   server.sendContent_P(R"(
     <!DOCTYPE html><html><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <link rel="icon" href="data:,">
     <title>Deviation details</title>
     <style>
-      body{font-size: clamp(8px, 3vmin, 14px); background:#000; color:#fff; font-family:Helvetica;margin:0 auto; text-align:center}
+      * { box-sizing: border-box } 
+      html { font-family: Helvetica; margin: 0; padding: 0; text-align: center; }
+      body{background:#000; color:#fff; max-width: 768px; margin: 0 auto; padding: 0;font-size: clamp(8px, 3vmin, 14px); background:#000; color:#fff; font-family:Helvetica;margin:0 auto; text-align:center}
       .card{font-size: clamp(8px, 3vmin, 14px); width:92%; margin:8px auto; padding:8px;background:#0b0b0b;border-radius:6px;box-shadow:0 0 0 1px #222 inset}
       table{font-size:clamp(8px, 3vmin, 14px); margin:8px auto; border-collapse:collapse;color:#ddd}
       td,th{font-size:clamp(8px, 3vmin, 14px); border:1px solid #333; padding:4px 8px}
@@ -669,7 +674,7 @@ void WebUIManager::handleDeviationTable(){
       X, ymap(-ymax), X, ymap(ymax));
     server.sendContent(buf);
     snprintf(buf,sizeof(buf),
-      "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"12\" text-anchor=\"middle\">%03d</text>",
+      "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"10\" text-anchor=\"middle\">%03d</text>",
       X, ymap(-ymax)-4, k);
     server.sendContent(buf);
   }
@@ -682,7 +687,7 @@ void WebUIManager::handleDeviationTable(){
       xmap(xmin), Y, xmap(xmax), Y);
     server.sendContent(buf);
     snprintf(buf,sizeof(buf),
-      "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"12\" text-anchor=\"end\">%+d°</text>",
+      "<text x=\"%.1f\" y=\"%.1f\" fill=\"#aaa\" font-size=\"10\" text-anchor=\"end\">%+d°</text>",
       xmap(xmin)-6, Y+4, j);
     server.sendContent(buf);
   }
@@ -768,23 +773,24 @@ void WebUIManager::handleLoginPage() {
   
   server.sendContent_P(R"(
     <!DOCTYPE html><html><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <link rel="icon" href="data:,">
     <title>CMPS14 Login</title>
     <style>
-      body { background: #000; color: #fff; font-family: Helvetica; 
-             text-align: center; padding-top: 20vh; margin: 0; }
-      h1 { font-size: 6vmin; margin: 20px 0; }
+      * { box-sizing: border-box } 
+      html { font-family: Helvetica; margin: 0; padding: 0; text-align: center; }
+      body { background:#000; color:#fff; max-width: 768px; margin: 0 auto; padding: 0; font-size: clamp(8px, 3vmin, 14px); font-family: Helvetica;  padding-top: 20vh; }
+      h1 { font-size: clamp(12px, 5vmin, 20px); margin: 20px 0; }
       form { margin: 40px auto; max-width: 300px; }
-      input[type=password] { font-size: 4vmin; padding: 12px; 
+      input[type=password] { font-size: clamp(10px, 4vmin, 16px); padding: 12px; 
                              border-radius: 6px; width: 240px; 
                              border: 1px solid #333; background: #111; 
                              color: #fff; margin: 10px 0; }
       .button { background: #00A300; border: none; color: white; 
-                padding: 12px 40px; font-size: 4vmin; border-radius: 6px; 
+                padding: 6px 10px; font-size: clamp(8px, 3vmin, 14px); border-radius: 6px; 
                 cursor: pointer; margin: 10px 0; }
       .button:hover { background: #00C300; }
-      .info { color: #888; font-size: 2.5vmin; margin: 20px; }
+      .info { color: #888; font-size: clamp(6px, 2vmin, 10px); margin: 20px; }
     </style>
     </head>
     <body>
@@ -1017,21 +1023,22 @@ void WebUIManager::handleChangePasswordPage() {
   
   server.sendContent_P(R"(
     <!DOCTYPE html><html><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <link rel="icon" href="data:,">
     <title>Change Password</title>
     <style>
-      html { font-family: Helvetica; display: inline-block; margin: 0 auto; text-align: center;}
-      body { background:#000; color:#fff; }
+      * { box-sizing: border-box } 
+      html { font-family: Helvetica; margin: 0; padding: 0; text-align: center; }
+      body { background:#000; color:#fff; max-width: 768px; margin: 0 auto; padding: 0; font-size: clamp(8px, 3vmin, 14px); }
       .button { background-color: #00A300; border: none; color: white; 
-                padding: 8px 24px; text-decoration: none; font-size: 3vmin; 
+                padding: 6px 10px; text-decoration: none; font-size: clamp(8px, 3vmin, 14px); 
                 margin: 8px; cursor: pointer; border-radius:6px; }
       .button2 { background-color: #D10000; }
       .card { width:92%; margin:10px auto; padding:10px; background:#0b0b0b; 
               border-radius:6px; box-shadow:0 0 0 1px #222 inset; }
-      h2 { margin:16px 0; font-size: 4vmin; }
+      h2 { margin:16px 0; font-size: clamp(10px, 4vmin, 16px); }
       label { display:block; text-align:left; margin:8px 0 4px 0; }
-      input[type=password] { font-size: 3vmin; width: 90%; padding:8px; 
+      input[type=password] { font-size: clamp(8px, 3vmin, 14px); width: 90%; padding:8px; 
                              margin:4px 0; border-radius:6px; border:1px solid #333; 
                              background:#111; color:#fff; }
     </style>
@@ -1137,11 +1144,13 @@ void WebUIManager::handleRestart() {
   server.send(200, "text/html; charset=utf-8", "");
   server.sendContent_P(R"(
     <!DOCTYPE html><html><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <meta http-equiv="refresh" content="20; url=/">
     <style>
-      body{background:#000; color:#fff; font-family:Helvetica; text-align:center; margin:18vh 0 0 0}
-      .msg{font-size: clamp(12px, 5vmin, 24px);}
+      * { box-sizing: border-box } 
+      html { font-family: Helvetica; margin: 0; padding: 0; text-align: center; }
+      body { background:#000; color:#fff; max-width: 768px; margin:18vh 0 0 0; padding: 0; font-size: clamp(8px, 3vmin, 14px); }
+      .msg{font-size: clamp(12px, 5vmin, 20px);}
       p{color:#bbb}
     </style>
     <script>
