@@ -72,7 +72,7 @@ void WebUIManager::setupRoutes() {
   server.on("/login", HTTP_POST, [this]() {
     this->handleLogin();
   });
-  server.on("/logout", HTTP_GET, [this]() {
+  server.on("/logout", HTTP_POST, [this]() {
     this->handleLogout();
   });
   server.on("/changepassword", HTTP_POST, [this]() {
@@ -88,43 +88,43 @@ void WebUIManager::setupRoutes() {
     if (!this->requireAuth()) return;
     this->handleStatus();
   });
-  server.on("/cal/on", HTTP_GET, [this]() {
+  server.on("/cal/on", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleStartCalibration();
   });
-  server.on("/cal/off", HTTP_GET, [this]() {
+  server.on("/cal/off", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleStopCalibration();
   });
-  server.on("/store/on", HTTP_GET, [this]() {
+  server.on("/store/on", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleSaveCalibration();
   });
-  server.on("/reset/on", HTTP_GET, [this]() {
+  server.on("/reset/on", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleReset();
   });
-  server.on("/offset/set", HTTP_GET, [this]() {
+  server.on("/offset/set", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleSetOffset();
   });
-  server.on("/dev8/set", HTTP_GET, [this]() {
+  server.on("/dev8/set", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleSetDeviations();
   });
-  server.on("/calmode/set", HTTP_GET, [this]() {
+  server.on("/calmode/set", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleSetCalmode();
   });
-  server.on("/magvar/set", HTTP_GET, [this]() {
+  server.on("/magvar/set", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleSetMagvar();
   });
-  server.on("/heading/mode", HTTP_GET, [this]() {
+  server.on("/heading/mode", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleSetHeadingMode();
   });
-  server.on("/restart", HTTP_GET, [this]() {
+  server.on("/restart", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleRestart();
   });
@@ -132,7 +132,7 @@ void WebUIManager::setupRoutes() {
     if (!this->requireAuth()) return;
     this->handleDeviationTable();
   });
-  server.on("/level", HTTP_GET, [this]() {
+  server.on("/level", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
     this->handleLevel();
   });
@@ -410,23 +410,23 @@ void WebUIManager::handleRoot() {
   }
 
   if (mode_runtime == CalMode::AUTO || mode_runtime == CalMode::MANUAL) {
-    server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
+    server.sendContent_P(R"(<form action="/cal/off" method="post" style="display:inline"><button class="button button2">STOP</button></form>)");
     if (!compass.isCalProfileStored()) {
-      server.sendContent_P(R"(<a href="/store/on"><button class="button">SAVE</button></a>)");
+      server.sendContent_P(R"(<form action="/store/on" method="post" style="display:inline"><button class="button">SAVE</button></form>)");
     } else {
-      server.sendContent_P(R"(<a href="/store/on"><button class="button button2">REPLACE</button></a>)");
+      server.sendContent_P(R"(<form action="/store/on" method="post" style="display:inline"><button class="button button2">REPLACE</button></form>)");
     }
   } else if (mode_runtime == CalMode::USE) {
-    server.sendContent_P(R"(<a href="/cal/on"><button class="button">CALIBRATE</button></a>)");
+    server.sendContent_P(R"(<form action="/cal/on" method="post" style="display:inline"><button class="button">CALIBRATE</button></form>)");
   } else if (mode_runtime == CalMode::FULL_AUTO) {
-    server.sendContent_P(R"(<a href="/cal/off"><button class="button button2">STOP</button></a>)");
+    server.sendContent_P(R"(<form action="/cal/off" method="post" style="display:inline"><button class="button button2">STOP</button></form>)");
   }
-  server.sendContent_P(R"(<a href="/reset/on"><button class="button button2">RESET</button></a></div>)");
+  server.sendContent_P(R"(<form action="/reset/on" method="post" style="display:inline"><button class="button button2">RESET</button></form>)");
 
   // DIV Calibration mode on boot
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/calmode/set" method="get">
+    <form action="/calmode/set" method="post">
     <label>Boot mode </label><label><input type="radio" name="c" value="0")");
   if (mode_boot == CalMode::FULL_AUTO) server.sendContent_P(R"( checked)");
   server.sendContent_P(R"(>Full auto </label><label>
@@ -446,7 +446,7 @@ void WebUIManager::handleRoot() {
   // DIV Set installation offset
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/offset/set" method="get">
+    <form action="/offset/set" method="post">
     <label>Installation offset</label>
     <input type="number" name="v" step="1" min="-180" max="180" value=")");
   snprintf(buf, sizeof(buf), "%.0f", compass.getInstallationOffset());
@@ -455,7 +455,7 @@ void WebUIManager::handleRoot() {
 
   // DIV Set deviation 
   server.sendContent_P(R"(
-    <div class='card'>Measured deviations<form action="/dev8/set" method="get"><div>)");
+    <div class='card'>Measured deviations<form action="/dev8/set" method="post"><div>)");
 
   // Row 1: N NE
   snprintf(buf, sizeof(buf),
@@ -500,7 +500,7 @@ void WebUIManager::handleRoot() {
   // DIV Set variation 
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/magvar/set" method="get">
+    <form action="/magvar/set" method="post">
     <label>Manual variation </label>
     <input type="number" name="v" step="1" min="-180" max="180" value=")");
   snprintf(buf, sizeof(buf), "%.0f", compass.getManualVariation());
@@ -510,7 +510,7 @@ void WebUIManager::handleRoot() {
   // DIV Set heading mode TRUE or MAGNETIC
   server.sendContent_P(R"(
     <div class='card'>
-    <form action="/heading/mode" method="get">
+    <form action="/heading/mode" method="post">
     <label>Heading </label><label><input type="radio" name="m" value="1")");
     if (send_hdg_true) server.sendContent_P(R"( checked)");
     server.sendContent_P(R"(>True</label><label>
@@ -521,7 +521,7 @@ void WebUIManager::handleRoot() {
 
   // DIV Level attitude
   server.sendContent_P(R"(<div class='card'>
-    <a href="/level"><button class="button">LEVEL ATTITUDE</button></a></div>)");
+    <form action="/level" method="post" style="display:inline"><button class="button">LEVEL ATTITUDE</button></form></div>)");
 
   // DIV Status
   server.sendContent_P(R"(<div class='card'><div id="st">Loading...</div></div>)");
@@ -545,18 +545,30 @@ void WebUIManager::handleRoot() {
           html += `Current mode: ${j.cal_mode}<br>`;
         }
         if (j.cal_mode === 'AUTO' || j.cal_mode === 'MANUAL') {
-          html += `<a href="/cal/off"><button class="button button2">STOP</button></a>`;
+          html += `<form action="/cal/off" method="post" style="display:inline">
+                    <button class="button button2">STOP</button>
+                  </form>`;
           if (j.stored) {
-            html += `<a href="/store/on"><button class="button button2">REPLACE</button></a>`;
+            html += `<form action="/store/on" method="post" style="display:inline">
+                      <button class="button button2">REPLACE</button>
+                    </form>`;
           } else {
-            html += `<a href="/store/on"><button class="button">SAVE</button></a>`;
+            html += `<form action="/store/on" method="post" style="display:inline">
+                      <button class="button">SAVE</button>
+                    </form>`;
           }
         } else if (j.cal_mode === 'USE') {
-          html += `<a href="/cal/on"><button class="button">CALIBRATE</button></a>`;
+          html += `<form action="/cal/on" method="post" style="display:inline">
+                    <button class="button">CALIBRATE</button>
+                  </form>`;
         } else if (j.cal_mode === 'FULL AUTO') {
-          html += `<a href="/cal/off"><button class="button button2">STOP</button></a>`;
+          html += `<form action="/cal/off" method="post" style="display:inline">
+                    <button class="button button2">STOP</button>
+                  </form>`;
         }
-        html += `<a href="/reset/on"><button class="button button2">RESET</button></a>`;
+        html += `<form action="/reset/on" method="post" style="display:inline">
+                  <button class="button button2">RESET</button>
+                </form>`;
         el.innerHTML = html;
       }
       function upd(){
@@ -598,8 +610,9 @@ void WebUIManager::handleRoot() {
   server.sendContent_P(R"(
     <div class='card'>
     <a href="/changepassword"><button class="button">CHANGE PASSWORD</button></a>
-    <a href="/logout"><button class="button button2">LOGOUT</button></a>
-    <a href="/restart?ms=5003"><button class="button button2">RESTART</button></a></div>
+    <form action="/logout" method="post" style="display:inline"><button class="button button2">LOGOUT</button></form>
+    <form action="/restart" method="post" style="display:inline"><input type="hidden" name="ms" value="5003"><button class="button button2">RESTART</button></form>
+    </div>
     </body>
     </html>)");
   server.sendContent("");
