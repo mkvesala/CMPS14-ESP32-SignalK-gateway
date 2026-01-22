@@ -421,7 +421,7 @@ void WebUIManager::handleRoot() {
   } else if (mode_runtime == CalMode::FULL_AUTO) {
     server.sendContent_P(R"(<form action="/cal/off" method="post" style="display:inline"><button class="button button2">STOP</button></form>)");
   }
-  server.sendContent_P(R"(<form action="/reset/on" method="post" style="display:inline"><button class="button button2">RESET</button></form>)");
+  server.sendContent_P(R"(<form action="/reset/on" method="post" style="display:inline"><button class="button button2">RESET</button></form></div>)");
 
   // DIV Calibration mode on boot
   server.sendContent_P(R"(
