@@ -1,6 +1,7 @@
 #include "WebUIManager.h"
 #include "secrets.h"
 
+// Value for static const char* array
 const char* WebUIManager::HEADER_KEYS[1] = {"Cookie"};
 
 // === P U B L I C ===
@@ -21,6 +22,10 @@ WebUIManager::WebUIManager(
             sessions[i].created_ms = 0;
             sessions[i].last_seen_ms = 0;
           }
+          for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+            login_attempts[i].timestamp_ms = 0;
+            login_attempts[i].count = 0;
+          }
         }
 
 // Init the webserver
@@ -33,7 +38,7 @@ void WebUIManager::begin() {
     compass_prefs.saveWebPassword(default_hash);
     display.showInfoMessage("DEFAULT PASSWORD!", "CHANGE NOW!");
   } else if (strcmp(stored_hash, default_hash) == 0) {
-    // If NVS password equals the default, warn
+    // If NVS password equals the default, show warning
     display.showInfoMessage("DEFAULT PASSWORD!", "CHANGE NOW!");
   }
   server.collectHeaders(HEADER_KEYS, 1);
@@ -723,6 +728,23 @@ void WebUIManager::handleDeviationTable(){
 // Web UI handler for login 
 void WebUIManager::handleLogin() {
 
+  // Get client IP address
+  uint32_t client_ip = server.client().remoteIP();
+  
+  // Check login rate limiting
+  if (!this->checkLoginRateLimit(client_ip)) {
+    unsigned long now = millis();
+    uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
+    unsigned long lockout_left = LOCKOUT_DURATION_MS - (now - login_attempts[slot].timestamp_ms);
+    unsigned long secs_left = lockout_left / 1000;
+    
+    char msg[64];
+    snprintf(msg, sizeof(msg), "Too many attempts. Try again in %lu seconds", secs_left);
+    
+    server.send(429, "text/plain", msg);  // 429 Too Many Requests
+    return;
+  }
+
   if (!server.hasArg("password")) {
     server.send(400, "text/plain", "Bad Request");
     return;
@@ -744,12 +766,13 @@ void WebUIManager::handleLogin() {
   // Compare
   if (strcmp(input_hash, stored_hash) != 0) {
     display.showSuccessMessage("WEB UI LOGIN", false);
-    delay(2000);
+    this->recordFailedLogin(client_ip);
     this->handleLoginPage();
     return;
   }
   
   // Password correct, create session
+  this->recordSuccessfulLogin(client_ip);
   char* token = this->createSession();
   
   // Set session cookie for 6 h
@@ -996,7 +1019,8 @@ void WebUIManager::handleChangePassword() {
   compass_prefs.loadWebPasswordHash(stored_hash);
 
   if (strcmp(old_hash, stored_hash) != 0) {
-    delay(2000);
+    uint32_t client_ip = server.client().remoteIP();
+    this->recordFailedLogin(client_ip);
     server.send(401, "text/plain", "Wrong password");
     return;
   }
@@ -1121,6 +1145,56 @@ void WebUIManager::sha256Hash(const char* input, char* output_hex_64bytes) {
     sprintf(&output_hex_64bytes[i * 2], "%02x", hash[i]);
   }
   output_hex_64bytes[64] = '\0';
+}
+
+// Check if an IP address is subject to rate limiting
+bool WebUIManager::checkLoginRateLimit(uint32_t client_ip) {
+  this->cleanOldLoginAttempts();
+  
+  unsigned long now = millis();
+  
+  for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+    if (login_attempts[i].count == 0) continue;
+    
+    uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
+    
+    if (i == slot && login_attempts[i].count >= MAX_LOGIN_ATTEMPTS) {
+      // Check if subject to lockout
+      if ((now - login_attempts[i].timestamp_ms) < LOCKOUT_DURATION_MS) {
+        return false; // Block
+      }
+    }
+  }
+  
+  return true;  // Allow
+}
+
+// Capture failed login attempt from a client IP address
+void WebUIManager::recordFailedLogin(uint32_t client_ip) {
+  uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
+  login_attempts[slot].timestamp_ms = millis();
+  login_attempts[slot].count++;
+}
+
+// Capture successful login from a client IP address
+void WebUIManager::recordSuccessfulLogin(uint32_t client_ip) {
+  uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
+  login_attempts[slot].count = 0;
+  login_attempts[slot].timestamp_ms = 0;
+}
+
+// Reset the outdated attempts
+void WebUIManager::cleanOldLoginAttempts() {
+  unsigned long now = millis();
+  
+  for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+    if (login_attempts[i].count > 0 &&
+        (now - login_attempts[i].timestamp_ms) > THROTTLE_WINDOW_MS) {
+      if (login_attempts[i].count < MAX_LOGIN_ATTEMPTS) {
+        login_attempts[i].count = 0;
+      }
+    }
+  }
 }
 
 // Web UI handler for software restart of ESP32

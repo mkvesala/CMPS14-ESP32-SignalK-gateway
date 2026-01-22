@@ -80,32 +80,43 @@ private:
   void handleChangePassword();
   void handleChangePasswordPage();
 
-
-  // 128-bit random token (32 hex chars + null)
-  struct Session {
-    char token[33];
-    unsigned long created_ms; 
-    unsigned long last_seen_ms;
-  };
-  
-  static constexpr uint8_t MAX_SESSIONS = 3;
-  static constexpr unsigned long SESSION_TIMEOUT_MS = 21600000; // 6 hours
-  static const char* HEADER_KEYS[1];
-  
-  Session sessions[MAX_SESSIONS];
-  
   // Authentication
   bool requireAuth();
   bool isAuthenticated();
   bool validateSession(const char* token);
   char* createSession();
   void cleanExpiredSessions();
-
-  // Cookie parser helper
   bool parseSessionToken(const char* cookies, char* token_out_33bytes);
-  
-  // SHA256 hash helper
   void sha256Hash(const char* input, char* output_hex_64bytes);
+  bool checkLoginRateLimit(uint32_t client_ip);
+  void recordFailedLogin(uint32_t client_ip);
+  void recordSuccessfulLogin(uint32_t client_ip);
+  void cleanOldLoginAttempts();
+
+  // Struct for 128-bit random session token (32 hex chars + null)
+  struct Session {
+    char token[33];
+    unsigned long created_ms; 
+    unsigned long last_seen_ms;
+  };
+
+  // Struct for login attempt throttling
+  struct LoginAttempt {
+    unsigned long timestamp_ms;
+    uint8_t count; // Consecutive failed attempts
+  };
+  
+  static constexpr uint8_t MAX_SESSIONS = 3;
+  static constexpr unsigned long SESSION_TIMEOUT_MS = 21600000; // 6 hours
+  static constexpr uint8_t MAX_LOGIN_ATTEMPTS = 5;
+  static constexpr uint8_t MAX_IP_FOLLOWUP = 3;
+  static constexpr unsigned long THROTTLE_WINDOW_MS = 60000;  // 1 min
+  static constexpr unsigned long LOCKOUT_DURATION_MS = 300000; // 5 min
+  
+  static const char* HEADER_KEYS[1];
+  
+  Session sessions[MAX_SESSIONS];
+  LoginAttempt login_attempts[MAX_IP_FOLLOWUP];
 
   // Milliseconds to hh:mm:ss
   const char* ms_to_hms_str(unsigned long ms) {
