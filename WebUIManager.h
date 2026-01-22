@@ -102,6 +102,7 @@ private:
 
   // Struct for login attempt throttling
   struct LoginAttempt {
+    uint32_t ip_address; // Client IP
     unsigned long timestamp_ms;
     uint8_t count; // Consecutive failed attempts
   };
@@ -109,7 +110,7 @@ private:
   static constexpr uint8_t MAX_SESSIONS = 3;
   static constexpr unsigned long SESSION_TIMEOUT_MS = 21600000; // 6 hours
   static constexpr uint8_t MAX_LOGIN_ATTEMPTS = 5;
-  static constexpr uint8_t MAX_IP_FOLLOWUP = 3;
+  static constexpr uint8_t MAX_IP_FOLLOWUP = 5;
   static constexpr unsigned long THROTTLE_WINDOW_MS = 60000;  // 1 min
   static constexpr unsigned long LOCKOUT_DURATION_MS = 300000; // 5 min
   

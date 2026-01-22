@@ -23,6 +23,7 @@ WebUIManager::WebUIManager(
             sessions[i].last_seen_ms = 0;
           }
           for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+            login_attempts[i].ip_address = 0;
             login_attempts[i].timestamp_ms = 0;
             login_attempts[i].count = 0;
           }
@@ -734,14 +735,23 @@ void WebUIManager::handleLogin() {
   // Check login rate limiting
   if (!this->checkLoginRateLimit(client_ip)) {
     unsigned long now = millis();
-    uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
+    
+    // Etsi IP:n slot virheviestiä varten
+    uint8_t slot = 0;
+    for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+      if (login_attempts[i].ip_address == client_ip) {
+        slot = i;
+        break;
+      }
+    }
+    
     unsigned long lockout_left = LOCKOUT_DURATION_MS - (now - login_attempts[slot].timestamp_ms);
     unsigned long secs_left = lockout_left / 1000;
     
     char msg[64];
     snprintf(msg, sizeof(msg), "Too many attempts. Try again in %lu seconds", secs_left);
     
-    server.send(429, "text/plain", msg);  // 429 Too Many Requests
+    server.send(429, "text/plain", msg);
     return;
   }
 
@@ -1153,34 +1163,67 @@ bool WebUIManager::checkLoginRateLimit(uint32_t client_ip) {
   
   unsigned long now = millis();
   
+  // Check for IP address if already followed up
   for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
-    if (login_attempts[i].count == 0) continue;
-    
-    uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
-    
-    if (i == slot && login_attempts[i].count >= MAX_LOGIN_ATTEMPTS) {
-      // Check if subject to lockout
-      if ((now - login_attempts[i].timestamp_ms) < LOCKOUT_DURATION_MS) {
-        return false; // Block
+    if (login_attempts[i].ip_address == client_ip) {
+      // Found, check if subject to lockout
+      if (login_attempts[i].count >= MAX_LOGIN_ATTEMPTS) {
+        if ((now - login_attempts[i].timestamp_ms) < LOCKOUT_DURATION_MS) {
+          return false; // Blocked
+        }
       }
+      return true; // Found IP, allowed
     }
   }
   
-  return true;  // Allow
+  // IP not found, allowed
+  return true;
 }
 
 // Capture failed login attempt from a client IP address
 void WebUIManager::recordFailedLogin(uint32_t client_ip) {
-  uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
+  // Check for IP
+  for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+    if (login_attempts[i].ip_address == client_ip) {
+      // Update existing
+      login_attempts[i].timestamp_ms = millis();
+      login_attempts[i].count++;
+      return;
+    }
+  }
+  
+  // IP not found, find a slot
+  int8_t empty_slot = -1;
+  int8_t oldest_slot = 0;
+  
+  for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+    if (login_attempts[i].ip_address == 0 || login_attempts[i].count == 0) {
+      empty_slot = i;
+      break;
+    }
+    if (login_attempts[i].timestamp_ms < login_attempts[oldest_slot].timestamp_ms) {
+      oldest_slot = i;
+    }
+  }
+  
+  uint8_t slot = (empty_slot >= 0) ? empty_slot : oldest_slot;
+  
+  login_attempts[slot].ip_address = client_ip;
   login_attempts[slot].timestamp_ms = millis();
-  login_attempts[slot].count++;
+  login_attempts[slot].count = 1;
 }
 
 // Capture successful login from a client IP address
 void WebUIManager::recordSuccessfulLogin(uint32_t client_ip) {
-  uint8_t slot = client_ip % MAX_IP_FOLLOWUP;
-  login_attempts[slot].count = 0;
-  login_attempts[slot].timestamp_ms = 0;
+  // Search and reset this client IP
+  for (uint8_t i = 0; i < MAX_IP_FOLLOWUP; i++) {
+    if (login_attempts[i].ip_address == client_ip) {
+      login_attempts[i].ip_address = 0;
+      login_attempts[i].count = 0;
+      login_attempts[i].timestamp_ms = 0;
+      return;
+    }
+  }
 }
 
 // Reset the outdated attempts
@@ -1191,7 +1234,9 @@ void WebUIManager::cleanOldLoginAttempts() {
     if (login_attempts[i].count > 0 &&
         (now - login_attempts[i].timestamp_ms) > THROTTLE_WINDOW_MS) {
       if (login_attempts[i].count < MAX_LOGIN_ATTEMPTS) {
+        login_attempts[i].ip_address = 0;
         login_attempts[i].count = 0;
+        login_attempts[i].timestamp_ms = 0;
       }
     }
   }
