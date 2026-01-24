@@ -309,27 +309,27 @@ The web UI is protected by session-based authentication.
 
 ### Webserver endpoints
 
-| Path | Auth | Description | Parameters |
-|------|------|-------------|------------|
-| GET `/` | No | Login page or redirect to `/config` | none |
-| POST `/login` | No | Login handler | `password=<password>`  |
-| POST `/logout` | No | Logout and clear session | none |
-| GET `/changepassword` | Yes | Password change form | none |
-| POST `/changepassword` | Yes | Password change handler | `old=<old_pw>&new=<new_pw>&confirm=<confirm_pw>`  |
-| GET `/config` | Yes | Main UI | none |
-| POST `/cal/on` | Yes | Start calibration | none |
-| POST `/cal/off` | Yes | Stop calibration | none |
-| POST `/store/on` | Yes | Save calibration profile | none |
-| POST `/reset/on` | Yes | Reset CMPS14 | none |
-| POST `/calmode/set` | Yes | Save calibration mode | `?c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
-| POST `/offset/set` | Yes | Installation offset | `?v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
-| POST `/dev8/set` | Yes | Eight deviation points | `?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
-| GET `/deviationdetails` | Yes | Deviation curve and table | none |
-| POST `/magvar/set` | Yes | Manual variation | `?v=<-90...90>` // Degrees (-) west, (+) east |
-| POST `/heading/mode` | Yes | Heading mode | `?m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
-| GET `/status` | Yes | Status block | none |
-| POST `/restart` | Yes | Restart ESP32 | `?ms=5003` // Delay before actual restart in ms |
-| POST `/level` | Yes | Level CMPS14 attitude | none |
+| Path | Method | Auth | Description | Parameters |
+|------|--------|------|-------------|------------|
+| `/` | GET | No | Login page or redirect to `/config` | none |
+| `/login` | POST | No | Login handler | `password=<password>`  |
+| `/logout` | POST | No | Logout and clear session | none |
+| `/changepassword` | GET | Yes | Password change form | none |
+| `/changepassword` | POST | Yes | Password change handler | `old=<old_pw>&new=<new_pw>&confirm=<confirm_pw>`  |
+| `/config` | GET | Yes | Main UI | none |
+| `/cal/on` | POST | Yes | Start calibration | none |
+| `/cal/off` | POST | Yes | Stop calibration | none |
+| `/store/on` | POST | Yes | Save calibration profile | none |
+| `/reset/on` | POST | Yes | Reset CMPS14 | none |
+| `/calmode/set` | POST | Yes | Save calibration mode | `?c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
+| `/offset/set` | POST | Yes | Installation offset | `?v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
+| `/dev8/set` | POST | Yes | Eight deviation points | `?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
+| `/deviationdetails` | GET | Yes | Deviation curve and table | none |
+| `/magvar/set` | POST | Yes | Manual variation | `?v=<-90...90>` // Degrees (-) west, (+) east |
+| `/heading/mode` | POST | Yes | Heading mode | `?m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
+| `/status` | GET | Yes | Status block | none |
+| `/restart` | POST | Yes | Restart ESP32 | `?ms=5003` // Delay before actual restart in ms |
+| `/level` | POST | Yes | Level CMPS14 attitude | none |
 
 Endpoints can be used by external HTTP clients. Note that state-changing endpoints require POST method, parameters within POST body. For example, to add leveling of attitude to a [KIP](https://github.com/mxtommy/Kip) dashboard, you would create a button that sends a POST request to `http://<esp32ipaddress>/level`.
 
