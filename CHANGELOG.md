@@ -32,15 +32,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Automatic redirect to login page
 
 #### Security
-- Lopgin throttling of failed login attempts
-- Password strength validation (minimum 8 characters)
-- Secure password storage in NVS (SHA256 hash only)
-- Default password warning on LCD display
-- Session token validation on every endpoint
+- Login throttling of failed login attempts
+- Password lenght min 8 characters validation
+- Password storage in NVS as SHA256 hash
+- Default password usage warning on LCD display
+- Session token validation on endpoints
 - Automatic session cleanup for expired sessions
 
 #### New HTTP Endpoints
-- `GET /` Login page or redirect to config if authenticated
+- `GET /` Login page or redirect to `/config` if authenticated
 - `POST /login` Login handler with password parameter
 - `POST /logout` Logout and session cleanup
 - `GET /changepassword` Password change form
@@ -77,7 +77,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - New session configuration constants in `WebUIManager.h`:
   - `MAX_SESSIONS = 3` (concurrent users)
   - `SESSION_TIMEOUT_MS = 21600000` (6 hours)
-- New static const char* array HEADER_KEYS to be used in WebUIManager::begin() by server.collectHeaders(..)
+- New static array `HEADER_KEYS` to be used in `WebUIManager::begin()` by `server.collectHeaders(..)`
 - New login throttling constants in `WebUIManager.h`:
   - `MAX_LOGIN_ATTEMPTS = 5` (logins per IP address)
   - `MAX_IP_FOLLOWUP = 5` (IP addresses to be tracked simultaneously)
@@ -103,48 +103,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - New buttons added to main page:
   - *CHANGE PASSWORD*
   - *LOGOUT*
-- JavaScript enhancement in `/config`:
+- JavaScript enhancement:
   - Automatic redirect to `/` on HTTP 401 response
   - Session expiry detection in status update loop
 - CSS definitions have been updated for better responsiveness
 
-#### HTTP Method updates
+#### HTTP method updates
 - Changed state-modifying endpoints from GET to POST:
   - `/cal/on`, `/cal/off`, `/store/on`, `/reset/on` (GET → POST)
   - `/offset/set`, `/dev8/set`, `/magvar/set` (GET → POST)
   - `/calmode/set`, `/heading/mode` (GET → POST)
   - `/restart`, `/level` (GET → POST)
 - Parameters now sent in POST body instead of URL query strings
-- HTML forms in `/config` updated to use POST method
+- HTML forms in updated to use POST method
 
-#### Comments & documentation
-- Updated `WebUIManager.h` class description
-- Added authentication flow documentation
-- Inline comments in code
-- Corrected typos in README, CONTRIBUTING, and inline comments
-- Updated ToDo in README
-
-### Security
+### Security notes
 
 #### Implemented protections
-- Password never stored in plain text (SHA256 hash only)
+- Password stored as SHA256 hash in NVS
 - Session tokens cryptographically random (ESP32 TRNG)
-- HttpOnly cookies prevent JavaScript access
-- Login throttling prevents brute-force attacks
-- Session timeout limits unauthorized access window
-- All endpoints protected by default
+- HttpOnly cookies
+- Login throttling
+- Session timeout
+- Endpoints authentication
 
 #### Login throttling
 - Light weight IP-based login attempt tracking
-- 5-minute lockout after 5 failed login attempts per IP address
+- 5-minute lockout after 5 failed login attempts per IP address in 1 min
 - Tracks up to 5 IP addresses simultaneously
 - Automatic cleanup of old login attempts (1-minute window)
 
 #### Known limitations
 - HTTP only (no HTTPS) - suitable for private LAN only
-- No CSRF protection - do not expose to internet
+- No true CSRF protection - do not expose to internet
 - No IP whitelisting - any LAN device can attempt login
-- No login attempt logging - failed attempts only delayed
+- No login attempt logging - failed attempts only locked out for 5 mins
 
 ### Fixed
 - Added a delay in the eternal while-loop in main program's `setup()`, which was missing in previous releases.

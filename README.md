@@ -265,13 +265,13 @@ Additionally the user may:
 5. *SHOW DEVIATION CURVE*
    - Opens a new page with a back-button pointing to the configuration page
    - Simplified deviation curve and deviation table presented 0...360° with 010° resolution
-6. *LEVEL CMPS14* attitude to zero
+6. *LEVEL ATTITUDE* to zero
    - Takes the negation of the latest pitch and roll to capture the leveling factors for attitude
    - Leveling factors are applied to the raw pitch and roll
    - Thus, user may reset the attitude to zero at any vessel position to start using proportional pitch and roll
    - Leveling is not incremental and the leveling factors are *not* stored persistently in ESP32 NVS
    - Leveling resets pitch/roll min/max values
-8. *RESTART ESP32*
+8. *RESTART* the system
    - Opens a temporary page which will refresh back to the configuration page after 20 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
    - Calls `ESP.restart()` of `esp_system`
@@ -296,7 +296,7 @@ The web UI is protected by session-based authentication.
 3. Enter default password
 4. Change password immediately after first login via *CHANGE PASSWORD* button
 
-**Password requirements:**
+**Password:**
 - Minimum 8 characters
 - Stored as SHA256 hash in NVS
 - Persistent, survives ESP32 reboots
@@ -445,7 +445,7 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Todo
 
-- Add support for a separate CrowPanel 2.1 inch ESP32 Rotary Display knob screen, to display compass and setup
+- Integrate with a separate CrowPanel 2.1 inch ESP32 Rotary Display knob screen, to display compass and allow setup
 - Consider an asynchronous esp_http_server to replace the WebServer to improve performance and remove `loop()` blocking
 - Replace the rest of stuff within `loop()` with separate FreeRTOS tasks pinned to core 0 and 1
 - Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers
