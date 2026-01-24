@@ -312,26 +312,26 @@ The web UI is protected by session-based authentication.
 | Path | Auth | Description | Parameters |
 |------|------|-------------|------------|
 | GET `/` | No | Login page or redirect to `/config` | none |
-| POST `/login` | No | Login handler | `password=<password>` (POST body) |
-| GET `/logout` | No | Logout and clear session | none |
+| POST `/login` | No | Login handler | `password=<password>`  |
+| POST `/logout` | No | Logout and clear session | none |
 | GET `/changepassword` | Yes | Password change form | none |
-| POST `/changepassword` | Yes | Password change handler | `old=<old_pw>&new=<new_pw>&confirm=<confirm_pw>` (POST body) |
+| POST `/changepassword` | Yes | Password change handler | `old=<old_pw>&new=<new_pw>&confirm=<confirm_pw>`  |
 | GET `/config` | Yes | Main UI | none |
-| GET `/cal/on` | Yes | Start calibration | none |
-| GET `/cal/off` | Yes | Stop calibration | none |
-| GET `/store/on` | Yes | Save calibration profile | none |
-| GET `/reset/on` | Yes | Reset CMPS14 | none |
-| GET `/calmode/set` | Yes | Save calibration mode | `?c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
-| GET `/offset/set` | Yes | Installation offset | `?v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard |
-| GET `/dev8/set` | Yes | Eight deviation points | `?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
+| POST `/cal/on` | Yes | Start calibration | none |
+| POST `/cal/off` | Yes | Stop calibration | none |
+| POST `/store/on` | Yes | Save calibration profile | none |
+| POST `/reset/on` | Yes | Reset CMPS14 | none |
+| POST `/calmode/set` | Yes | Save calibration mode | `?c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
+| POST `/offset/set` | Yes | Installation offset | `?v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
+| POST `/dev8/set` | Yes | Eight deviation points | `?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
 | GET `/deviationdetails` | Yes | Deviation curve and table | none |
-| GET `/magvar/set` | Yes | Manual variation | `?v=<-90...90>` // Degrees (-) west, (+) east |
-| GET `/heading/mode` | Yes | Heading mode | `?m=<1\|0>` // 1 = HDG(T), 0 = HDG(M) |
+| POST `/magvar/set` | Yes | Manual variation | `?v=<-90...90>` // Degrees (-) west, (+) east |
+| POST `/heading/mode` | Yes | Heading mode | `?m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
 | GET `/status` | Yes | Status block | none |
-| GET `/restart` | Yes | Restart ESP32 | `?ms=5003` // Delay before actual restart in ms |
-| GET `/level` | Yes | Level CMPS14 attitude | none |
+| POST `/restart` | Yes | Restart ESP32 | `?ms=5003` // Delay before actual restart in ms |
+| POST `/level` | Yes | Level CMPS14 attitude | none |
 
-Endpoints can of course be used by any specified http request. Thus, should one want to add leveling of attitude to, let's say, a [KIP](https://github.com/mxtommy/Kip) dashboard, just a simple webpage widget with a link to `http://<esp32ipaddress>/level` could be added next to pitch and roll gauges on the dashboard.
+Endpoints can be used by external HTTP clients. Note that state-changing endpoints require POST method, parameters within POST body. For example, to add leveling of attitude to a [KIP](https://github.com/mxtommy/Kip) dashboard, you would create a button that sends a POST request to `http://<esp32ipaddress>/level`.
 
 **Please refer to Security section of this file.**
 
@@ -471,7 +471,7 @@ WebServer endpoints are protected by session-based authentication:
 - SHA256 password hashing (no plaintext storage)
 - Hardware random session tokens (128-bit)
 - HttpOnly cookies
-- Rate limiting (2 s delay on failed login)
+- Login throttling (5-minute lockout after 5 failed attempts)
 - Automatic session timeout (6 hours)
 
 ### Important security considerations
@@ -494,10 +494,10 @@ WebServer endpoints are protected by session-based authentication:
    - Change immediately after first login
    - Use strong password (8+ chars, mixed case, numbers)
 
-5. **Rate limiting**
-   - 2-second delay on failed login attempts
-   - Light protection against brute-force attacks
-   - Still vulnerable for serious attacks
+5. **Login throttling**
+   - IP-based light weight tracking of failed login attempts
+   - 5-minute lockout after 5 failed attempts
+   - Tracks max 5 IP addresses simultaneously
   
 6. **`secrets.h`**
    - Make sure that `secrets.h` is listed in your `.gitignore` file

@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 # Changelog
 
-## [1.1.0] - 2026-01-21
+## [1.1.0] - 2026-01-24
 
 ### Added
 
@@ -31,8 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Session cleanup on server and browser
   - Automatic redirect to login page
 
-#### Security Features
-- Rate limiting on failed login attempts (2-second delay)
+#### Security
+- Lopgin throttling of failed login attempts
 - Password strength validation (minimum 8 characters)
 - Secure password storage in NVS (SHA256 hash only)
 - Default password warning on LCD display
@@ -42,7 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 #### New HTTP Endpoints
 - `GET /` Login page or redirect to config if authenticated
 - `POST /login` Login handler with password parameter
-- `GET /logout` Logout and session cleanup
+- `POST /logout` Logout and session cleanup
 - `GET /changepassword` Password change form
 - `POST /changepassword` Password change handler
 - `GET /config` Main configuration page (renamed from `/`)
@@ -61,6 +61,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `validateSession()` Validate session token and update `last_seen`
 - `cleanExpiredSessions()` Remove expired sessions from memory
 - `sha256Hash()` Calculate SHA256 hash of password
+- `parseSessionToken()` Extract session token from cookie header
+- `checkLoginRateLimit()` Check if IP address is subject to rate limiting
+- `recordFailedLogin()` Record failed login attempt for IP address
+- `recordSuccessfulLogin()` Clear login attempt tracking for IP address
+- `cleanOldLoginAttempts()` Remove outdated login attempts from tracking
 
 **CMPS14Preferences**
 - `saveWebPassword()` Save password hash to NVS
@@ -73,6 +78,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - `MAX_SESSIONS = 3` (concurrent users)
   - `SESSION_TIMEOUT_MS = 21600000` (6 hours)
 - New static const char* array HEADER_KEYS to be used in WebUIManager::begin() by server.collectHeaders(..)
+- New login throttling constants in `WebUIManager.h`:
+  - `MAX_LOGIN_ATTEMPTS = 5` (logins per IP address)
+  - `MAX_IP_FOLLOWUP = 5` (IP addresses to be tracked simultaneously)
+  - `THROTTLE_WINDOW_MS = 60000` (login attempts window 1 min)
+  - `LOCKOUT_DURATION_MS = 300000` (lockout 5 mins)
+- New structs to store sessions and login attempts
 
 ### Changed
 
@@ -97,6 +108,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Session expiry detection in status update loop
 - CSS definitions have been updated for better responsiveness
 
+#### HTTP Method updates
+- Changed state-modifying endpoints from GET to POST:
+  - `/cal/on`, `/cal/off`, `/store/on`, `/reset/on` (GET → POST)
+  - `/offset/set`, `/dev8/set`, `/magvar/set` (GET → POST)
+  - `/calmode/set`, `/heading/mode` (GET → POST)
+  - `/restart`, `/level` (GET → POST)
+- Parameters now sent in POST body instead of URL query strings
+- HTML forms in `/config` updated to use POST method
+
 #### Comments & documentation
 - Updated `WebUIManager.h` class description
 - Added authentication flow documentation
@@ -110,9 +130,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Password never stored in plain text (SHA256 hash only)
 - Session tokens cryptographically random (ESP32 TRNG)
 - HttpOnly cookies prevent JavaScript access
-- Rate limiting prevents brute-force attacks
+- Login throttling prevents brute-force attacks
 - Session timeout limits unauthorized access window
 - All endpoints protected by default
+
+#### Login throttling
+- Light weight IP-based login attempt tracking
+- 5-minute lockout after 5 failed login attempts per IP address
+- Tracks up to 5 IP addresses simultaneously
+- Automatic cleanup of old login attempts (1-minute window)
 
 #### Known limitations
 - HTTP only (no HTTPS) - suitable for private LAN only
@@ -152,6 +178,14 @@ No noticeable performance degradation.
 #### Code Structure
 - Authentication logic isolated in `WebUIManager` private methods
 - NVS operations in `CMPS14Preferences` for consistency
+
+#### External integrations
+If you call the web endpoints:
+1. Update HTTP method from GET to POST for state-changing endpoints
+2. Move URL parameters from query strings to POST body
+3. Example: `GET /level` → `POST /level` (no parameters)
+4. Example: `GET /offset/set?v=10` → `POST /offset/set` with body `v=10`
+5. Read-only endpoints (GET `/status`, GET `/deviationdetails`) remain unchanged
 
 ## [1.0.1] - 2026-01-09
 
