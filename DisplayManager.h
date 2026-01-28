@@ -37,7 +37,11 @@ class DisplayManager {
     void showInfoMessage(const char* who, const char* what);
     void showWifiStatus();
     
+    [[deprecated("Use setWifiInfo(int32_t rssi, uint32_t ip) instead")]]
     void setWifiInfo(int32_t rssi, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
+    
+    void setWifiInfo(int32_t rssi, uint32_t ip);
+    
     void setWifiState(WifiState state);
 
     const char* getWifiQuality() const { return RSSIc; }
@@ -54,7 +58,11 @@ class DisplayManager {
     
     // Wifi info
     void setRSSIc(int32_t rssi);
+
+    [[deprecated("Use setIPc(uint32_t ip) instead")]]
     void setIPc(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3);
+    
+    void setIPc(uint32_t ip);
 
     // Fifo
     bool pushMsgItem(const auto &msg);

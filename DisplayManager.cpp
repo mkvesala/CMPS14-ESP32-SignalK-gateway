@@ -58,11 +58,19 @@ void DisplayManager::showWifiStatus() {
   this->pushMsgItem(msg);
 }
 
+// Set Wifi info for display purposes - deprecated
 void DisplayManager::setWifiInfo(int32_t rssi, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3) {
   this->setRSSIc(rssi);
   this->setIPc(ip0, ip1, ip2, ip3);
 }
 
+// Set Wifi info for display purposes
+void DisplayManager::setWifiInfo(int32_t rssi, uint32_t ip) {
+  this->setRSSIc(rssi);
+  this->setIPc(ip);
+}
+
+// Set Wifi state
 void DisplayManager::setWifiState(WifiState state) {
   wifi_state = state;
 }
@@ -139,8 +147,17 @@ void DisplayManager::setRSSIc(int32_t rssi) {
   RSSIc[sizeof(RSSIc) - 1] = '\0';
 }
 
-// Set IP Address descriptor
+// Set IP Address descriptor - deprecated
 void DisplayManager::setIPc(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3) {
+  snprintf(IPc, sizeof(IPc), "%u.%u.%u.%u", ip0, ip1, ip2, ip3);
+}
+
+// Set IP Address descriptor
+void DisplayManager::setIPc(uint32_t ip) {
+  uint8_t ip3 = (ip >> 24) & 0xFF;
+  uint8_t ip2 = (ip >> 16) & 0xFF;
+  uint8_t ip1 = (ip >> 8) & 0xFF;
+  uint8_t ip0 = ip & 0xFF;
   snprintf(IPc, sizeof(IPc), "%u.%u.%u.%u", ip0, ip1, ip2, ip3);
 }
 

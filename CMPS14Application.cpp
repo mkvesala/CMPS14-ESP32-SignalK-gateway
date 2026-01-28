@@ -86,8 +86,8 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       if (status == WL_CONNECTED) {
         wifi_state = WifiState::CONNECTED;
         int32_t rssi = WiFi.RSSI();
-        IPAddress ip = WiFi.localIP();
-        display.setWifiInfo(rssi, ip[0], ip[1], ip[2], ip[3]);
+        uint32_t ip = (uint32_t)WiFi.localIP();
+        display.setWifiInfo(rssi, ip);
         display.showSuccessMessage("WIFI CONNECT", true);
         display.showWifiStatus();
         display.setWifiState(wifi_state);
