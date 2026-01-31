@@ -23,10 +23,12 @@ static constexpr float headings_deg[8] = { 0, 45, 90, 135, 180, 225, 270, 315 };
 //
 // - Compute 5 coeffs from measured deviations at 8 cardinal/intercardinal points
 // - Compute deviation based on the coeffs at any heading (degrees)
+// - Compute shortest arc on 360° (for instance 359° to 001° is 2° not 358°) in radians
 // - Inline helper to check float validity
 
 HarmonicCoeffs computeHarmonicCoeffs(const float* dev_deg);
 float computeDeviation(const HarmonicCoeffs& h, float hdg_deg);
+float computeAngDiffRad(float a, float b);
 inline bool validf(float x) { return !isnan(x) && isfinite(x); }
 
 // === D E V I A T I O N  L O O K U P  T A B L E  C L A S S ===

@@ -161,3 +161,11 @@ float DeviationLookup::lookup(float compass_deg) const {
 
   return result;
 }
+
+// Return shortest arc on 360° (for instance 359° to 001° is 2° not 358°)
+float computeAngDiffRad(float a, float b) {
+    float d = a - b;
+    while (d > M_PI) d -= 2.0f * M_PI;
+    while (d <= -M_PI) d += 2.0f * M_PI;
+    return d;
+}
