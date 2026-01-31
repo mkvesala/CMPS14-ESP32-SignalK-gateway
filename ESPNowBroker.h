@@ -40,7 +40,7 @@ private:
     static constexpr float DB_HDG_RAD = 0.00436f;  // 0.25° deadband for heading
     static constexpr float DB_ATT_RAD = 0.00436f;  // 0.25° deadband for pitch/roll
 
-    static void onDataSent(const uint8_t* mac, esp_now_send_status_t status);
+    static void onDataSent(const esp_now_send_info_t* info, esp_now_send_status_t status);
 
     // Phase 2+:
     // static void onDataRecv(const uint8_t* mac, const uint8_t* data, int len);

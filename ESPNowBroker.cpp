@@ -65,7 +65,7 @@ void ESPNowBroker::sendHeadingDelta() {
     esp_now_send(BROADCAST_ADDR, (const uint8_t*)&delta, sizeof(delta));
 }
 
-void ESPNowBroker::onDataSent(const uint8_t* mac, esp_now_send_status_t status) {
+void ESPNowBroker::onDataSent(const esp_now_send_info_t* info, esp_now_send_status_t status) {
     // Phase 1: No action needed
     // Phase 2+: Diagnostics/retry logic if needed
 }
