@@ -4,6 +4,74 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-31
+
+### Added
+
+#### ESP-NOW broadcast support
+- New `ESPNowBroker` class for broadcasting compass data via ESP-NOW protocol
+  - Broadcasts `HeadingDelta` struct (heading, heading_true, pitch, roll in radians)
+  - ~10 Hz broadcast rate (97 ms interval)
+  - Deadband filtering (0.25°) to reduce unnecessary transmissions
+  - Broadcast mode (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver can listen
+  - Foundation for Crow Panel 2.1" HMI display integration (Phase 1 MVP)
+
+#### New files
+- `ESPNowBroker.h` - ESP-NOW broker class declaration
+- `ESPNowBroker.cpp` - ESP-NOW broker implementation
+
+#### New methods
+
+**ESPNowBroker**
+- `begin()` Initialize ESP-NOW in broadcast mode
+- `sendHeadingDelta()` Broadcast compass data to all listeners
+
+#### Refactored
+- `computeAngDiffRad()` moved from `SignalKBroker` (private method) to `harmonic.cpp` (global function)
+  - Now shared between `SignalKBroker` and `ESPNowBroker`
+  - Declared in `harmonic.h`
+
+### Changed
+
+#### WiFi mode
+- Changed from `WIFI_STA` to `WIFI_AP_STA` to enable ESP-NOW alongside WiFi
+  - ESP-NOW requires AP mode to function while WiFi STA is connected
+  - No impact on existing WiFi/SignalK functionality
+
+#### Architecture
+- `CMPS14Application` now owns `ESPNowBroker` instance ("the espnow")
+- New `handleESPNow()` method in application loop
+- New timing constant `ESPNOW_TX_INTERVAL_MS = 97`
+
+### Performance
+
+- ESP-NOW broadcast adds minimal overhead (~16 bytes per transmission)
+- Deadband filtering prevents unnecessary broadcasts when compass is stationary
+
+### Developer Notes
+
+#### ESP-NOW data format
+Broadcast packet is `CMPS14Processor::HeadingDelta` struct (16 bytes):
+```cpp
+struct HeadingDelta {
+    float heading_rad;      // Magnetic heading (radians)
+    float heading_true_rad; // True heading (radians)
+    float pitch_rad;        // Pitch (radians)
+    float roll_rad;         // Roll (radians)
+};
+```
+
+#### Receiving ESP-NOW broadcasts
+Any ESP32 device can receive broadcasts by:
+1. Calling `esp_now_init()`
+2. Registering receive callback with `esp_now_register_recv_cb()`
+3. Parsing incoming 16-byte `HeadingDelta` struct
+
+#### Phase 2+ roadmap
+- Bidirectional communication with Crow Panel
+- Command reception for calibration control
+- Peer-to-peer mode (targeted MAC address)
+
 ## [1.1.0] - 2026-01-24
 
 ### Added
@@ -212,6 +280,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[1.2.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.2.0
 [1.1.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.1.0
 [1.0.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.0.0
