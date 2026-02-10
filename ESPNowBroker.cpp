@@ -2,19 +2,17 @@
 #include <WiFi.h>
 
 // Static member initialization
-constexpr uint8_t ESPNowBroker::BROADCAST_ADDR[6];
+uint8_t ESPNowBroker::last_sender_mac[6] = {0};
+volatile bool ESPNowBroker::level_command_received = false;
+
+// === P U B L I C ===
 
 // Constructor
-ESPNowBroker::ESPNowBroker(CMPS14Processor &compassref)
-    : compass(compassref) {
-}
+ESPNowBroker::ESPNowBroker(CMPS14Processor &compassref) : compass(compassref) {}
 
 // Initialize ESP-NOW
 bool ESPNowBroker::begin() {
-    if (esp_now_init() != ESP_OK) {
-        // Serial.println("ESP-NOW init failed");
-        return false;
-    }
+    if (esp_now_init() != ESP_OK) return false;
 
     // Register broadcast peer
     esp_now_peer_info_t peer = {};
@@ -22,20 +20,20 @@ bool ESPNowBroker::begin() {
     peer.channel = 0;  // 0 = use current WiFi channel
     peer.encrypt = false;
 
-    if (esp_now_add_peer(&peer) != ESP_OK) {
-        Serial.println("ESP-NOW add peer failed");
-        return false;
-    }
+    if (esp_now_add_peer(&peer) != ESP_OK) return false;
 
     esp_now_register_send_cb(onDataSent);
+    esp_now_register_recv_cb(onDataRecv);
 
-    _initialized = true;
-    Serial.println("ESP-NOW bridge initialized (broadcast mode)");
+    initialized = true;
+
     return true;
 }
 
+// Send heading delta from the compass as ESP-NOW broadcast packet
 void ESPNowBroker::sendHeadingDelta() {
-    if (!_initialized) return;
+    
+    if (!initialized) return;
 
     auto delta = compass.getHeadingDelta();
 
@@ -45,17 +43,17 @@ void ESPNowBroker::sendHeadingDelta() {
     // Deadband check (same logic as SignalKBroker::sendHdgPitchRollDelta)
     bool changed_h = false, changed_p = false, changed_r = false;
 
-    if (!validf(_last_h) || fabsf(computeAngDiffRad(delta.heading_rad, _last_h)) >= DB_HDG_RAD) {
+    if (!validf(last_h) || fabsf(computeAngDiffRad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
         changed_h = true;
-        _last_h = delta.heading_rad;
+        last_h = delta.heading_rad;
     }
-    if (!validf(_last_p) || fabsf(delta.pitch_rad - _last_p) >= DB_ATT_RAD) {
+    if (!validf(last_p) || fabsf(delta.pitch_rad - last_p) >= DB_ATT_RAD) {
         changed_p = true;
-        _last_p = delta.pitch_rad;
+        last_p = delta.pitch_rad;
     }
-    if (!validf(_last_r) || fabsf(delta.roll_rad - _last_r) >= DB_ATT_RAD) {
+    if (!validf(last_r) || fabsf(delta.roll_rad - last_r) >= DB_ATT_RAD) {
         changed_r = true;
-        _last_r = delta.roll_rad;
+        last_r = delta.roll_rad;
     }
 
     // Only send if something changed
@@ -65,7 +63,44 @@ void ESPNowBroker::sendHeadingDelta() {
     esp_now_send(BROADCAST_ADDR, (const uint8_t*)&delta, sizeof(delta));
 }
 
-void ESPNowBroker::onDataSent(const esp_now_send_info_t* info, esp_now_send_status_t status) {
-    // Phase 1: No action needed
-    // Phase 2+: Diagnostics/retry logic if needed
+// Process the received attitude leveling commmand coming from ESP-NOW peer
+void ESPNowBroker::processLevelCommand() {
+    if(!level_command_received) return;
+    level_command_received = false;
+
+    compass.level();
+
+    uint8_t response[8];
+    response[0] = 'L';
+    response[1] = 'V';
+    response[2] = 'L';
+    response[3] = 'R';
+    response[4] = 1;
+    response[5] = 0;
+    response[6] = 0;
+    response[7] = 0;
+
+    esp_now_peer_info_t peer = {};
+    memcpy(peer.peer_addr, last_sender_mac, 6);
+    peer.channel = 0;
+    peer.encrypt = false;
+
+    if (!esp_now_is_peer_exist(last_sender_mac)) esp_now_add_peer(&peer);
+
+    esp_err_t result = esp_now_send(last_sender_mac, response, sizeof(response));
+}
+
+// === P R I V A T E ===
+
+// Static callback for data send
+void ESPNowBroker::onDataSent(const esp_now_send_info_t* info, esp_now_send_status_t status) {}
+
+// Static callback for data receive
+void ESPNowBroker::onDataRecv(const esp_now_recv_info_t* recv_info, const uint8_t* data, int len) {
+    if (len == 8) {
+        if (data[0] == 'L' && data[1] == 'V' && data[2] == 'L' && data[3] == 'C') {
+            memcpy(last_sender_mac, recv_info->src_addr, 6);
+            level_command_received = true;
+        }
+    }
 }

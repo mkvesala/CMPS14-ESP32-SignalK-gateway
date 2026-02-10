@@ -57,7 +57,7 @@ class CMPS14Application {
     static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
     static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
     static constexpr unsigned long WS_RETRY_MAX_MS       = 119993;      // Max reconnect delay for SignalK websocket
-    static constexpr unsigned long ESPNOW_TX_INTERVAL_MS = 97;          // Frequency for ESP-NOW broadcast
+    static constexpr unsigned long ESPNOW_TX_INTERVAL_MS = 53;          // Frequency for ESP-NOW broadcast
     static constexpr unsigned long MEM_CHECK_MS          = 120007;      // Memory check every 2 mins to LCD - debug
     static constexpr unsigned long RUNTIME_CHECK_MS      = 59999;       // Runtime monitoring of app.loop() - debug
 
