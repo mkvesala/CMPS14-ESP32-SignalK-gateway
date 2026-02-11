@@ -1,7 +1,8 @@
 #include "ESPNowBroker.h"
 #include <WiFi.h>
 
-// Static member initialization
+// === S T A T I C ===
+
 uint8_t ESPNowBroker::last_sender_mac[6] = {0};
 volatile bool ESPNowBroker::level_command_received = false;
 
@@ -12,16 +13,18 @@ ESPNowBroker::ESPNowBroker(CMPS14Processor &compassref) : compass(compassref) {}
 
 // Initialize ESP-NOW
 bool ESPNowBroker::begin() {
+
     if (esp_now_init() != ESP_OK) return false;
 
     // Register broadcast peer
     esp_now_peer_info_t peer = {};
     memcpy(peer.peer_addr, BROADCAST_ADDR, 6);
-    peer.channel = 0;  // 0 = use current WiFi channel
+    peer.channel = 0; // Current WiFi channel
     peer.encrypt = false;
 
     if (esp_now_add_peer(&peer) != ESP_OK) return false;
 
+    // Register callbacks
     esp_now_register_send_cb(onDataSent);
     esp_now_register_recv_cb(onDataRecv);
 
@@ -40,7 +43,7 @@ void ESPNowBroker::sendHeadingDelta() {
     // Validate data
     if (!validf(delta.heading_rad) || !validf(delta.pitch_rad) || !validf(delta.roll_rad)) return;
 
-    // Deadband check (same logic as SignalKBroker::sendHdgPitchRollDelta)
+    // Deadband check (same logic as SignalKBroker::sendHdgPitchRollDelta())
     bool changed_h = false, changed_p = false, changed_r = false;
 
     if (!validf(last_h) || fabsf(computeAngDiffRad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
@@ -63,7 +66,7 @@ void ESPNowBroker::sendHeadingDelta() {
     esp_now_send(BROADCAST_ADDR, (const uint8_t*)&delta, sizeof(delta));
 }
 
-// Process the received attitude leveling commmand coming from ESP-NOW peer
+// Process the received attitude leveling command coming from ESP-NOW peer
 void ESPNowBroker::processLevelCommand() {
     if(!level_command_received) return;
     level_command_received = false;

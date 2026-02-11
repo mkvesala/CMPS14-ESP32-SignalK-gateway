@@ -26,6 +26,9 @@ Developed and tested on:
 - SignalK Server (2.18.0)
 - CMPS14 sensor (V7)
 
+Integrated via ESP-NOW to:
+- [Elecrow CrowPanel 2.1inch-HMI ESP32 Rotary Display 480*480 IPS Round Touch Knob Screen](https://www.elecrow.com/wiki/CrowPanel_2.1inch-HMI_ESP32_Rotary_Display_480_IPS_Round_Touch_Knob_Screen.html) separate ESP32 device
+
 ## Purpose of the project
 
 This is one of my individual digital boat projects. Use at your own risk. Not for safety-critical navigation.
@@ -211,22 +214,33 @@ The min and max values reset to zero on ESP32 restart and after applying attitud
 
 **Please refer to Security section of this file.**
 
-### ESP-NOW broadcast
+### ESP-NOW communication
 
-Broadcasts compass data via ESP-NOW protocol for other ESP32 devices, such as external displays (e.g., Crow Panel 2.1" HMI).
+Broadcasts compass data via ESP-NOW protocol for other ESP32 devices, such as external displays (e.g., Crow Panel 2.1" HMI). Receives broadcasted attitude leveling command and sends response as unicast to sender.
 
-**Sends** at ~10 Hz frequency, in radians, with a deadband of 0.25° (struct content equal to the struct in SignalK sending):
+**Sends** at ~20 Hz frequency, in radians, with a deadband of 0.25° (struct content equal to the struct in SignalK sending):
 - `HeadingDelta` struct containing:
   - `heading_rad` (magnetic heading)
   - `heading_true_rad` (true heading)
   - `pitch_rad`
   - `roll_rad`
 
+**Receives** attitude leveling command as a broadcast from another ESP32 device.
+- `LevelCommand` struct containing:
+  - Four bytes `magic` "LVLC"
+  - Four bytes reserved for future use
+
+**Confirms** attitude leveling command as an unicast to the sender MAC.
+- `LevelResponse` struct containing:
+  - Four bytes `magic` "LVLR"
+  - One byte `success`, 1 = ok, 0 = failed
+  - Three bytes reserved for future use
+
 **Broadcast mode:** Uses broadcast address (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver on the same WiFi channel can listen.
 
 **WiFi coexistence:** ESP-NOW operates alongside WiFi (AP_STA mode). Both SignalK WebSocket and ESP-NOW broadcast function simultaneously.
 
-**Note: ESP-NOW receivers must be on the same WiFi channel as the compass. Simplest approach is to connect both devices to the same WiFi network.**
+**Note: ESP-NOW receivers must be on the same WiFi channel as the compass. Simplest approach is to connect both devices to the same WiFi network with a fixed channel.**
 
 
 ### Calibration modes
@@ -345,14 +359,14 @@ The web UI is protected by session-based authentication.
 | `/cal/off` | POST | Yes | Stop calibration | none |
 | `/store/on` | POST | Yes | Save calibration profile | none |
 | `/reset/on` | POST | Yes | Reset CMPS14 | none |
-| `/calmode/set` | POST | Yes | Save calibration mode | `?c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
-| `/offset/set` | POST | Yes | Installation offset | `?v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
-| `/dev8/set` | POST | Yes | Eight deviation points | `?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
+| `/calmode/set` | POST | Yes | Save calibration mode | `c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
+| `/offset/set` | POST | Yes | Installation offset | `v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
+| `/dev8/set` | POST | Yes | Eight deviation points | `N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
 | `/deviationdetails` | GET | Yes | Deviation curve and table | none |
-| `/magvar/set` | POST | Yes | Manual variation | `?v=<-90...90>` // Degrees (-) west, (+) east |
-| `/heading/mode` | POST | Yes | Heading mode | `?m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
+| `/magvar/set` | POST | Yes | Manual variation | `v=<-90...90>` // Degrees (-) west, (+) east |
+| `/heading/mode` | POST | Yes | Heading mode | `m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
 | `/status` | GET | Yes | Status block | none |
-| `/restart` | POST | Yes | Restart ESP32 | `?ms=5003` // Delay before actual restart in ms |
+| `/restart` | POST | Yes | Restart ESP32 | `ms=5003` // Delay before actual restart in ms |
 | `/level` | POST | Yes | Level CMPS14 attitude | none |
 
 Endpoints can be used by external HTTP clients. Note that state-changing endpoints require POST method, parameters within POST body. For example, to add leveling of attitude to a [KIP](https://github.com/mxtommy/Kip) dashboard, you would create a button that sends a POST request to `http://<esp32ipaddress>/level`.
@@ -470,7 +484,6 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Todo
 
-- 2-directional integration with CrowPanel 2.1 inch ESP32 Rotary Display knob screen (MVP, broadcasting, implemented in v1.2.0)
 - Consider an asynchronous esp_http_server to replace the WebServer to improve performance and remove `loop()` blocking
 - Replace the rest of stuff within `loop()` with separate FreeRTOS tasks pinned to core 0 and 1
 - Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers

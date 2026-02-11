@@ -6,13 +6,13 @@
 
 // === E S P N O W B R O K E R  C L A S S ===
 //
-// - Class ESPNowBroker - responsible for broadcasting compass data via ESP-NOW
+// - Class ESPNowBroker - responsible for ESP-NOW send and receive
 // - Init: espnow.begin()
 // - Provides public API to
 //   - Initialize ESP-NOW in broadcast mode
 //   - Send compass heading delta to all ESP-NOW listeners
+//   - Process attitude leveling command received from ESP-NOW peer
 // - Uses: CMPS14Processor ("the compass")
-// - Phase 2+: Bidirectional communication with Crow Panel
 
 class ESPNowBroker {
 
