@@ -43,7 +43,7 @@ I started the project Arduino-style by copying code from a previous project (VED
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v1.2.0  | main                    | Latest release. Added ESP-NOW broadcast. See CHANGELOG for details.        |
+| v1.2.0  | main                    | Latest release. Added ESP-NOW communication. See CHANGELOG for details.        |
 | v1.1.0  | main                    | Added web authentication. See CHANGELOG for details.                       |
 | v1.0.1  | main                    | See CHANGELOG for details.                                                 |
 | v1.0.0  | main                    | Refactored into classes with new features not implemented in v0.5.x.       |
