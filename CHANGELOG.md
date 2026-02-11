@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 #### ESP-NOW support
 - New `ESPNowBroker` class for broadcasting compass data to and executing commands received from ESP-NOW peers
   - Broadcasts `HeadingDelta` struct (heading, heading_true, pitch, roll in radians)
-  - ~17 Hz broadcast rate (53 ms interval)
+  - ~20 Hz broadcast rate (53 ms interval)
   - Deadband filtering (0.25°) to reduce unnecessary transmissions
   - Broadcast mode (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver can listen
   - Executes `compass.level()` when receives attitude leveling command from an ESP-NOW peer
