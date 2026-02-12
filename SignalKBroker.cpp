@@ -67,7 +67,7 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     static float last_h = NAN, last_p = NAN, last_r = NAN;
     bool changed_h = false, changed_p = false, changed_r = false;
 
-    if (!validf(last_h) || fabsf(this->computeAngDiffRad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
+    if (!validf(last_h) || fabsf(computeAngDiffRad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
         changed_h = true;
         last_h = delta.heading_rad;
     }
@@ -162,14 +162,6 @@ void SignalKBroker::sendPitchRollMinMaxDelta() {
 }
 
 // === P R I V A T E ===
-
-// Return shortest arc on 360° (for instance 359° to 001° is 2° not 358°)
-float SignalKBroker::computeAngDiffRad(float a, float b) {
-  float d = a - b;
-  while (d >  M_PI) d -= 2.0f * M_PI;
-  while (d <= -M_PI) d += 2.0f * M_PI;
-  return d;
-}
 
 // Create SignalK server URL for websocket
 void SignalKBroker::setSignalKURL() {

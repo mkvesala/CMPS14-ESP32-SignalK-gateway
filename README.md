@@ -7,7 +7,7 @@
 [![Server: SignalK](https://img.shields.io/badge/Server-SignalK-orange)](https://signalk.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json.
+ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json and to other ESP32 devices via ESP-NOW.
 
 Applies installation offset, deviation and magnetic variation to raw angle to determine compass heading, magnetic heading and optionally true heading. Computes deviation at any compass heading, based on user-measured deviations at 8 cardinal and intercardinal directions. Subscribes magnetic variation from SignalK server. This is prioritized over manually entered variation to determine true heading.
 
@@ -26,6 +26,9 @@ Developed and tested on:
 - SignalK Server (2.18.0)
 - CMPS14 sensor (V7)
 
+Integrated via ESP-NOW to:
+- [Elecrow CrowPanel 2.1inch-HMI ESP32 Rotary Display 480*480 IPS Round Touch Knob Screen](https://www.elecrow.com/wiki/CrowPanel_2.1inch-HMI_ESP32_Rotary_Display_480_IPS_Round_Touch_Knob_Screen.html) separate ESP32 device
+
 ## Purpose of the project
 
 This is one of my individual digital boat projects. Use at your own risk. Not for safety-critical navigation.
@@ -40,7 +43,8 @@ I started the project Arduino-style by copying code from a previous project (VED
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v1.1.0  | main                    | Latest release. Added web authentication. See CHANGELOG for details.       |
+| v1.2.0  | main                    | Latest release. Added ESP-NOW communication. See CHANGELOG for details.        |
+| v1.1.0  | main                    | Added web authentication. See CHANGELOG for details.                       |
 | v1.0.1  | main                    | See CHANGELOG for details.                                                 |
 | v1.0.0  | main                    | Refactored into classes with new features not implemented in v0.5.x.       |
 | v0.5.1  | legacy/procedural-0.5.x | Last fully procedural version.                                             |
@@ -114,6 +118,11 @@ Each class presented in the diagram with their full public API. Private attribut
 - Owned by: `CMPS14Application`
 - Responsible for: communication with SignalK server
 
+**`ESPNowBroker`:** 
+- Uses: `CMPS14Processor`
+- Owned by: `CMPS14Application`
+- Responsible for: communication via ESP-NOW protocol
+
 **`DisplayManager`:**
 - Owns: `LiquidCrystal_I2C`
 - Uses: `CMPS14Processor`, `SignalKBroker`, `WifiState` and `CalMode`
@@ -127,7 +136,7 @@ Each class presented in the diagram with their full public API. Private attribut
 - Responsible for: providing web user interface, acts as "the webui"
 
 **`CMPS14Application`:**
-- Owns: `CMPS14Sensor`, `CMPS14Processor`, `CMPS14Preferences`, `SignalKBroker`, `DisplayManager` and `WebUIManager`
+- Owns: `CMPS14Sensor`, `CMPS14Processor`, `CMPS14Preferences`, `SignalKBroker`, `ESPNowBroker`, `DisplayManager` and `WebUIManager`
 - Uses: `WifiState` and `CalMode`
 - Responsible for: orchestrating everything within the main program, acts as "the app"
 
@@ -204,6 +213,35 @@ The min and max values reset to zero on ESP32 restart and after applying attitud
 1. *navigation.magneticVariation* (if available at SignalK)
 
 **Please refer to Security section of this file.**
+
+### ESP-NOW communication
+
+Broadcasts compass data via ESP-NOW protocol for other ESP32 devices, such as external displays (e.g., Crow Panel 2.1" HMI). Receives broadcasted attitude leveling command and sends response as unicast to sender.
+
+**Sends** at ~20 Hz frequency, in radians, with a deadband of 0.25° (struct content equal to the struct in SignalK sending):
+- `HeadingDelta` struct containing:
+  - `heading_rad` (magnetic heading)
+  - `heading_true_rad` (true heading)
+  - `pitch_rad`
+  - `roll_rad`
+
+**Receives** attitude leveling command as a broadcast from another ESP32 device.
+- `LevelCommand` struct containing:
+  - Four bytes `magic` "LVLC"
+  - Four bytes reserved for future use
+
+**Confirms** attitude leveling command as an unicast to the sender MAC.
+- `LevelResponse` struct containing:
+  - Four bytes `magic` "LVLR"
+  - One byte `success`, 1 = ok, 0 = failed
+  - Three bytes reserved for future use
+
+**Broadcast mode:** Uses broadcast address (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver on the same WiFi channel can listen.
+
+**WiFi coexistence:** ESP-NOW operates alongside WiFi (AP_STA mode). Both SignalK WebSocket and ESP-NOW broadcast function simultaneously.
+
+**Note: ESP-NOW receivers must be on the same WiFi channel as the compass. Simplest approach is to connect both devices to the same WiFi network with a fixed channel.**
+
 
 ### Calibration modes
 
@@ -321,14 +359,14 @@ The web UI is protected by session-based authentication.
 | `/cal/off` | POST | Yes | Stop calibration | none |
 | `/store/on` | POST | Yes | Save calibration profile | none |
 | `/reset/on` | POST | Yes | Reset CMPS14 | none |
-| `/calmode/set` | POST | Yes | Save calibration mode | `?c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
-| `/offset/set` | POST | Yes | Installation offset | `?v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
-| `/dev8/set` | POST | Yes | Eight deviation points | `?N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
+| `/calmode/set` | POST | Yes | Save calibration mode | `c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
+| `/offset/set` | POST | Yes | Installation offset | `v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
+| `/dev8/set` | POST | Yes | Eight deviation points | `N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
 | `/deviationdetails` | GET | Yes | Deviation curve and table | none |
-| `/magvar/set` | POST | Yes | Manual variation | `?v=<-90...90>` // Degrees (-) west, (+) east |
-| `/heading/mode` | POST | Yes | Heading mode | `?m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
+| `/magvar/set` | POST | Yes | Manual variation | `v=<-90...90>` // Degrees (-) west, (+) east |
+| `/heading/mode` | POST | Yes | Heading mode | `m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
 | `/status` | GET | Yes | Status block | none |
-| `/restart` | POST | Yes | Restart ESP32 | `?ms=5003` // Delay before actual restart in ms |
+| `/restart` | POST | Yes | Restart ESP32 | `ms=5003` // Delay before actual restart in ms |
 | `/level` | POST | Yes | Level CMPS14 attitude | none |
 
 Endpoints can be used by external HTTP clients. Note that state-changing endpoints require POST method, parameters within POST body. For example, to add leveling of attitude to a [KIP](https://github.com/mxtommy/Kip) dashboard, you would create a button that sends a POST request to `http://<esp32ipaddress>/level`.
@@ -372,6 +410,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 | `CMPS14Processor.h/CMPS14Processor.cpp` | Class CMPS14Processor, the "compass" |
 | `CMPS14Preferences.h/CMPS14Preferences.cpp` | Class CMPS14Preferences, the "compass_prefs" |
 | `SignalKBroker.h/SignalKBroker.cpp` | Class SignalKBroker, the "signalk" |
+| `ESPNowBroker.h/ESPNowBroker.cpp` | Class ESPNowBroker, the "espnow" |
 | `DisplayManager.h/DisplayManager.cpp` | Class DisplayManager, the "display" |
 | `WebUIManager.h/WebUIManager.cpp` | Class WebUIManager, the "webui" |
 | `CMPS14Application.h/CMPS14Application.cpp` | Class CMPS14Application, the "app" |
@@ -445,7 +484,6 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Todo
 
-- Integrate with a separate CrowPanel 2.1 inch ESP32 Rotary Display knob screen, to display compass and allow setup
 - Consider an asynchronous esp_http_server to replace the WebServer to improve performance and remove `loop()` blocking
 - Replace the rest of stuff within `loop()` with separate FreeRTOS tasks pinned to core 0 and 1
 - Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers
@@ -453,10 +491,10 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Debug
 
-Long term observations on release v1.1.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly:
+Long term observations on release v1.2.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly, ESP-NOW broadcasting:
 
-- Free heap memory (from `ESP.getFreeHeap()`): approximately 160 kB (60 %) free, total being 277 kB - does not vary that much
-- Loop runtime exponential moving average (alpha 0.01): approximately 1 ms
+- Free heap memory (from `ESP.getFreeHeap()`): approximately 153 kB (55 %) free, total being 277 kB - does not vary that much
+- Loop runtime exponential moving average (alpha 0.01): approximately 1. ms
 - Loop task free stack (from `uxTaskGetStackHighWaterMark(NULL)`): stays above 4300 bytes
 
 ## Security

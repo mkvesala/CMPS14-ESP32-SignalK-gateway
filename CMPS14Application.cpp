@@ -9,6 +9,7 @@ CMPS14Application::CMPS14Application():
   compass(sensor),
   compass_prefs(compass),
   signalk(compass),
+  espnow(compass),
   display(compass, signalk),
   webui(compass, compass_prefs, signalk, display) {}
 
@@ -36,8 +37,8 @@ void CMPS14Application::begin() {
   // Stop bluetooth
   btStop(); 
 
-  // Init WiFi
-  WiFi.mode(WIFI_STA);
+  // Init WiFi (AP_STA mode enables ESP-NOW alongside WiFi)
+  WiFi.mode(WIFI_AP_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   wifi_state = WifiState::CONNECTING;
@@ -45,8 +46,12 @@ void CMPS14Application::begin() {
   display.showInfoMessage("WIFI", "CONNECTING");
   display.setWifiState(wifi_state);
 
+  // Init ESP-NOW 
+  display.showSuccessMessage("ESPNOW INIT", espnow.begin());
+
   // Compass ok?
   display.showSuccessMessage("CMPS14 INIT", compass_ok);
+
 }
 
 // Repeat stuff
@@ -60,6 +65,7 @@ void CMPS14Application::loop() {
   this->handleWebsocket(now);
   this->handleCompass(now);
   this->handleSignalK(now);
+  this->handleESPNow(now);
   this->handleMemory(now); // Debug
   this->handleDisplay();
   const unsigned long loop_runtime = micros() - loop_start; // Debug
@@ -206,6 +212,14 @@ void CMPS14Application::handleSignalK(const unsigned long now) {
     signalk.sendPitchRollMinMaxDelta();
   }
 
+}
+
+// ESP-NOW broadcast
+void CMPS14Application::handleESPNow(const unsigned long now) {
+  espnow.processLevelCommand();
+  if ((long)(now - last_espnow_tx_ms) < ESPNOW_TX_INTERVAL_MS) return;
+  last_espnow_tx_ms = now;
+  espnow.sendHeadingDelta();
 }
 
 // LCD and LEDs

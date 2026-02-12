@@ -40,7 +40,6 @@ public:
 
 private:
 
-    float computeAngDiffRad(float a, float b);
     void setSignalKURL();
     void setSignalKSource();
     void onMessageCallback(websockets::WebsocketsMessage msg);

@@ -4,6 +4,98 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-11
+
+### Added
+
+#### ESP-NOW support
+- New `ESPNowBroker` class for broadcasting compass data to and executing commands received from ESP-NOW peers
+  - Broadcasts `HeadingDelta` struct (heading, heading_true, pitch, roll in radians)
+  - ~20 Hz broadcast rate (53 ms interval)
+  - Deadband filtering (0.25°) to reduce unnecessary transmissions
+  - Broadcast mode (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver can listen
+  - Executes `compass.level()` when receives attitude leveling command from an ESP-NOW peer
+  - Confirms the leveling to the peer via ESP-NOW
+
+#### New files
+- `ESPNowBroker.h` - ESP-NOW broker class declaration
+- `ESPNowBroker.cpp` - ESP-NOW broker implementation
+
+#### New methods
+
+**ESPNowBroker**
+- `begin()` Initialize ESP-NOW in broadcast mode
+- `sendHeadingDelta()` Broadcast compass data to all listeners
+- `processLevelCommand()` Execute and confirm attitude leveling command
+
+#### Refactored
+- `computeAngDiffRad()` moved from `SignalKBroker` (private method) to `harmonic.cpp` (global function)
+  - Now shared between `SignalKBroker` and `ESPNowBroker`
+  - Declared in `harmonic.h`
+
+### Changed
+
+#### WiFi mode
+- Changed from `WIFI_STA` to `WIFI_AP_STA` to enable ESP-NOW alongside WiFi
+  - ESP-NOW requires AP mode to function while WiFi STA is connected
+  - No impact on existing WiFi/SignalK functionality
+
+#### Architecture
+- `CMPS14Application` now owns `ESPNowBroker` instance ("the espnow")
+- New `handleESPNow()` method in application loop
+- New timing constant `ESPNOW_TX_INTERVAL_MS = 53`
+
+### Deprecated
+- `DisplayManager`:
+  - `void setWifiInfo(int32_t rssi, uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3)` use `void setWifiInfo(int32_t rssi, uint32_t ip)`instead
+  - Usage:
+  ```cpp
+  int32_t rssi = WiFi.RSSI();
+  uint32_t ip = (uint32_t)WiFi.localIP();
+  display.setWifiInfo(rssi, ip);
+  ```
+
+### Performance
+
+- ESP-NOW broadcast adds minimal overhead (~16 bytes per transmission)
+- Deadband filtering prevents unnecessary broadcasts when compass is stationary
+
+### Developer Notes
+
+#### ESP-NOW data format
+Broadcast packet is `CMPS14Processor::HeadingDelta` struct (16 bytes):
+```cpp
+struct HeadingDelta {
+    float heading_rad;      // Magnetic heading (radians)
+    float heading_true_rad; // True heading (radians)
+    float pitch_rad;        // Pitch (radians)
+    float roll_rad;         // Roll (radians)
+};
+```
+
+#### ESP-NOW attitude leveling command format
+Command from ESP-NOW peer (broadcast):
+```cpp
+struct LevelCommand {
+  uint8_t magic[4];     // "LVLC"
+  uint8_t reserved[4];  // future use
+};
+```
+Confirm leveling to ESP-NOW peer (unicast to peer MAC):
+```cpp
+struct LevelResponse {
+  uint8_t magic[4];     // "LVLR"
+  uint8_t success;      // 1 = ok, 0 = failed
+  uint8_t reserved[3];  // future use
+};
+```
+
+#### Receiving ESP-NOW broadcasts
+Any ESP32 device can receive broadcasts by:
+1. Calling `esp_now_init()`
+2. Registering receive callback with `esp_now_register_recv_cb()`
+3. Parsing incoming 16-byte `HeadingDelta` struct
+
 ## [1.1.0] - 2026-01-24
 
 ### Added
@@ -212,6 +304,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[1.2.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.2.0
 [1.1.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.1.0
 [1.0.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.0.0

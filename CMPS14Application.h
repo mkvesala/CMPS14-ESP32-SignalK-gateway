@@ -12,6 +12,7 @@
 #include "SignalKBroker.h"
 #include "DisplayManager.h"
 #include "WebUIManager.h"
+#include "ESPNowBroker.h"
 
 // === C M P S 1 4 A P P L I C A T I O N  C L A S S ===
 //
@@ -23,6 +24,7 @@
 //   - SignalKBroker, "the signalk"
 //   - DisplayManager, "the display"
 //   - WebUIManager, "the webui"
+//   - ESPNowBroker, "the espnow"
 // - Uses: WifiState, CalMode
 // - Init: app.begin() - called in setup() of the main program
 // - Loop: app.loop() - called in loop() of the main program
@@ -55,6 +57,7 @@ class CMPS14Application {
     static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
     static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
     static constexpr unsigned long WS_RETRY_MAX_MS       = 119993;      // Max reconnect delay for SignalK websocket
+    static constexpr unsigned long ESPNOW_TX_INTERVAL_MS = 53;          // Frequency for ESP-NOW broadcast
     static constexpr unsigned long MEM_CHECK_MS          = 120007;      // Memory check every 2 mins to LCD - debug
     static constexpr unsigned long RUNTIME_CHECK_MS      = 59999;       // Runtime monitoring of app.loop() - debug
 
@@ -67,6 +70,7 @@ class CMPS14Application {
     unsigned long last_cal_poll_ms      = 0;
     unsigned long wifi_conn_start_ms    = 0;
     unsigned long wifi_last_check_ms    = 0;
+    unsigned long last_espnow_tx_ms     = 0;
     unsigned long last_mem_check_ms     = 0; // Debug
     unsigned long last_runtime_check_ms = 0; // Debug
 
@@ -83,6 +87,7 @@ class CMPS14Application {
     CMPS14Processor compass;
     CMPS14Preferences compass_prefs;
     SignalKBroker signalk;
+    ESPNowBroker espnow;
     DisplayManager display;
     WebUIManager webui;
 
@@ -93,6 +98,7 @@ class CMPS14Application {
     void handleWebsocket(const unsigned long now);
     void handleCompass(const unsigned long now);
     void handleSignalK(const unsigned long now);
+    void handleESPNow(const unsigned long now);
     void handleMemory(const unsigned long now); // Debug
     void handleDisplay();
 
