@@ -3,3 +3,6 @@ secrets.f*.h
 *.bak
 *.tmp
 .DS_Store
+.claude/
+CLAUDE_SESSION_CONTEXT.md
+ESP32_gateway_pattern.md
