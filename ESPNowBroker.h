@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <esp_now.h>
 #include "CMPS14Processor.h"
+#include "espnow_protocol.h"
 
 // === E S P N O W B R O K E R  C L A S S ===
 //

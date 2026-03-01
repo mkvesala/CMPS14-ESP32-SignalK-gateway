@@ -1,3 +1,4 @@
+#include "espnow_protocol.h"
 #include "ESPNowBroker.h"
 #include <WiFi.h>
 
@@ -62,8 +63,11 @@ void ESPNowBroker::sendHeadingDelta() {
     // Only send if something changed
     if (!(changed_h || changed_p || changed_r)) return;
 
-    // Send delta directly
-    esp_now_send(BROADCAST_ADDR, (const uint8_t*)&delta, sizeof(delta));
+    // Send delta as ESP-NOW packet payload
+    ESPNow::ESPNowPacket<ESPNow::HeadingDelta> pkt;
+    initHeader(pkt.hdr, ESPNow::ESPNowMsgType::HEADING_DELTA, sizeof(ESPNow::HeadingDelta));
+    memcpy(&pkt.payload, &delta, sizeof(ESPNow::HeadingDelta));
+    esp_now_send(BROADCAST_ADDR, (const uint8_t*)&pkt, sizeof(pkt));
 }
 
 // Process the received attitude leveling command coming from ESP-NOW peer
@@ -71,17 +75,17 @@ void ESPNowBroker::processLevelCommand() {
     if(!level_command_received) return;
     level_command_received = false;
 
+    // Run the actual leveling
     compass.level();
 
-    uint8_t response[8];
-    response[0] = 'L';
-    response[1] = 'V';
-    response[2] = 'L';
-    response[3] = 'R';
-    response[4] = 1;
-    response[5] = 0;
-    response[6] = 0;
-    response[7] = 0;
+    // Create the response packet
+    ESPNow::ESPNowPacket<ESPNow::LevelResponse> pkt;
+    // Header
+    initHeader(pkt.hdr, ESPNow::ESPNowMsgType::LEVEL_RESPONSE, sizeof(ESPNow::LevelResponse));
+    // Payload
+    memcpy(pkt.payload.magic, "LVLR", 4);
+    pkt.payload.success = 1;
+    memset(pkt.payload.reserved, 0, 3);
 
     esp_now_peer_info_t peer = {};
     memcpy(peer.peer_addr, last_sender_mac, 6);
@@ -89,8 +93,8 @@ void ESPNowBroker::processLevelCommand() {
     peer.encrypt = false;
 
     if (!esp_now_is_peer_exist(last_sender_mac)) esp_now_add_peer(&peer);
-
-    esp_err_t result = esp_now_send(last_sender_mac, response, sizeof(response));
+    // Send packet
+    esp_err_t result = esp_now_send(last_sender_mac, (const uint8_t*)&pkt, sizeof(pkt));
 }
 
 // === P R I V A T E ===
@@ -100,10 +104,14 @@ void ESPNowBroker::onDataSent(const esp_now_send_info_t* info, esp_now_send_stat
 
 // Static callback for data receive
 void ESPNowBroker::onDataRecv(const esp_now_recv_info_t* recv_info, const uint8_t* data, int len) {
-    if (len == 8) {
-        if (data[0] == 'L' && data[1] == 'V' && data[2] == 'L' && data[3] == 'C') {
-            memcpy(last_sender_mac, recv_info->src_addr, 6);
-            level_command_received = true;
-        }
+    if (len < (int)sizeof(ESPNow::ESPNowHeader)) return;
+    ESPNow::ESPNowHeader hdr;
+    memcpy(&hdr, data, sizeof(ESPNow::ESPNowHeader));
+    if (hdr.magic != ESPNow::ESPNOW_MAGIC) return;
+    if (len < (int)(sizeof(ESPNow::ESPNowHeader) + hdr.payload_len)) return;
+    if (static_cast<ESPNow::ESPNowMsgType>(hdr.msg_type) == ESPNow::ESPNowMsgType::LEVEL_COMMAND) {
+        if (hdr.payload_len != sizeof(ESPNow::LevelCommand)) return;
+        memcpy(last_sender_mac, recv_info->src_addr, 6);
+        level_command_received = true;
     }
 }
