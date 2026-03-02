@@ -27,7 +27,7 @@ Developed and tested on:
 - CMPS14 sensor (V7)
 
 Integrated via ESP-NOW to:
-- [ESP32-Crowpanel-compass multi-function display](https://github.com/mkvesala/ESP32-Crowpanel-compass)
+- [ESP32-Crowpanel-compass multi-function display](https://github.com/mkvesala/ESP32-Crowpanel-compass) (v2.0.0)
 
 ## Purpose of the project
 
@@ -486,10 +486,7 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Todo
 
-- Consider an asynchronous esp_http_server to replace the WebServer to improve performance and remove `loop()` blocking
-- Replace the rest of stuff within `loop()` with separate FreeRTOS tasks pinned to core 0 and 1
-- Finish the hardware setup by soldering all wiring instead of using jumper wires and row headers
-- Improve security
+Check [issues](https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/issues).
 
 ## Debug
 
@@ -564,6 +561,7 @@ Developed and tested using:
 - SignalK Server version 2.18.0
 - OpenCPN version 5.12.4-universal and KIP version 4.0.7 for visualization
 - CMPS14 firmware version 7
+- ESP32-Crowpanel-compass v2.0.0
 
 Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
 
