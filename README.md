@@ -27,7 +27,7 @@ Developed and tested on:
 - CMPS14 sensor (V7)
 
 Integrated via ESP-NOW to:
-- [Elecrow CrowPanel 2.1inch-HMI ESP32 Rotary Display 480*480 IPS Round Touch Knob Screen](https://www.elecrow.com/wiki/CrowPanel_2.1inch-HMI_ESP32_Rotary_Display_480_IPS_Round_Touch_Knob_Screen.html) separate ESP32 device
+- [ESP32-Crowpanel-compass multi-function display](https://github.com/mkvesala/ESP32-Crowpanel-compass)
 
 ## Purpose of the project
 
@@ -43,7 +43,8 @@ I started the project Arduino-style by copying code from a previous project (VED
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v1.2.0  | main                    | Latest release. Added ESP-NOW communication. See CHANGELOG for details.        |
+| v1.3.0  | main                    | Latest release. Breaking change in ESP-NOW wire protocol. See CHANGELOG for details. |
+| v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.    |
 | v1.1.0  | main                    | Added web authentication. See CHANGELOG for details.                       |
 | v1.0.1  | main                    | See CHANGELOG for details.                                                 |
 | v1.0.0  | main                    | Refactored into classes with new features not implemented in v0.5.x.       |
@@ -183,6 +184,8 @@ Each class presented in the diagram with their full public API. Private attribut
 
 **Note that when the SignalK connection is open, the magnetic heading will always be sent to SignalK *navigation.headingMagnetic* path regardless of the active heading mode (true/magnetic). It is a standard practise to compute true heading on server side using SignalK [Derived Data](https://github.com/SignalK/signalk-derived-data) plugin or similar, or on other clients such as [OpenCPN](https://opencpn.org) that utilize [WMM](https://www.ncei.noaa.gov/products/world-magnetic-model).**
 
+**Note that ESP-NOW packet always contains both true and magnetic heading, regardless of the active heading mode.**
+
 ### SignalK communication
 
 Connects to:
@@ -216,32 +219,30 @@ The min and max values reset to zero on ESP32 restart and after applying attitud
 
 ### ESP-NOW communication
 
-Broadcasts compass data via ESP-NOW protocol for other ESP32 devices, such as external displays (e.g., Crow Panel 2.1" HMI). Receives broadcasted attitude leveling command and sends response as unicast to sender.
+Broadcasts compass data via ESP-NOW protocol for other ESP32 devices such as external displays. Receives broadcasted attitude leveling command and sends response as unicast to sender.
 
-**Sends** at ~20 Hz frequency, in radians, with a deadband of 0.25° (struct content equal to the struct in SignalK sending):
-- `HeadingDelta` struct containing:
-  - `heading_rad` (magnetic heading)
-  - `heading_true_rad` (true heading)
-  - `pitch_rad`
-  - `roll_rad`
+Since v1.3.0 all ESP-NOW messages now use the shared `ESPNow::ESPNowPacket` (`ESPNowHeader` + typed payload) packet wrapper defined in `espnow_protocol.h` along with the typed payload structs.
+
+**Sends** at ~20 Hz frequency with a deadband of 0.25°:
+- `ESPNow::ESPNowPacket<HeadingDelta>` - payload `HeadingDelta` containing:
+  - `heading_rad` (magnetic heading radians)
+  - `heading_true_rad` (true heading radians)
+  - `pitch_rad` (pitch radians)
+  - `roll_rad` (roll radians)
 
 **Receives** attitude leveling command as a broadcast from another ESP32 device.
-- `LevelCommand` struct containing:
-  - Four bytes `magic` "LVLC"
-  - Four bytes reserved for future use
+- `ESPNow::ESPNowPacket<LevelCommand>`
+  - `magic` and `msg_type` of the `ESPNowHeader` validated by `onDataRecv(..)
 
 **Confirms** attitude leveling command as an unicast to the sender MAC.
-- `LevelResponse` struct containing:
-  - Four bytes `magic` "LVLR"
-  - One byte `success`, 1 = ok, 0 = failed
-  - Three bytes reserved for future use
+- `ESPNow::ESPNowPacket<LevelResponse>`
+  - Success indicated by `payload.success` (0=failed, 1=success)
 
 **Broadcast mode:** Uses broadcast address (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver on the same WiFi channel can listen.
 
 **WiFi coexistence:** ESP-NOW operates alongside WiFi (AP_STA mode). Both SignalK WebSocket and ESP-NOW broadcast function simultaneously.
 
 **Note: ESP-NOW receivers must be on the same WiFi channel as the compass. Simplest approach is to connect both devices to the same WiFi network with a fixed channel.**
-
 
 ### Calibration modes
 
@@ -403,6 +404,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 | `CMPS14-ESP32-SignalK-gateway.ino` | Owns CMPS14Application app, contains setup() and loop() |
 | `secrets.example.h`| Example credentials. Rename to `secrets.h` and populate with your credentials. |
 | `version.h` | Software version |
+| `espnow_protocol.h` | Shared ESP-NOW protocol definitions (header, payloads, packet wrapper) |
 | `CalMode.h` | Enum class for CMPS14 calibration modes |
 | `WifiState.h` | Enum class for wifi states |
 | `harmonic.h/harmonic.cpp` | Struct and functions to compute deviations, class DeviationLookup |
@@ -491,7 +493,7 @@ Calibration procedure is documented on CMPS14 datasheet.
 
 ## Debug
 
-Long term observations on release v1.2.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly, ESP-NOW broadcasting:
+Long term observations on release v1.3.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly, ESP-NOW broadcasting:
 
 - Free heap memory (from `ESP.getFreeHeap()`): approximately 153 kB (55 %) free, total being 277 kB - does not vary that much
 - Loop runtime exponential moving average (alpha 0.01): approximately 1. ms

@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-02
+
+### Changed
+
+#### ESP-NOW protocol update
+- New shared protocol header `espnow_protocol.h` defining a structured packet format for all ESP-NOW communication
+  - `ESPNow` namespace with `ESPNowHeader` (8-byte fixed header), payload structs, `ESPNowPacket<T>` wrapper template, and `initHeader()` helper
+  - Magic number `0x45534E57` (`ESNW`) identifies packets from our network
+  - `ESPNowMsgType` enum for message routing (`HEADING_DELTA`, `BATTERY_DELTA`, `WEATHER_DELTA`, `LEVEL_COMMAND`, `LEVEL_RESPONSE`)
+- `ESPNowBroker` updated to use the new protocol structs instead of raw byte arrays
+  - `sendHeadingDelta()` now wraps `HeadingDelta` in `ESPNowPacket<HeadingDelta>` with proper header
+  - `processLevelCommand()` now sends `ESPNowPacket<LevelResponse>` instead of manually assembled byte array
+  - `onDataRecv()` now validates incoming packets by header magic, message type, and payload length instead of raw byte matching
+
+#### New files
+- `espnow_protocol.h` — shared ESP-NOW protocol definitions (header, payloads, packet wrapper, helpers)
+
+### Developer Notes
+
+#### ESP-NOW packet format (v1.3.0)
+All ESP-NOW packets now use a common envelope: 8-byte header + typed payload.
+
+Header:
+```cpp
+struct ESPNowHeader {
+    uint32_t magic;           // 0x45534E57 ('ESNW')
+    uint8_t  msg_type;        // ESPNowMsgType enum
+    uint8_t  payload_len;     // payload size in bytes
+    uint8_t  reserved[2];     // padding (zero)
+} __attribute__((packed));
+```
+
+Payload structs defined for: `HeadingDelta`, `BatteryDelta`, `WeatherDelta`, `LevelCommand`, `LevelResponse`.
+
+Receivers should:
+1. Check `len >= sizeof(ESPNowHeader)`
+2. Validate `magic == ESPNOW_MAGIC`
+3. Check `len >= sizeof(ESPNowHeader) + payload_len`
+4. Route on `msg_type`
+
+#### Breaking change
+ESP-NOW packets are no longer raw structs — receivers from v1.2.0 must be updated to parse the new header+payload format.
+
 ## [1.2.0] - 2026-02-11
 
 ### Added
@@ -304,6 +347,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[1.3.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.0
 [1.2.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.2.0
 [1.1.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.1.0
 [1.0.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.0.1

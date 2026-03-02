@@ -6,12 +6,7 @@
 
 namespace ESPNow {
 
-    // =======================
-    // Protocol constants
-    // =======================
-
-    // Magic identifies our packets among other ESP-NOW devices on the network
-    // (a marine instrument network may have multiple ESP-NOW devices: Victron, autopilot, etc.)
+    // Magic identifies our own packets among all ESP-NOW devices
     static constexpr uint32_t ESPNOW_MAGIC = 0x45534E57; // 'E''S''N''W'
 
     // Message types (extend as new sensors are added)
@@ -23,13 +18,11 @@ namespace ESPNow {
         LEVEL_RESPONSE  = 11,
     };
 
-    // =======================
-    // Protocol header
-    // =======================
+    // === H E A D E R ===
 
-    // Fixed 8-byte header prepended to all messages.
-    // uint8_t payload_len: ESP-NOW max payload is 250 bytes, uint8_t is sufficient.
-    // reserved[2]: padding → header is 8 bytes, payload starts at a 4-byte boundary (floats aligned).
+    // Fixed 8-byte header for all messages
+    // uint8_t payload_len: ESP-NOW max payload is 250 bytes, uint8_t is sufficient
+    // reserved[2]: padding → header is 8 bytes, payload starts at a 4-byte boundary (floats aligned)
     struct ESPNowHeader {
         uint32_t magic;           // ESPNOW_MAGIC
         uint8_t  msg_type;        // ESPNowMsgType
@@ -37,11 +30,9 @@ namespace ESPNow {
         uint8_t  reserved[2];     // padding, set to zero
     } __attribute__((packed));
 
-    // =======================
-    // Payloads
-    // =======================
+    // === P A Y L O A D S ===
 
-    // --- Compass / attitude (float radians) ---
+    // Compass / attitude
     // Sent by CMPS14-ESP32-SignalK-gateway
     struct HeadingDelta {
         float heading_rad;       // Magnetic heading (radians)
@@ -50,48 +41,48 @@ namespace ESPNow {
         float roll_rad;          // Roll (radians)
     };
 
-    // --- Battery (float) ---
+    // Batteries
+    // Sent by VEDirect-ESP32-SignalK-gateway
     struct BatteryDelta {
-        float house_voltage;   // volts
-        float house_current;   // amps, negative = charging
-        float house_power;     // watts
-        float house_soc;       // percent
-        float start_voltage;   // volts, starter battery
+        float house_voltage;   // house bank volts
+        float house_current;   // house bank amps, negative = charging
+        float house_power;     // house bank watts
+        float house_soc;       // house bank soc percent
+        float start_voltage;   // starter battery volts
     };
 
-    // --- Weather (float) ---
+    // Weather
+    // Sent by BME280-ESP32-SignalK-gateway
     struct WeatherDelta {
         float temperature_c;   // °C
         float humidity_p;      // percent
         float pressure_hpa;    // hPa
     };
 
-    // --- Level command (CrowPanel → Compass, broadcast) ---
+    // Level command (CrowPanel → Compass, broadcast)
+    // Sent to CMPS14-ESP32-SignalK-gateway
     struct LevelCommand {
         uint8_t magic[4];     // "LVLC" — redundant in Phase 2 (msg_type identifies the packet)
         uint8_t reserved[4];
     };
 
-    // --- Level response (Compass → CrowPanel, unicast) ---
+    // Level response (Compass → CrowPanel, unicast)
+    // Sent by CMPS14-ESP32-SignalK-gateway
     struct LevelResponse {
         uint8_t magic[4];     // "LVLR" — redundant in Phase 2 (msg_type identifies the packet)
         uint8_t success;      // 1 = OK, 0 = failed
         uint8_t reserved[3];
     };
 
-    // =======================
-    // Packet wrapper (header + payload)
-    // =======================
+    // === W R A P P E R ===
 
     template <typename TPayload>
     struct ESPNowPacket {
         ESPNowHeader hdr;
-        TPayload     payload;
+        TPayload payload;
     } __attribute__((packed));
 
-    // =======================
-    // Helpers
-    // =======================
+    // === H E L P E R S ===
 
     inline void initHeader(ESPNowHeader& h, ESPNowMsgType type, uint8_t payload_len) {
         h.magic       = ESPNOW_MAGIC;
@@ -101,9 +92,7 @@ namespace ESPNow {
         h.reserved[1] = 0;
     }
 
-    // =======================
-    // Internal HeadingData
-    // =======================
+    // === C R O W P A N E L  I N T E R N A L  D A T A ===
 
     // Internal struct for compass data, values stored as uint16_t/int16_t scaled x10.
     // Example: 234.5° stored as 2345.
