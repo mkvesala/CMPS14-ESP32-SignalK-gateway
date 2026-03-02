@@ -1,35 +1,81 @@
-<svg width="320" height="80" viewBox="0 0 320 80" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" width="480" height="200">
+
   <!-- Background -->
-  <rect x="0" y="0" width="320" height="80" fill="#000000"/>
+  <rect width="480" height="200" fill="#0d1117" rx="12"/>
 
-  <!-- Compass circle -->
-  <circle cx="40" cy="40" r="26" fill="none" stroke="#00D0FF" stroke-width="2"/>
-  <!-- Cardinals -->
-  <line x1="40" y1="14" x2="40" y2="8" stroke="#00D0FF" stroke-width="2"/>
-  <line x1="40" y1="66" x2="40" y2="72" stroke="#00D0FF" stroke-width="2"/>
-  <line x1="14" y1="40" x2="8"  y2="40" stroke="#00D0FF" stroke-width="2"/>
-  <line x1="66" y1="40" x2="72" y2="40" stroke="#00D0FF" stroke-width="2"/>
+  <!-- Device: outer bezel ring -->
+  <circle cx="100" cy="100" r="88" fill="#1c2128" stroke="#30363d" stroke-width="3"/>
 
-  <!-- Pointer -->
-  <polygon points="40,18 45,40 40,62 35,40" fill="#FF5555" stroke="#FFFFFF" stroke-width="1"/>
+  <!-- Device: inner screen (round display) -->
+  <circle cx="100" cy="100" r="72" fill="#0a0f16"/>
 
-  <!-- "ESP32" chip kinda box -->
-  <rect x="90" y="20" width="60" height="40" rx="4" ry="4" fill="#111111" stroke="#00D0FF" stroke-width="1.5"/>
-  <text x="120" y="40" fill="#00D0FF" font-size="12" font-family="Helvetica" text-anchor="middle" dominant-baseline="central">
-    ESP32
-  </text>
+  <!-- Device: screen glow -->
+  <circle cx="100" cy="100" r="72" fill="none" stroke="#1e6ed4" stroke-width="1.5" opacity="0.6"/>
 
-  <!-- Signal K wave to the right -->
-  <path d="M170 30 Q185 20 200 30 T230 30" fill="none" stroke="#00D0FF" stroke-width="2"/>
-  <path d="M170 50 Q185 40 200 50 T230 50" fill="none" stroke="#00D0FF" stroke-width="2"/>
-  
+  <!-- Compass rose: cardinal tick marks -->
+  <g stroke="#4a90d9" stroke-width="2" stroke-linecap="round">
+    <!-- N -->
+    <line x1="100" y1="38" x2="100" y2="48"/>
+    <!-- S -->
+    <line x1="100" y1="152" x2="100" y2="162"/>
+    <!-- E -->
+    <line x1="162" y1="100" x2="152" y2="100"/>
+    <!-- W -->
+    <line x1="38" y1="100" x2="48" y2="100"/>
+    <!-- Intercardinal ticks -->
+    <line x1="143" y1="57" x2="137" y2="63"/>
+    <line x1="57" y1="143" x2="63" y2="137"/>
+    <line x1="143" y1="143" x2="137" y2="137"/>
+    <line x1="57" y1="57" x2="63" y2="63"/>
+  </g>
 
-  <ellipse cx="280" cy="25" rx="30" ry="8" stroke="#00D0FF" stroke-width="2"/>
-  <line x1="250" y1="25" x2="250" y2="55" stroke="#00D0FF" stroke-width="2"/>
-  <line x1="310" y1="25" x2="310" y2="55" stroke="#00D0FF" stroke-width="2"/>
-  <text x="260" y="47" fill="#00D0FF" font-size="12" font-family="Helvetica" text-anchor="left">
-    SignalK
-  </text>
-  <path d="M 250 55 C 250 68, 310 68, 310 55" fill="none" stroke="#00D0FF" stroke-width="2"/> 
+  <!-- Compass rose: N label -->
+  <text x="100" y="36" text-anchor="middle" font-family="monospace" font-size="10"
+        font-weight="bold" fill="#4a90d9">N</text>
+
+  <!-- Compass rose: 4-point star (diamond shape) -->
+  <!-- North point (blue) -->
+  <polygon points="100,58 106,95 100,88 94,95"
+           fill="#4a90d9"/>
+  <!-- South point (white) -->
+  <polygon points="100,142 106,105 100,112 94,105"
+           fill="#e0e0e0"/>
+  <!-- East point -->
+  <polygon points="142,100 105,94 112,100 105,106"
+           fill="#e0e0e0" opacity="0.5"/>
+  <!-- West point -->
+  <polygon points="58,100 95,94 88,100 95,106"
+           fill="#e0e0e0" opacity="0.5"/>
+
+  <!-- Center dot -->
+  <circle cx="100" cy="100" r="5" fill="#4a90d9"/>
+  <circle cx="100" cy="100" r="2.5" fill="#0a0f16"/>
+
+  <!-- Text block: project name -->
+  <text x="210" y="68" font-family="monospace" font-size="20"
+        font-weight="bold" fill="#ffffff">CMPS14-ESP32-SignalK</text>
+  <text x="210" y="94" font-family="monospace" font-size="20"
+        font-weight="bold" fill="#4a90d9">Gateway</text>
+
+  <!-- Divider line -->
+  <line x1="210" y1="105" x2="460" y2="105" stroke="#30363d" stroke-width="1"/>
+
+  <!-- Subtitle lines -->
+  <text x="210" y="122" font-family="monospace" font-size="11"
+        fill="#8b949e">Marine compass</text>
+  <text x="210" y="138" font-family="monospace" font-size="11"
+        fill="#8b949e">CMPS14·ESP32·SignalK·ESP-NOW·WebServer</text>
+
+  <!-- Badges row -->
+  <!-- Compass badge -->
+  <rect x="210" y="150" width="68" height="18" rx="4" fill="#1e3a5f"/>
+  <text x="244" y="163" text-anchor="middle" font-family="monospace" font-size="10"
+        fill="#4a90d9">Compass</text>
+
+  <!-- Attitude badge -->
+  <rect x="284" y="150" width="58" height="18" rx="4" fill="#1e3a5f"/>
+  <text x="313" y="163" text-anchor="middle" font-family="monospace" font-size="10"
+        fill="#4a90d9">Attitude</text>
 
 </svg>
+
