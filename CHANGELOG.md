@@ -353,6 +353,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[1.3.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.1
 [1.3.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.0
 [1.2.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.2.0
 [1.1.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.1.0
