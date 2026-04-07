@@ -5,6 +5,8 @@
 [![Platform: ESP32](https://img.shields.io/badge/Platform-ESP32-blue)](https://www.espressif.com/en/sdks/esp-arduino)
 [![Sensor: CMPS14](https://img.shields.io/badge/Sensor-CMPS14-lightgrey)](https://www.robot-electronics.co.uk/files/cmps14.pdf)
 [![Server: SignalK](https://img.shields.io/badge/Server-SignalK-orange)](https://signalk.org)
+[![Protocol: WebSocket](https://img.shields.io/badge/Protocol-WebSocket-red)](https://github.com/gilmaimon/ArduinoWebsockets)
+[![Protocol: ESP-NOW](https://img.shields.io/badge/Protocol-ESP--NOW-red)](https://www.espressif.com/en/solutions/low-power-solutions/esp-now)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json and to other ESP32 devices via ESP-NOW.
@@ -43,8 +45,9 @@ I started the project Arduino-style by copying code from a previous project (VED
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v1.3.0  | main                    | Latest release. Breaking change in ESP-NOW wire protocol. See CHANGELOG for details. |
-| v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.    |
+| v1.3.1  | main                    | Latest release. Documentation patch, no source code changes.               |
+| v1.3.0  | main                    | Breaking change in ESP-NOW wire protocol. See CHANGELOG for details.       |
+| v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.                    |
 | v1.1.0  | main                    | Added web authentication. See CHANGELOG for details.                       |
 | v1.0.1  | main                    | See CHANGELOG for details.                                                 |
 | v1.0.0  | main                    | Refactored into classes with new features not implemented in v0.5.x.       |
@@ -97,9 +100,9 @@ void loop() {
 ```
 ### Other classes
 
-<img src="docs/class_diagram.png" width="480">
+Class diagram including companion projects:
 
-Each class presented in the diagram with their full public API. Private attributes only to demonstrate class relationships.
+<img src="https://raw.githubusercontent.com/mkvesala/ESP32-Crowpanel-compass/main/docs/full_uml_diagram.jpeg" width="480">
 
 **`CMPS14Processor`:** 
 - Owns: `DeviationLookup`
@@ -569,7 +572,11 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-Developed by Matti Vesala in collaboration with ChatGPT and Claude. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++. Claude (code) was used for code review and performance analysis.
+This is a companion project to [ESP32-Crowpanel-compass](https://github.com/mkvesala/ESP32-Crowpanel-compass), [BME280-ESP32-SignalK-gateway](https://github.com/mkvesala/BME280-ESP32-SignalK-gateway) and VEDirect-ESP32-SignalK-gateway. See below diagram how these projects relate:
+
+<img src="https://raw.githubusercontent.com/mkvesala/ESP32-Crowpanel-compass/main/docs/full_uml_diagram.jpeg" width="480">
+
+Developed by Matti Vesala in collaboration with ChatGPT and Claude Code. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++. Claude was used for code review and performance analysis.
 
 The "full-AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager` class is heavily "AI-assisted" due to its lengthy methods and http logic.
 
@@ -577,15 +584,10 @@ Any similarities to any other source code out there, done by other people or org
 
 Check [CONTRIBUTING.md](CONTRIBUTING.md) for further AI-assisted development in the project.
 
-I would highly appreciate improvement suggestions as well as any Arduino-style ESP32/C++ coding advice before entering into SensESP/PlatformIO universe in my next project. 😃 
+I would highly appreciate improvement suggestions as well as any Arduino-style ESP32/C++ coding advice. 
 
 ## Gallery
 
-<img src="docs/project1.jpeg" width="120"> <img src="docs/project2.jpeg" width="120"> <img src="docs/project3.jpeg" width="120"> <img src="docs/project4.jpeg" width="120"> <img src="docs/project5.jpeg" width="120"> <img src="docs/project6.jpeg" width="120"> <img src="docs/class_diagram.png" width="120"> <img src="docs/schematic.png" width="120"> <img src="docs/paths.jpeg" width="120"> <img src="docs/ui0.jpeg" width="120"> <img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120"> <img src="docs/ui5.jpeg" width="120"> <img src="docs/ui6.jpeg" width="120">
-
-
-
-
-
+<img src="docs/project1.jpeg" width="120"> <img src="docs/project2.jpeg" width="120"> <img src="docs/project3.jpeg" width="120"> <img src="docs/project4.jpeg" width="120"> <img src="docs/project5.jpeg" width="120"> <img src="docs/project6.jpeg" width="120"> <img src="docs/schematic.png" width="120"> <img src="docs/paths.jpeg" width="120"> <img src="docs/ui0.jpeg" width="120"> <img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120"> <img src="docs/ui5.jpeg" width="120"> <img src="docs/ui6.jpeg" width="120"> <img src="https://raw.githubusercontent.com/mkvesala/ESP32-Crowpanel-compass/main/docs/full_uml_diagram.jpeg" width="240">
 
 
