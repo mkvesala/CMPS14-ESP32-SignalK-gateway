@@ -39,7 +39,7 @@ This is one of my individual digital boat projects. Use at your own risk. Not fo
 2. I wanted to learn ESP32 capabilities for other digital boat projects that are on my backlog
 3. I felt I had to refresh my C/C++ skills as I had not delivered any code since 2005 (and before that mostly Java and Smallworld Magik)
 
-I started the project Arduino-style by copying code from a previous project (VEDirect-ESP32-SignalK-gateway). Then, I just kept playing around with Arduino. The next project will be most likely based on SensESP/PlatformIO to keep things less complicated.
+The project started as procedural .ino implementation in Arduino. Later, refactoring to class structure was done. That developed into a design pattern that I currently use in all similar sensor projects of my boat.
 
 ## Release history
 
@@ -571,14 +571,7 @@ WebServer endpoints are protected by session-based authentication:
 
 ## Credits
 
-Developed and tested using:
-
-- SH-ESP32 board rev 2.2.1
-- Espressif Systems esp32 3.3.5 package on Arduino IDE 2.3.6
-- SignalK Server version 2.18.0
-- OpenCPN version 5.12.4-universal and KIP version 4.0.7 for visualization
-- CMPS14 firmware version 7
-- ESP32-Crowpanel-compass v2.0.0
+Developed and tested using HW and SW listed in this document.
 
 Inspired by [Magnetix - a digital compass with NMEA2000](https://open-boat-projects.org/en/magnetix-ein-digitaler-kompass-mit-nmea2000/).
 
@@ -586,15 +579,11 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-This is a companion project to [ESP32-Crowpanel-compass](https://github.com/mkvesala/ESP32-Crowpanel-compass), [BME280-ESP32-SignalK-gateway](https://github.com/mkvesala/BME280-ESP32-SignalK-gateway) and VEDirect-ESP32-SignalK-gateway. See below diagram how these projects relate:
+This is a companion project to [ESP32-Crowpanel-compass](https://github.com/mkvesala/ESP32-Crowpanel-compass), [BME280-ESP32-SignalK-gateway](https://github.com/mkvesala/BME280-ESP32-SignalK-gateway), [UBLOX-ESP32-SignalK-gateway](https://github.com/mkvesala/UBLOX-ESP32-SignalK-gateway) and [VEDirect-ESP32-SignalK-gateway](https://github.com/mkvesala/VEDirect-ESP32-SignalK-gateway). See below diagram how these projects relate:
 
 <img src="https://raw.githubusercontent.com/mkvesala/ESP32-Crowpanel-compass/main/docs/full_uml_diagram.jpeg" width="480">
 
-Developed by Matti Vesala in collaboration with ChatGPT and Claude Code. ChatGPT was used as sparring partner for ideas, for generating source code skeletons and as my personal trainer in C++. Claude was used for code review and performance analysis.
-
-The "full-AI" pieces of code are `computeHarmonicCoeffs(..)` and `computeDeviation(..)` functions while `WebUIManager` class is heavily "AI-assisted" due to its lengthy methods and http logic.
-
-Any similarities to any other source code out there, done by other people or organizations, is purely coincidental and unintentional.
+Developed by Matti Vesala in collaboration with Claude Code.
 
 Check [CONTRIBUTING.md](CONTRIBUTING.md) for further AI-assisted development in the project.
 
