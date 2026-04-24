@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-24
+
+### Added
+
+#### WiFi AP security and intrusion detection
+- `WiFi.softAP()` called immediately after `WiFi.mode(WIFI_AP_STA)` — AP interface secured before any client can connect
+  - Hidden SSID (`ssid_hidden=1`) — network not advertised
+  - WPA2 password (`AP_PASS` from `secrets.h`, min 8 characters)
+  - Maximum 1 concurrent connection
+- AP intrusion detection with three-layer defence:
+  - **Layer 1 — Hidden SSID**: network not visible to scanners
+  - **Layer 2 — WPA2 password**: connection blocked without `AP_PASS`
+  - **Layer 3 — Immediate deauth + alert**: if a station connects despite layers 1–2, it is kicked instantly and the MAC address is logged
+- `WiFi.onEvent(ARDUINO_EVENT_WIFI_AP_STACONNECTED)` registered in `begin()` before `WiFi.begin()` so no connection event is missed
+  - Callback runs in FreeRTOS `arduino_events` task: calls `esp_wifi_deauth_sta()` immediately (thread-safe ESP-IDF call)
+  - Copies sender MAC before setting `volatile bool ap_intruder` flag — `loop()` always reads a complete address
+- New `handleAPIntruder()` called from `loop()` immediately after `handleWifi()`
+  - Clears the flag before Serial/display calls so a rapid second event is not lost
+  - Logs intruder MAC to Serial: `[AP] INTRUDER deauthed — MAC XX:XX:XX:XX:XX:XX`
+  - Shows alert on LCD: `AP: INTRUDER!` / MAC
+
+#### New files / includes
+- `#include <esp_wifi.h>` added to `CMPS14Application.h` — provides `esp_wifi_deauth_sta()`
+
+### Changed
+
+- `WIFI_TIMEOUT_MS` updated from `90001` to `179999` (~3 minutes)
+
+### Developer Notes
+
+#### AP security — three lines of defence
+
+The AP interface is required for ESP-NOW coexistence (`WIFI_AP_STA` mode) and is not intended for external client connections.
+
+| Line | Mechanism | Where in code |
+|---|---|---|
+| **1. Hidden SSID** | `ssid_hidden=1` — network not advertised | `WiFi.softAP(..., 1, 1, 1)` |
+| **2. WPA2 password** | `AP_PASS` (min 8 chars) | `secrets.h: AP_PASS` |
+| **3. Immediate deauth + alert** | Kicked instantly, MAC logged | `WiFi.onEvent(...)` + `handleAPIntruder()` |
+
+New private members in `CMPS14Application`:
+```cpp
+volatile bool ap_intruder        = false;    // written in callback, read in loop()
+uint8_t       ap_intruder_mac[6] = {};       // copied atomically before flag is set
+```
+
 ## [1.3.1] - 2026-04-06
 
 ### Changed
@@ -353,6 +399,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[1.4.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.4.0
 [1.3.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.1
 [1.3.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.0
 [1.2.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.2.0

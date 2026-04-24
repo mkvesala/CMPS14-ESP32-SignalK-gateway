@@ -45,7 +45,8 @@ I started the project Arduino-style by copying code from a previous project (VED
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v1.3.1  | main                    | Latest release. Documentation patch, no source code changes.               |
+| v1.4.0  | main                    | Latest release. WiFi AP security and intrusion detection. See CHANGELOG.  |
+| v1.3.1  | main                    | Documentation patch, no source code changes.                               |
 | v1.3.0  | main                    | Breaking change in ESP-NOW wire protocol. See CHANGELOG for details.       |
 | v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.                    |
 | v1.1.0  | main                    | Added web authentication. See CHANGELOG for details.                       |
@@ -468,12 +469,15 @@ Using different display can be done within `DisplayManager` class while ensuring
 2. Alternatively, download the code as zip
 3. Set up your credentials in `secrets.h` (first by renaming the `secrets.example.h` to `secrets.h`)
    ```
-   inline constexpr const char* WIFI_SSID = "your_wifi_ssid_here";
-   inline constexpr const char* WIFI_PASS = "your_wifi_password_here";
-   inline constexpr const char* SK_HOST = "your_signalk_address_here";
-   inline constexpr uint16_t SK_PORT = 3000; // <-- replace with your signalk server port
-   inline constexpr const char* SK_TOKEN = "your_signalk_auth_token_here";
+   inline constexpr const char* WIFI_SSID            = "your_wifi_ssid_here";
+   inline constexpr const char* WIFI_PASS            = "your_wifi_password_here";
+   inline constexpr const char* SK_HOST              = "your_signalk_address_here";
+   inline constexpr uint16_t    SK_PORT              = 3000;
+   inline constexpr const char* SK_TOKEN             = "your_signalk_auth_token_here";
+   inline constexpr const char* OTA_PASS             = "your_OTA_password_here";
    inline constexpr const char* DEFAULT_WEB_PASSWORD = "your_default_web_password_here";
+   inline constexpr const char* AP_SSID              = "your_ap_ssid_here";   // hidden, name not critical
+   inline constexpr const char* AP_PASS              = "your_ap_password_here"; // min 8 chars (WPA2)
    ```
 4. **Make sure that `secrets.h` is listed in your `.gitignore` file**
 5. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
@@ -504,6 +508,16 @@ Long term observations on release v1.3.0 running on SH-ESP32 board, LCD connecte
 ### Maritime navigation
 
 **Use at your own risk - not for safety-critical navigation!**
+
+### WiFi AP interface
+
+The ESP32 operates in `WIFI_AP_STA` mode to allow ESP-NOW and WiFi to coexist. The AP interface is not intended for external client connections and is secured with three layers of defence:
+
+1. **Hidden SSID** — AP network is not advertised, invisible to scanners
+2. **WPA2 password** — `AP_PASS` from `secrets.h` (minimum 8 characters required)
+3. **Immediate deauth + alert** — if a station connects despite layers 1–2, it is deauthenticated immediately via `esp_wifi_deauth_sta()`, the MAC address is logged to Serial and shown on LCD (`AP: INTRUDER!`)
+
+`AP_SSID` and `AP_PASS` must be defined in `secrets.h`.
 
 ### Authentication
 

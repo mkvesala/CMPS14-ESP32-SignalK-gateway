@@ -37,8 +37,21 @@ void CMPS14Application::begin() {
   // Stop bluetooth
   btStop(); 
 
-  // Init WiFi (AP_STA mode enables ESP-NOW alongside WiFi)
+  // Init WiFi (AP_STA mode enables ESP-NOW alongside WiFi).
+  // softAP() secures the AP interface immediately — hidden SSID, WPA2, single connection max.
   WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(AP_SSID, AP_PASS, 1 /*channel*/, 1 /*ssid_hidden*/, 1 /*max_connection*/);
+
+  // Register AP intruder callback before WiFi.begin() so no event is missed.
+  // Callback runs in FreeRTOS "arduino_events" task: deauth immediately, flag loop().
+  // MAC is copied before setting the flag so loop() always reads a complete address.
+  WiFi.onEvent([this](arduino_event_id_t /*id*/, arduino_event_info_t info) {
+    uint8_t aid = info.wifi_ap_staconnected.aid;
+    memcpy(ap_intruder_mac, info.wifi_ap_staconnected.mac, 6);
+    esp_wifi_deauth_sta(aid);
+    ap_intruder = true;
+  }, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
+
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   wifi_state = WifiState::CONNECTING;
@@ -60,6 +73,7 @@ void CMPS14Application::loop() {
   const unsigned long loop_start = micros();   // Debug
   const unsigned long now = millis();
   this->handleWifi(now);
+  this->handleAPIntruder();
   this->handleOTA();
   this->handleWebUI();
   this->handleWebsocket(now);
@@ -138,6 +152,18 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       break;
   }
 
+}
+
+// AP intruder alert — deauth already done in event callback; log + display here
+void CMPS14Application::handleAPIntruder() {
+  if (!ap_intruder) return;
+  ap_intruder = false;
+  char mac[18];
+  snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
+           ap_intruder_mac[0], ap_intruder_mac[1], ap_intruder_mac[2],
+           ap_intruder_mac[3], ap_intruder_mac[4], ap_intruder_mac[5]);
+  Serial.printf("[AP] INTRUDER deauthed — MAC %s\n", mac);
+  display.showInfoMessage("AP: INTRUDER!", mac);
 }
 
 // OTA

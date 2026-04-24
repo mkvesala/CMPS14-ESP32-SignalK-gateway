@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <ArduinoOTA.h>
 #include <esp_system.h>
+#include <esp_wifi.h>
 #include "WifiState.h"
 #include "CMPS14Sensor.h"
 #include "CMPS14Processor.h"
@@ -54,7 +55,7 @@ class CMPS14Application {
     static constexpr unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop()
     static constexpr unsigned long CAL_POLL_MS           = 499;         // Frequency to poll calibration status in loop() 
     static constexpr unsigned long WIFI_STATUS_CHECK_MS  = 503;         // Frequency to check wifi status
-    static constexpr unsigned long WIFI_TIMEOUT_MS       = 90001;       // Try WiFi connection max 1.5 minutes
+    static constexpr unsigned long WIFI_TIMEOUT_MS       = 179999;      // Try WiFi connection max 3 minutes
     static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
     static constexpr unsigned long WS_RETRY_MAX_MS       = 119993;      // Max reconnect delay for SignalK websocket
     static constexpr unsigned long ESPNOW_TX_INTERVAL_MS = 53;          // Frequency for ESP-NOW broadcast
@@ -82,6 +83,10 @@ class CMPS14Application {
 
     WifiState wifi_state = WifiState::INIT;
 
+    // AP intruder detection — written in WiFi event callback, read in loop()
+    volatile bool ap_intruder        = false;
+    uint8_t       ap_intruder_mac[6] = {};
+
     // Core instances for app
     CMPS14Sensor sensor;
     CMPS14Processor compass;
@@ -93,6 +98,7 @@ class CMPS14Application {
 
     // Handlers for loop - timers and operations
     void handleWifi(const unsigned long now);
+    void handleAPIntruder();
     void handleOTA();
     void handleWebUI();
     void handleWebsocket(const unsigned long now);
