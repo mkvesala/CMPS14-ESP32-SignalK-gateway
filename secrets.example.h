@@ -12,3 +12,5 @@ inline constexpr uint16_t SK_PORT = 3000; // <-- replace with your signalk serve
 inline constexpr const char* SK_TOKEN = "your_signalk_auth_token_here";
 inline constexpr const char* OTA_PASS = "your_OTA_password_here";
 inline constexpr const char* DEFAULT_WEB_PASSWORD = "your_default_web_password_here";
+inline constexpr const char* AP_SSID = "your_ap_ssid_here";   // hidden, name not critical
+inline constexpr const char* AP_PASS = "your_ap_password_here"; // min 8 chars (WPA2)
