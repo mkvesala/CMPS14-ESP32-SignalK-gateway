@@ -585,7 +585,7 @@ This is a companion project to [ESP32-Crowpanel-compass](https://github.com/mkve
 
 Developed by Matti Vesala in collaboration with Claude Code.
 
-Check [CONTRIBUTING.md](CONTRIBUTING.md) for further AI-assisted development in the project.
+Check [CONTRIBUTING.md](CONTRIBUTING.md) for further development in the project.
 
 I would highly appreciate improvement suggestions as well as any Arduino-style ESP32/C++ coding advice. 
 
