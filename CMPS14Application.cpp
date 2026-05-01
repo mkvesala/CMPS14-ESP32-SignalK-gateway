@@ -39,7 +39,7 @@ void CMPS14Application::begin() {
 
   // Init WiFi (AP_STA mode enables ESP-NOW alongside WiFi).
   // softAP() secures the AP interface immediately — hidden SSID, WPA2, single connection max.
-  // WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_AP_STA);
   // WiFi.softAP(AP_SSID, AP_PASS, 1 /*channel*/, 1 /*ssid_hidden*/, 1 /*max_connection*/);
 
   // Register AP intruder callback before WiFi.begin() so no event is missed.
