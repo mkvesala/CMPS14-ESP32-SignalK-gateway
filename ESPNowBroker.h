@@ -41,8 +41,8 @@ private:
     float last_r = NAN;
 
     static constexpr uint8_t BROADCAST_ADDR[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    static constexpr float DB_HDG_RAD = 0.00436f;  // 0.25° deadband for heading
-    static constexpr float DB_ATT_RAD = 0.00436f;  // 0.25° deadband for pitch/roll
+    static constexpr float DB_HDG_RAD = 0.001745f;  // 0.1° deadband for heading
+    static constexpr float DB_ATT_RAD = 0.001745f;  // 0.1° deadband for pitch/roll
 
     // Static callback methods to be registered for ESP-NOW
     static void onDataSent(const esp_now_send_info_t* info, esp_now_send_status_t status);

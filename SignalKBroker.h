@@ -61,6 +61,6 @@ private:
 
     char SK_URL[512];     // URL of SignalK server
     char SK_SOURCE[32];   // ESP32 source name for SignalK, used also as the OTA hostname
-    static constexpr float DB_HDG_RAD = 0.00436f;    // 0.25°: deadband threshold for heading
-    static constexpr float DB_ATT_RAD = 0.00436f;    // 0.25°: pitch/roll deadband threshold
+    static constexpr float DB_HDG_RAD = 0.001745f;    // 0.1°: deadband threshold for heading
+    static constexpr float DB_ATT_RAD = 0.001745f;    // 0.1°: pitch/roll deadband threshold
 };
