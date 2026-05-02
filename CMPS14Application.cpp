@@ -40,17 +40,17 @@ void CMPS14Application::begin() {
   // Init WiFi (AP_STA mode enables ESP-NOW alongside WiFi).
   // softAP() secures the AP interface immediately — hidden SSID, WPA2, single connection max.
   WiFi.mode(WIFI_AP_STA);
-  // WiFi.softAP(AP_SSID, AP_PASS, 1 /*channel*/, 1 /*ssid_hidden*/, 1 /*max_connection*/);
+  WiFi.softAP(AP_SSID, AP_PASS, 1 /*channel*/, 1 /*ssid_hidden*/, 1 /*max_connection*/);
 
   // Register AP intruder callback before WiFi.begin() so no event is missed.
   // Callback runs in FreeRTOS "arduino_events" task: deauth immediately, flag loop().
   // MAC is copied before setting the flag so loop() always reads a complete address.
-  // WiFi.onEvent([this](arduino_event_id_t /*id*/, arduino_event_info_t info) {
-  //   uint8_t aid = info.wifi_ap_staconnected.aid;
-  //   memcpy(ap_intruder_mac, info.wifi_ap_staconnected.mac, 6);
-  //   esp_wifi_deauth_sta(aid);
-  //   ap_intruder = true;
-  // }, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
+  WiFi.onEvent([this](arduino_event_id_t /*id*/, arduino_event_info_t info) {
+    uint8_t aid = info.wifi_ap_staconnected.aid;
+    memcpy(ap_intruder_mac, info.wifi_ap_staconnected.mac, 6);
+    esp_wifi_deauth_sta(aid);
+    ap_intruder = true;
+  }, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
 
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
