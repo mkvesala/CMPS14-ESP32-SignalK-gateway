@@ -58,29 +58,17 @@ void SignalKBroker::closeWebsocket() {
 
 // Send heading, pitch and roll to SignalK server
 void SignalKBroker::sendHdgPitchRollDelta() {
-  
-    if (!ws_open) return; 
-    
+
+    if (!ws_open) return;
+
     auto delta = compass.getHeadingDelta();
-    if (!validf(delta.heading_rad) || !validf(delta.pitch_rad) || !validf(delta.roll_rad)) return; 
+    if (!validf(delta.heading_rad) || !validf(delta.pitch_rad) || !validf(delta.roll_rad)) return;
 
-    static float last_h = NAN, last_p = NAN, last_r = NAN;
-    bool changed_h = false, changed_p = false, changed_r = false;
+    static float last_h = NAN;
 
-    if (!validf(last_h) || fabsf(computeAngDiffRad(delta.heading_rad, last_h)) >= DB_HDG_RAD) {
-        changed_h = true;
-        last_h = delta.heading_rad;
-    }
-    if (!validf(last_p) || fabsf(delta.pitch_rad - last_p) >= DB_ATT_RAD) {
-        changed_p = true;
-        last_p = delta.pitch_rad;
-    }
-    if (!validf(last_r) || fabsf(delta.roll_rad - last_r) >= DB_ATT_RAD) {
-        changed_r = true;
-        last_r = delta.roll_rad;
-    }
-
-    if (!(changed_h || changed_p || changed_r)) return;  
+    // Heading deadband gates the send; pitch and roll always included to match heading update rate
+    if (validf(last_h) && fabsf(computeAngDiffRad(delta.heading_rad, last_h)) < DB_HDG_RAD) return;
+    last_h = delta.heading_rad;
 
     hdg_pitch_roll_doc.clear();
     hdg_pitch_roll_doc["context"] = "vessels.self";
@@ -95,12 +83,10 @@ void SignalKBroker::sendHdgPitchRollDelta() {
         o["value"] = v;
     };
 
-    if (changed_h) add("navigation.headingMagnetic", last_h); 
-    if (changed_p) add("navigation.attitude.pitch",  last_p);
-    if (changed_r) add("navigation.attitude.roll",   last_r);
-    if (changed_h && compass.isSendingHeadingTrue()) add("navigation.headingTrue", delta.heading_true_rad);
-
-    if (values.size() == 0) return;
+    add("navigation.headingMagnetic", last_h);
+    add("navigation.attitude.pitch",  delta.pitch_rad);
+    add("navigation.attitude.roll",   delta.roll_rad);
+    if (compass.isSendingHeadingTrue()) add("navigation.headingTrue", delta.heading_true_rad);
 
     char buf[640];
     size_t n = serializeJson(hdg_pitch_roll_doc, buf, sizeof(buf));
@@ -140,25 +126,25 @@ void SignalKBroker::sendPitchRollMinMaxDelta() {
         o["value"] = v; 
     };
 
-    if (ch_pmin) add("navigation.attitude.pitch.min", delta.pitch_min_rad); 
-    if (ch_pmax) add("navigation.attitude.pitch.max", delta.pitch_max_rad);
-    if (ch_rmin) add("navigation.attitude.roll.min",  delta.roll_min_rad);
-    if (ch_rmax) add("navigation.attitude.roll.max",  delta.roll_max_rad);
+    if (ch_pmin) add("navigation.attitude.pitchMin", delta.pitch_min_rad);
+    if (ch_pmax) add("navigation.attitude.pitchMax", delta.pitch_max_rad);
+    if (ch_rmin) add("navigation.attitude.rollMin",  delta.roll_min_rad);
+    if (ch_rmax) add("navigation.attitude.rollMax",  delta.roll_max_rad);
 
     if (values.size() == 0) return;
 
     char buf[640];
     size_t n = serializeJson(minmax_doc, buf, sizeof(buf));
     bool ok = ws.send(buf, n);
-    if (!ok){
+    if (!ok) {
         ws.close();
         ws_open = false;
+    } else {
+        if (ch_pmin) last_sent_pitch_min = delta.pitch_min_rad;
+        if (ch_pmax) last_sent_pitch_max = delta.pitch_max_rad;
+        if (ch_rmin) last_sent_roll_min  = delta.roll_min_rad;
+        if (ch_rmax) last_sent_roll_max  = delta.roll_max_rad;
     }
-
-    if (ch_pmin) last_sent_pitch_min = delta.pitch_min_rad;
-    if (ch_pmax) last_sent_pitch_max = delta.pitch_max_rad;
-    if (ch_rmin) last_sent_roll_min  = delta.roll_min_rad;
-    if (ch_rmax) last_sent_roll_max  = delta.roll_max_rad;
 }
 
 // === P R I V A T E ===

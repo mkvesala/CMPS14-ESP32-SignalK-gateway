@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 #### New files / includes
 - `#include <esp_wifi.h>` added to `CMPS14Application.h` — provides `esp_wifi_deauth_sta()`
 
+### Fixed
+
+- **WiFi reconnect — `initWifiServices()` called multiple times**: added `wifi_services_initialized` guard flag to `CMPS14Application`. `ArduinoOTA.begin()` and `webui.begin()` (including `setupRoutes()`) are now called only once for the lifetime of the application. Previously, each WiFi reconnect triggered a full re-initialisation: `ArduinoOTA.begin()` re-registered mDNS and re-bound UDP port 3232 without releasing the previous socket, and `setupRoutes()` appended duplicate route entries to the WebServer's internal linked list — both leaking memory on every reconnect. WebSocket reconnect is unaffected; it is handled as before by `handleWebsocket()`.
+
 ### Changed
 
 - `WIFI_TIMEOUT_MS` updated from `90001` to `179999` (~3 minutes)
