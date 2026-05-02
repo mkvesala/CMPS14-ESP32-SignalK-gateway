@@ -73,7 +73,7 @@ void CMPS14Application::loop() {
   const unsigned long loop_start = micros();   // Debug
   const unsigned long now = millis();
   this->handleWifi(now);
-  // this->handleAPIntruder();
+  this->handleAPIntruder();
   this->handleOTA();
   this->handleWebUI();
   this->handleWebsocket(now);
@@ -257,6 +257,9 @@ void CMPS14Application::handleDisplay() {
 
 // Init wifi-dependent stuff
 void CMPS14Application::initWifiServices() {
+  if (wifi_services_initialized) return;
+  wifi_services_initialized = true;
+
   // SignalK websocket
   signalk.begin();
 

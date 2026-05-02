@@ -80,6 +80,7 @@ class CMPS14Application {
     bool monitoring = false;
 
     bool compass_ok = false;
+    bool wifi_services_initialized = false;
 
     WifiState wifi_state = WifiState::INIT;
 
