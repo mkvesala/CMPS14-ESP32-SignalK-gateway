@@ -60,6 +60,7 @@ class CMPS14Application {
     static constexpr unsigned long ESPNOW_TX_INTERVAL_MS = 53;          // Frequency for ESP-NOW broadcast
     static constexpr unsigned long MEM_CHECK_MS          = 120007;      // Memory check every 2 mins to LCD - debug
     static constexpr unsigned long RUNTIME_CHECK_MS      = 59999;       // Runtime monitoring of app.loop() - debug
+    static constexpr unsigned long RSSI_DISPLAY_MS       = 90001;       // RSSI on LCD ~90s when WiFi connected - debug
 
     // Timers
     unsigned long expn_retry_ms         = WS_RETRY_MS;
@@ -72,6 +73,7 @@ class CMPS14Application {
     unsigned long last_espnow_tx_ms     = 0;
     unsigned long last_mem_check_ms     = 0; // Debug
     unsigned long last_runtime_check_ms = 0; // Debug
+    unsigned long last_rssi_display_ms  = 0; // Debug
 
     // Debug app.loop() runtime monitoring
     float loop_avg_us = 0.0f;
@@ -79,6 +81,7 @@ class CMPS14Application {
 
     bool compass_ok = false;
     bool wifi_services_initialized = false;
+    uint8_t wifi_reconnect_count = 0;
 
     WifiState wifi_state = WifiState::INIT;
 

@@ -108,6 +108,7 @@ void CMPS14Application::handleWifi(const unsigned long now) {
         int32_t rssi = WiFi.RSSI();
         uint32_t ip = (uint32_t)WiFi.localIP();
         display.setWifiInfo(rssi, ip);
+        Serial.printf("[WiFi] connected rssi=%d reconnects=%u\n", rssi, wifi_reconnect_count);
         display.showSuccessMessage("WIFI CONNECT", true);
         display.showWifiStatus();
         display.setWifiState(wifi_state);
@@ -116,6 +117,7 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       }
       else if ((long)(now - wifi_conn_start_ms) >= WIFI_TIMEOUT_MS) {
         wifi_state = WifiState::FAILED;
+        Serial.printf("[WiFi] timeout elapsed=%lums\n", now - wifi_conn_start_ms);
         display.showSuccessMessage("WIFI CONNECT", false);
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
@@ -124,24 +126,40 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       }
       else if (status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
         wifi_state = WifiState::FAILED;
+        Serial.printf("[WiFi] failed status=%d\n", (int)status);
         display.showSuccessMessage("WIFI CONNECT", false);
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
         wifi_state = WifiState::OFF;
         display.setWifiState(wifi_state);
       }
+      else {
+        Serial.printf("[WiFi] connecting... status=%d elapsed=%lums\n", (int)status, now - wifi_conn_start_ms);
+      }
       break;
     }
 
     case WifiState::CONNECTED: {
-      if(!WiFi.isConnected()) {
+      int32_t rssi = WiFi.RSSI();
+      display.setWifiInfo(rssi, (uint32_t)WiFi.localIP());
+      if (!WiFi.isConnected()) {
+        wifi_reconnect_count++;
+        Serial.printf("[WiFi] lost rssi=%d reconnects=%u\n", rssi, wifi_reconnect_count);
         wifi_state = WifiState::DISCONNECTED;
-        display.showInfoMessage("WIFI", "LOST");
+        char msg[16];
+        snprintf(msg, sizeof(msg), "RECONNECT #%u", wifi_reconnect_count);
+        display.showInfoMessage("WIFI LOST", msg);
         WiFi.disconnect();
         WiFi.begin(WIFI_SSID, WIFI_PASS);
         wifi_state = WifiState::CONNECTING;
         display.setWifiState(wifi_state);
         wifi_conn_start_ms = now;
+      } else if ((long)(now - last_rssi_display_ms) >= RSSI_DISPLAY_MS) {
+        last_rssi_display_ms = now;
+        char rssi_msg[16];
+        snprintf(rssi_msg, sizeof(rssi_msg), "%d dBm", rssi);
+        display.showInfoMessage("WIFI RSSI", rssi_msg);
+        Serial.printf("[WiFi] rssi=%d\n", rssi);
       }
       break;
     }
