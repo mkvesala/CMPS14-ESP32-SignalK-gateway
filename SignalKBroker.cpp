@@ -97,56 +97,6 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     }
 }
 
-// Send pitch and roll min/max values to SignalK
-void SignalKBroker::sendPitchRollMinMaxDelta() {
-  
-    if (!ws_open) return; 
-
-    auto delta = compass.getMinMaxDelta();
-
-    static float last_sent_pitch_min = NAN, last_sent_pitch_max = NAN, last_sent_roll_min = NAN, last_sent_roll_max = NAN;
-
-    bool ch_pmin = (validf(delta.pitch_min_rad) && delta.pitch_min_rad != last_sent_pitch_min);
-    bool ch_pmax = (validf(delta.pitch_max_rad) && delta.pitch_max_rad != last_sent_pitch_max);
-    bool ch_rmin = (validf(delta.roll_min_rad)  && delta.roll_min_rad  != last_sent_roll_min);
-    bool ch_rmax = (validf(delta.roll_max_rad)  && delta.roll_max_rad  != last_sent_roll_max);
-
-    if (!(ch_pmin || ch_pmax || ch_rmin || ch_rmax)) return;
-
-    minmax_doc.clear();
-    minmax_doc["context"] = "vessels.self";
-    auto updates = minmax_doc.createNestedArray("updates");
-    auto up      = updates.createNestedObject();
-    up["$source"] = SK_SOURCE;
-    auto values  = up.createNestedArray("values");
-
-    auto add = [&](const char* path, float v) {
-        auto o = values.createNestedObject();
-        o["path"]  = path;
-        o["value"] = v; 
-    };
-
-    if (ch_pmin) add("navigation.attitude.pitchMin", delta.pitch_min_rad);
-    if (ch_pmax) add("navigation.attitude.pitchMax", delta.pitch_max_rad);
-    if (ch_rmin) add("navigation.attitude.rollMin",  delta.roll_min_rad);
-    if (ch_rmax) add("navigation.attitude.rollMax",  delta.roll_max_rad);
-
-    if (values.size() == 0) return;
-
-    char buf[640];
-    size_t n = serializeJson(minmax_doc, buf, sizeof(buf));
-    bool ok = ws.send(buf, n);
-    if (!ok) {
-        ws.close();
-        ws_open = false;
-    } else {
-        if (ch_pmin) last_sent_pitch_min = delta.pitch_min_rad;
-        if (ch_pmax) last_sent_pitch_max = delta.pitch_max_rad;
-        if (ch_rmin) last_sent_roll_min  = delta.roll_min_rad;
-        if (ch_rmax) last_sent_roll_max  = delta.roll_max_rad;
-    }
-}
-
 // === P R I V A T E ===
 
 // Create SignalK server URL for websocket

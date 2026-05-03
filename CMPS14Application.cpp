@@ -232,17 +232,10 @@ void CMPS14Application::handleSignalK(const unsigned long now) {
     signalk.sendHdgPitchRollDelta();
   }
 
-  // Send pitch and roll min and max to SignalK server
-  if ((long)(now - last_minmax_tx_ms) >= MINMAX_TX_INTERVAL_MS) {
-    last_minmax_tx_ms = now;
-    signalk.sendPitchRollMinMaxDelta();
-  }
-
 }
 
 // ESP-NOW broadcast
 void CMPS14Application::handleESPNow(const unsigned long now) {
-  espnow.processLevelCommand();
   if ((long)(now - last_espnow_tx_ms) < ESPNOW_TX_INTERVAL_MS) return;
   last_espnow_tx_ms = now;
   espnow.sendHeadingDelta();

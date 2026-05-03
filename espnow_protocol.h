@@ -15,8 +15,6 @@ namespace ESPNow {
         BATTERY_DELTA   = 2,
         WEATHER_DELTA   = 3,
         GNSS_DELTA      = 4,
-        LEVEL_COMMAND   = 10,
-        LEVEL_RESPONSE  = 11,
     };
 
     // === H E A D E R ===
@@ -73,21 +71,6 @@ namespace ESPNow {
         uint8_t fix_ok;       // getGnssFixOk() ? 1 : 0
         uint8_t reserved;     // padding
     };  // 24 bytes
-
-    // Level command (CrowPanel → Compass, broadcast)
-    // Sent to CMPS14-ESP32-SignalK-gateway
-    struct LevelCommand {
-        uint8_t magic[4];     // "LVLC" — redundant in Phase 2 (msg_type identifies the packet)
-        uint8_t reserved[4];
-    };
-
-    // Level response (Compass → CrowPanel, unicast)
-    // Sent by CMPS14-ESP32-SignalK-gateway
-    struct LevelResponse {
-        uint8_t magic[4];     // "LVLR" — redundant in Phase 2 (msg_type identifies the packet)
-        uint8_t success;      // 1 = OK, 0 = failed
-        uint8_t reserved[3];
-    };
 
     // === W R A P P E R ===
 

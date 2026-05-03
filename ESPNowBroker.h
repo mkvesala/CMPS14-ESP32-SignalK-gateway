@@ -12,7 +12,6 @@
 // - Provides public API to
 //   - Initialize ESP-NOW in broadcast mode
 //   - Send compass heading delta to all ESP-NOW listeners
-//   - Process attitude leveling command received from ESP-NOW peer
 // - Uses: CMPS14Processor ("the compass")
 
 class ESPNowBroker {
@@ -23,17 +22,12 @@ public:
 
     bool begin();
     void sendHeadingDelta();
-    void processLevelCommand();
 
 private:
-    
+
     CMPS14Processor &compass;
 
     bool initialized = false;
-
-    // Attitude leveling command related static variables
-    static uint8_t last_sender_mac[6];
-    static volatile bool level_command_received;
 
     // Deadband tracking (same pattern as SignalKBroker)
     float last_h = NAN;

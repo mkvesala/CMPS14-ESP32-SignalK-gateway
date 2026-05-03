@@ -55,7 +55,6 @@ public:
     void getMeasuredDeviations(float out[8]) const { memcpy(out, measured_deviations, sizeof(measured_deviations)); }
 
     auto getHeadingDelta() const { return headingDelta; }
-    auto getMinMaxDelta() const { return minMaxDelta; }
     CalMode getCalibrationModeBoot() const { return cal_mode_boot; }
     CalMode getCalibrationModeRuntime() const { return cal_mode_runtime; }
     HarmonicCoeffs getHarmonicCoeffs() const { return hc; }
@@ -90,7 +89,6 @@ private:
     uint8_t readCalStatusByte();
     uint8_t readFwVersion();
     void updateHeadingDelta();
-    void updateMinMaxDelta();
     
     CMPS14Sensor &sensor;
     TwoWire *wire;
@@ -134,11 +132,6 @@ private:
     struct HeadingDelta {
         float heading_rad = NAN, heading_true_rad = NAN, pitch_rad = NAN, roll_rad = NAN;
     } headingDelta;
-
-    // Pitch and roll min/max values in radians
-    struct MinMaxDelta {
-        float pitch_min_rad = NAN, pitch_max_rad = NAN, roll_min_rad = NAN, roll_max_rad = NAN;
-    } minMaxDelta;
 
     // Calibration
     uint8_t cal_ok_count = 0;

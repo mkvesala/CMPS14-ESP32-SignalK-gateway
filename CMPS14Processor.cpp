@@ -53,7 +53,6 @@ bool CMPS14Processor::update() {
 
     // Radians for SignalK
     this->updateHeadingDelta();
-    this->updateMinMaxDelta();
 
     return true;
 }
@@ -63,10 +62,6 @@ void CMPS14Processor::level() {
     if (validf(pitch_level_raw) && validf(roll_level_raw)) {
         pitch_level = -pitch_level_raw;
         roll_level = -roll_level_raw;
-        minMaxDelta.pitch_max_rad = NAN; // reset min and max values
-        minMaxDelta.pitch_min_rad = NAN;
-        minMaxDelta.roll_max_rad = NAN;
-        minMaxDelta.roll_min_rad = NAN;
     }
 }
 
@@ -219,18 +214,4 @@ void CMPS14Processor::updateHeadingDelta() {
     headingDelta.roll_rad         = roll_deg * DEG_TO_RAD;
 }
 
-// Update values of MinMaxDelta struct
-void CMPS14Processor::updateMinMaxDelta() {
-    if (isnan(minMaxDelta.pitch_max_rad)) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
-    else if (headingDelta.pitch_rad > minMaxDelta.pitch_max_rad) minMaxDelta.pitch_max_rad = headingDelta.pitch_rad;
-    
-    if (isnan(minMaxDelta.pitch_min_rad)) minMaxDelta.pitch_min_rad = headingDelta.pitch_rad;
-    else if (headingDelta.pitch_rad < minMaxDelta.pitch_min_rad) minMaxDelta.pitch_min_rad = headingDelta.pitch_rad;
-
-    if (isnan(minMaxDelta.roll_max_rad)) minMaxDelta.roll_max_rad = headingDelta.roll_rad;
-    else if (headingDelta.roll_rad > minMaxDelta.roll_max_rad) minMaxDelta.roll_max_rad = headingDelta.roll_rad;
-
-    if (isnan(minMaxDelta.roll_min_rad)) minMaxDelta.roll_min_rad = headingDelta.roll_rad;
-    else if (headingDelta.roll_rad < minMaxDelta.roll_min_rad) minMaxDelta.roll_min_rad = headingDelta.roll_rad;
-}
 

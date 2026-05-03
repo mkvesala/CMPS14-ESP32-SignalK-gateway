@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - 2026-04-24
+## [2.0.0] - 2026-05-03
 
 ### Added
 
@@ -31,6 +31,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - **WiFi reconnect — `initWifiServices()` called multiple times**: added `wifi_services_initialized` guard flag to `CMPS14Application`. `ArduinoOTA.begin()` and `webui.begin()` (including `setupRoutes()`) are now called only once for the lifetime of the application. Previously, each WiFi reconnect triggered a full re-initialisation: `ArduinoOTA.begin()` re-registered mDNS and re-bound UDP port 3232 without releasing the previous socket, and `setupRoutes()` appended duplicate route entries to the WebServer's internal linked list — both leaking memory on every reconnect. WebSocket reconnect is unaffected; it is handled as before by `handleWebsocket()`.
+
+- **Pitch and roll not updating in SignalK at heading rate**: previously pitch and roll were included in the SignalK heading delta only when they individually exceeded a 0.05° deadband. Because the CMPS14 BNO055 fusion algorithm produces stable attitude output while the EMA-smoothed heading fluctuates continuously, pitch and roll updated far less frequently than heading on the SignalK server. Pitch and roll are now included unconditionally in every delta that the heading deadband triggers — they update at the same rate as heading (~100 ms). The heading deadband is unchanged.
+
+### Removed
+
+- **Pitch and roll min/max tracking and SignalK publishing**: `MinMaxDelta` struct, `CMPS14Processor::updateMinMaxDelta()`, `CMPS14Processor::getMinMaxDelta()`, `SignalKBroker::sendPitchRollMinMaxDelta()`, and associated timing constants removed entirely. The feature was non-functional: the SignalK paths used (`navigation.attitude.pitchMin/Max`, `navigation.attitude.rollMin/Max`) conflict with the existing `navigation.attitude.pitch/roll` leaf nodes in the SignalK server data tree, causing the server to silently reject the deltas. Sufficient min/max recording is available through SignalK-native clients and dashboards.
+
+- **ESP-NOW attitude leveling command**: `ESPNowBroker::processLevelCommand()` and its response sending removed entirely. `ESPNow::LevelCommand`, `ESPNow::LevelResponse` structs and `LEVEL_COMMAND = 10`, `LEVEL_RESPONSE = 11` enum values removed from `espnow_protocol.h`. The companion display project (ESP32-Crowpanel-compass v2.0.0) has been updated to a pure ESP-NOW listener role — it no longer sends level commands or expects responses. Attitude leveling remains fully functional via the WebUI `/level` endpoint.
 
 ### Changed
 
@@ -403,7 +411,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
-[1.4.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.4.0
+[2.0.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.0.0
 [1.3.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.1
 [1.3.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.0
 [1.2.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.2.0

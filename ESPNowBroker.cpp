@@ -2,11 +2,6 @@
 #include "ESPNowBroker.h"
 #include <WiFi.h>
 
-// === S T A T I C ===
-
-uint8_t ESPNowBroker::last_sender_mac[6] = {0};
-volatile bool ESPNowBroker::level_command_received = false;
-
 // === P U B L I C ===
 
 // Constructor
@@ -70,48 +65,10 @@ void ESPNowBroker::sendHeadingDelta() {
     esp_now_send(BROADCAST_ADDR, (const uint8_t*)&pkt, sizeof(pkt));
 }
 
-// Process the received attitude leveling command coming from ESP-NOW peer
-void ESPNowBroker::processLevelCommand() {
-    if(!level_command_received) return;
-    level_command_received = false;
-
-    // Run the actual leveling
-    compass.level();
-
-    // Create the response packet
-    ESPNow::ESPNowPacket<ESPNow::LevelResponse> pkt;
-    // Header
-    initHeader(pkt.hdr, ESPNow::ESPNowMsgType::LEVEL_RESPONSE, sizeof(ESPNow::LevelResponse));
-    // Payload
-    memcpy(pkt.payload.magic, "LVLR", 4);
-    pkt.payload.success = 1;
-    memset(pkt.payload.reserved, 0, 3);
-
-    esp_now_peer_info_t peer = {};
-    memcpy(peer.peer_addr, last_sender_mac, 6);
-    peer.channel = 0;
-    peer.encrypt = false;
-
-    if (!esp_now_is_peer_exist(last_sender_mac)) esp_now_add_peer(&peer);
-    // Send packet
-    esp_err_t result = esp_now_send(last_sender_mac, (const uint8_t*)&pkt, sizeof(pkt));
-}
-
 // === P R I V A T E ===
 
 // Static callback for data send
 void ESPNowBroker::onDataSent(const esp_now_send_info_t* info, esp_now_send_status_t status) {}
 
 // Static callback for data receive
-void ESPNowBroker::onDataRecv(const esp_now_recv_info_t* recv_info, const uint8_t* data, int len) {
-    if (len < (int)sizeof(ESPNow::ESPNowHeader)) return;
-    ESPNow::ESPNowHeader hdr;
-    memcpy(&hdr, data, sizeof(ESPNow::ESPNowHeader));
-    if (hdr.magic != ESPNow::ESPNOW_MAGIC) return;
-    if (len < (int)(sizeof(ESPNow::ESPNowHeader) + hdr.payload_len)) return;
-    if (static_cast<ESPNow::ESPNowMsgType>(hdr.msg_type) == ESPNow::ESPNowMsgType::LEVEL_COMMAND) {
-        if (hdr.payload_len != sizeof(ESPNow::LevelCommand)) return;
-        memcpy(last_sender_mac, recv_info->src_addr, 6);
-        level_command_received = true;
-    }
-}
+void ESPNowBroker::onDataRecv(const esp_now_recv_info_t* recv_info, const uint8_t* data, int len) {}

@@ -34,7 +34,6 @@ public:
     bool connectWebsocket();
     void closeWebsocket();
     void sendHdgPitchRollDelta();
-    void sendPitchRollMinMaxDelta();
     const char* getSignalKSource() { return SK_SOURCE; }
     bool isOpen() const { return ws_open; }
 
@@ -52,8 +51,7 @@ private:
     websockets::WebsocketsClient ws;
 
     // Reusable JSON documents
-    StaticJsonDocument<512> hdg_pitch_roll_doc; 
-    StaticJsonDocument<512> minmax_doc;
+    StaticJsonDocument<512> hdg_pitch_roll_doc;
     StaticJsonDocument<1024> incoming_doc;
     StaticJsonDocument<256> subscribe_doc;
 

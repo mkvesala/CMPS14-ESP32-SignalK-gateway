@@ -51,7 +51,6 @@ class CMPS14Application {
     static constexpr uint8_t I2C_SCL = 17;
 
     static constexpr unsigned long MIN_TX_INTERVAL_MS    = 101;         // Max frequency for sending deltas to SignalK
-    static constexpr unsigned long MINMAX_TX_INTERVAL_MS = 997;         // Frequency for pitch/roll maximum values sending
     static constexpr unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop()
     static constexpr unsigned long CAL_POLL_MS           = 499;         // Frequency to poll calibration status in loop() 
     static constexpr unsigned long WIFI_STATUS_CHECK_MS  = 503;         // Frequency to check wifi status
@@ -65,8 +64,7 @@ class CMPS14Application {
     // Timers
     unsigned long expn_retry_ms         = WS_RETRY_MS;
     unsigned long next_ws_try_ms        = 0;
-    unsigned long last_tx_ms            = 0;   
-    unsigned long last_minmax_tx_ms     = 0;         
+    unsigned long last_tx_ms            = 0;
     unsigned long last_read_ms          = 0;
     unsigned long last_cal_poll_ms      = 0;
     unsigned long wifi_conn_start_ms    = 0;

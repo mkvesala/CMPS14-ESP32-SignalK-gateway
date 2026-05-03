@@ -45,7 +45,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v1.4.0  | main                    | Latest release. WiFi AP security and intrusion detection. See CHANGELOG.  |
+| v2.0.0  | main                    | Latest release. ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix. See CHANGELOG. |
+| v1.4.0  | main                    | WiFi AP security, intrusion detection, pitch/roll SignalK fix. See CHANGELOG.                  |
 | v1.3.1  | main                    | Documentation patch, no source code changes.                               |
 | v1.3.0  | main                    | Breaking change in ESP-NOW wire protocol. See CHANGELOG for details.       |
 | v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.                    |
@@ -199,21 +200,12 @@ ws://<server>:<port>/signalk/v1/stream?token=<optional>
 
 <img src="docs/paths.jpeg" width="480">
 
-**Sends** at maximum ~10 Hz frequency, in radians, with a deadband of 0.25°:
+**Sends** at maximum ~10 Hz frequency, in radians:
 
-1. *navigation.headingMagnetic*
-2. *navigation.attitude.pitch*
-3. *navigation.attitude.roll*
-4. (optionally) *navigation.headingTrue*
-
-**Sends** at maximum ~1 Hz frequency, in radians, only if changed:
-
-1. *navigation.attitude.pitch.max*
-2. *navigation.attitude.pitch.min*
-3. *navigation.attitude.roll.max*
-4. *navigation.attitude.roll.min*
-
-The min and max values reset to zero on ESP32 restart and after applying attitude leveling. They are *not* persistently stored in ESP32 NVS.
+- *navigation.headingMagnetic* — sent when heading changes by more than 0.05°
+- *navigation.attitude.pitch* — included in every heading delta
+- *navigation.attitude.roll* — included in every heading delta
+- *(optionally) navigation.headingTrue*
 
 **Receives** at ~1 Hz frequency, in radians:
 
@@ -223,24 +215,16 @@ The min and max values reset to zero on ESP32 restart and after applying attitud
 
 ### ESP-NOW communication
 
-Broadcasts compass data via ESP-NOW protocol for other ESP32 devices such as external displays. Receives broadcasted attitude leveling command and sends response as unicast to sender.
+Broadcasts compass data via ESP-NOW protocol for other ESP32 devices such as external displays.
 
-Since v1.3.0 all ESP-NOW messages now use the shared `ESPNow::ESPNowPacket` (`ESPNowHeader` + typed payload) packet wrapper defined in `espnow_protocol.h` along with the typed payload structs.
+Since v1.3.0 all ESP-NOW messages use the shared `ESPNow::ESPNowPacket` (`ESPNowHeader` + typed payload) packet wrapper defined in `espnow_protocol.h` along with the typed payload structs.
 
-**Sends** at ~20 Hz frequency with a deadband of 0.25°:
+**Sends** at ~20 Hz frequency with a deadband of 0.05°:
 - `ESPNow::ESPNowPacket<HeadingDelta>` - payload `HeadingDelta` containing:
   - `heading_rad` (magnetic heading radians)
   - `heading_true_rad` (true heading radians)
   - `pitch_rad` (pitch radians)
   - `roll_rad` (roll radians)
-
-**Receives** attitude leveling command as a broadcast from another ESP32 device.
-- `ESPNow::ESPNowPacket<LevelCommand>`
-  - `magic` and `msg_type` of the `ESPNowHeader` validated by `onDataRecv(..)
-
-**Confirms** attitude leveling command as an unicast to the sender MAC.
-- `ESPNow::ESPNowPacket<LevelResponse>`
-  - Success indicated by `payload.success` (0=failed, 1=success)
 
 **Broadcast mode:** Uses broadcast address (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver on the same WiFi channel can listen.
 
@@ -304,7 +288,7 @@ Additionally the user may:
    - If calibration profile has already been saved since ESP32 boot, the *REPLACE* button is shown instead of *SAVE*
 4. *RESET* CMPS14 to factory settings
    - There is a 600 ms delay after reset in the background, doubling the delay from data sheet recommendation
-   - Reset does *not* reset configuration settings stored in NVS nor pitch/roll min/max values
+   - Reset does *not* reset configuration settings stored in NVS
 5. *SHOW DEVIATION CURVE*
    - Opens a new page with a back-button pointing to the configuration page
    - Simplified deviation curve and deviation table presented 0...360° with 010° resolution
@@ -313,7 +297,6 @@ Additionally the user may:
    - Leveling factors are applied to the raw pitch and roll
    - Thus, user may reset the attitude to zero at any vessel position to start using proportional pitch and roll
    - Leveling is not incremental and the leveling factors are *not* stored persistently in ESP32 NVS
-   - Leveling resets pitch/roll min/max values
 8. *RESTART* the system
    - Opens a temporary page which will refresh back to the configuration page after 20 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
