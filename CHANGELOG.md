@@ -21,9 +21,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Callback runs in FreeRTOS `arduino_events` task: calls `esp_wifi_deauth_sta()` immediately (thread-safe ESP-IDF call)
   - Copies sender MAC before setting `volatile bool ap_intruder` flag — `loop()` always reads a complete address
 - New `handleAPIntruder()` called from `loop()` immediately after `handleWifi()`
-  - Clears the flag before Serial/display calls so a rapid second event is not lost
-  - Logs intruder MAC to Serial: `[AP] INTRUDER deauthed — MAC XX:XX:XX:XX:XX:XX`
+  - Clears the flag before display call so a rapid second event is not lost
   - Shows alert on LCD: `AP: INTRUDER!` / MAC
+
+#### WiFi connection monitoring
+- RSSI displayed on LCD every ~90 s while WiFi is connected (`WIFI RSSI` / `-xx dBm`)
+- Reconnect counter shown on LCD when connection is lost (`WIFI LOST` / `RECONNECT #N`)
+- `display.setWifiInfo()` called every 503 ms in `CONNECTED` state — keeps WebUI RSSI and IP address current between reconnects
 
 #### New files / includes
 - `#include <esp_wifi.h>` added to `CMPS14Application.h` — provides `esp_wifi_deauth_sta()`
@@ -54,7 +58,7 @@ The AP interface is required for ESP-NOW coexistence (`WIFI_AP_STA` mode) and is
 |---|---|---|
 | **1. Hidden SSID** | `ssid_hidden=1` — network not advertised | `WiFi.softAP(..., 1, 1, 1)` |
 | **2. WPA2 password** | `AP_PASS` (min 8 chars) | `secrets.h: AP_PASS` |
-| **3. Immediate deauth + alert** | Kicked instantly, MAC logged | `WiFi.onEvent(...)` + `handleAPIntruder()` |
+| **3. Immediate deauth + alert** | Kicked instantly, MAC shown on LCD | `WiFi.onEvent(...)` + `handleAPIntruder()` |
 
 New private members in `CMPS14Application`:
 ```cpp

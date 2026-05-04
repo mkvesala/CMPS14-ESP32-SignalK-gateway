@@ -46,7 +46,6 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
 | v2.0.0  | main                    | Latest release. ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix. See CHANGELOG. |
-| v1.4.0  | main                    | WiFi AP security, intrusion detection, pitch/roll SignalK fix. See CHANGELOG.                  |
 | v1.3.1  | main                    | Documentation patch, no source code changes.                               |
 | v1.3.0  | main                    | Breaking change in ESP-NOW wire protocol. See CHANGELOG for details.       |
 | v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.                    |
@@ -498,7 +497,7 @@ The ESP32 operates in `WIFI_AP_STA` mode to allow ESP-NOW and WiFi to coexist. T
 
 1. **Hidden SSID** — AP network is not advertised, invisible to scanners
 2. **WPA2 password** — `AP_PASS` from `secrets.h` (minimum 8 characters required)
-3. **Immediate deauth + alert** — if a station connects despite layers 1–2, it is deauthenticated immediately via `esp_wifi_deauth_sta()`, the MAC address is logged to Serial and shown on LCD (`AP: INTRUDER!`)
+3. **Immediate deauth + alert** — if a station connects despite layers 1–2, it is deauthenticated immediately via `esp_wifi_deauth_sta()`, the MAC address is shown on LCD (`AP: INTRUDER!`)
 
 `AP_SSID` and `AP_PASS` must be defined in `secrets.h`.
 

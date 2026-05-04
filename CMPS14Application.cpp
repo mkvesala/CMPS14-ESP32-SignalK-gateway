@@ -108,7 +108,6 @@ void CMPS14Application::handleWifi(const unsigned long now) {
         int32_t rssi = WiFi.RSSI();
         uint32_t ip = (uint32_t)WiFi.localIP();
         display.setWifiInfo(rssi, ip);
-        Serial.printf("[WiFi] connected rssi=%d reconnects=%u\n", rssi, wifi_reconnect_count);
         display.showSuccessMessage("WIFI CONNECT", true);
         display.showWifiStatus();
         display.setWifiState(wifi_state);
@@ -117,7 +116,6 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       }
       else if ((long)(now - wifi_conn_start_ms) >= WIFI_TIMEOUT_MS) {
         wifi_state = WifiState::FAILED;
-        Serial.printf("[WiFi] timeout elapsed=%lums\n", now - wifi_conn_start_ms);
         display.showSuccessMessage("WIFI CONNECT", false);
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
@@ -126,15 +124,11 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       }
       else if (status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
         wifi_state = WifiState::FAILED;
-        Serial.printf("[WiFi] failed status=%d\n", (int)status);
         display.showSuccessMessage("WIFI CONNECT", false);
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
         wifi_state = WifiState::OFF;
         display.setWifiState(wifi_state);
-      }
-      else {
-        Serial.printf("[WiFi] connecting... status=%d elapsed=%lums\n", (int)status, now - wifi_conn_start_ms);
       }
       break;
     }
@@ -144,7 +138,6 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       display.setWifiInfo(rssi, (uint32_t)WiFi.localIP());
       if (!WiFi.isConnected()) {
         wifi_reconnect_count++;
-        Serial.printf("[WiFi] lost rssi=%d reconnects=%u\n", rssi, wifi_reconnect_count);
         wifi_state = WifiState::DISCONNECTED;
         char msg[16];
         snprintf(msg, sizeof(msg), "RECONNECT #%u", wifi_reconnect_count);
@@ -159,7 +152,6 @@ void CMPS14Application::handleWifi(const unsigned long now) {
         char rssi_msg[16];
         snprintf(rssi_msg, sizeof(rssi_msg), "%d dBm", rssi);
         display.showInfoMessage("WIFI RSSI", rssi_msg);
-        Serial.printf("[WiFi] rssi=%d\n", rssi);
       }
       break;
     }
@@ -180,7 +172,6 @@ void CMPS14Application::handleAPIntruder() {
   snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
            ap_intruder_mac[0], ap_intruder_mac[1], ap_intruder_mac[2],
            ap_intruder_mac[3], ap_intruder_mac[4], ap_intruder_mac[5]);
-  Serial.printf("[AP] INTRUDER deauthed — MAC %s\n", mac);
   display.showInfoMessage("AP: INTRUDER!", mac);
 }
 
