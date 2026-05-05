@@ -23,13 +23,13 @@ Led indicators for calibration mode and connection status (two leds).
 
 Developed and tested on:
 - [SH-ESP32](https://docs.hatlabs.fi/sh-esp32/) development board (2.2.1)
-- [ESP32 board package](https://github.com/espressif/arduino-esp32) (3.3.5)
-- [Arduino IDE](https://www.arduino.cc/en/software/) (2.3.6)
-- SignalK Server (2.18.0)
+- [ESP32 board package](https://github.com/espressif/arduino-esp32) (3.3.8)
+- [Arduino IDE](https://www.arduino.cc/en/software/) (2.3.8)
+- SignalK Server (2.24.0)
 - CMPS14 sensor (V7)
 
 Integrated via ESP-NOW to:
-- [ESP32-Crowpanel-compass multi-function display](https://github.com/mkvesala/ESP32-Crowpanel-compass) (v2.0.0)
+- [ESP32-Crowpanel-compass multi-function display](https://github.com/mkvesala/ESP32-Crowpanel-compass) (v4.0.0)
 
 ## Purpose of the project
 
@@ -196,8 +196,6 @@ Connects to:
 ```
 ws://<server>:<port>/signalk/v1/stream?token=<optional>
 ```
-
-<img src="docs/paths.jpeg" width="480">
 
 **Sends** at maximum ~10 Hz frequency, in radians:
 
@@ -434,12 +432,12 @@ Using different display can be done within `DisplayManager` class while ensuring
 
 ## Software used
 
-1. Arduino IDE 2.3.6
-2. Espressif Systems esp32 board package 3.3.5
+1. Arduino IDE 2.3.8
+2. Espressif Systems esp32 board package 3.3.8
 3. Additional libraries installed:
    - ArduinoWebsockets (by Gil Maimon version 0.5.4)
-   - ArduinoJson(by Benoit Blanchon version 7.4.2)
-   - ArduinoOTA (by Arduino, Juraj Andrassy version 1.1.0)
+   - ArduinoJson(by Benoit Blanchon version 7.4.3)
+   - ArduinoOTA (by Arduino, Juraj Andrassy version 1.1.1)
    - LiquidCrystal_I2C (by Frank de Brabander version 1.1.2)
 
 ## Installation
@@ -479,7 +477,7 @@ Check [issues](https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/issues).
 
 ## Debug
 
-Long term observations on release v1.3.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly, ESP-NOW broadcasting:
+Long term observations on release v2.0.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly, ESP-NOW broadcasting:
 
 - Free heap memory (from `ESP.getFreeHeap()`): approximately 153 kB (55 %) free, total being 277 kB - does not vary that much
 - Loop runtime exponential moving average (alpha 0.01): approximately 1. ms
@@ -573,6 +571,6 @@ I would highly appreciate improvement suggestions as well as any Arduino-style E
 
 ## Gallery
 
-<img src="docs/project1.jpeg" width="120"> <img src="docs/project2.jpeg" width="120"> <img src="docs/project3.jpeg" width="120"> <img src="docs/project4.jpeg" width="120"> <img src="docs/project5.jpeg" width="120"> <img src="docs/project6.jpeg" width="120"> <img src="docs/schematic.png" width="120"> <img src="docs/paths.jpeg" width="120"> <img src="docs/ui0.jpeg" width="120"> <img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120"> <img src="docs/ui5.jpeg" width="120"> <img src="docs/ui6.jpeg" width="120"> <img src="https://raw.githubusercontent.com/mkvesala/ESP32-Crowpanel-compass/main/docs/full_uml_diagram.jpeg" width="240">
+<img src="docs/project1.jpeg" width="120"> <img src="docs/project2.jpeg" width="120"> <img src="docs/project3.jpeg" width="120"> <img src="docs/project4.jpeg" width="120"> <img src="docs/project5.jpeg" width="120"> <img src="docs/project6.jpeg" width="120"> <img src="docs/schematic.png" width="120"> <img src="docs/ui0.jpeg" width="120"> <img src="docs/ui1.jpeg" width="120"> <img src="docs/ui2.jpeg" width="120"> <img src="docs/ui3.jpeg" width="120"> <img src="docs/ui4.jpeg" width="120"> <img src="docs/ui5.jpeg" width="120"> <img src="docs/ui6.jpeg" width="120"> <img src="https://raw.githubusercontent.com/mkvesala/ESP32-Crowpanel-compass/main/docs/full_uml_diagram.jpeg" width="240">
 
 
