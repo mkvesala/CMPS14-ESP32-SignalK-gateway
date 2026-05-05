@@ -13,16 +13,13 @@ CMPS14Application app;
 
 void setup() {
 
-  Serial.begin(115200);
-  delay(47);
-
+  Serial.begin(115200); 
   app.begin();
 
-  if (!app.compassOk()) { 
-    Serial.println("CMPS14 INIT FAILED! CHECK SYSTEM!");
+  if (!app.compassOk()) {
     while(1) delay(1999); // Stop here if no compass
   }
-  
+
 }
 
 void loop() {

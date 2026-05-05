@@ -73,19 +73,19 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     hdg_pitch_roll_doc.clear();
     hdg_pitch_roll_doc["context"] = "vessels.self";
     auto updates = hdg_pitch_roll_doc.createNestedArray("updates");
-    auto up      = updates.createNestedObject();
+    auto up = updates.createNestedObject();
     up["$source"] = SK_SOURCE;
-    auto values  = up.createNestedArray("values");
+    auto values = up.createNestedArray("values");
 
     auto add = [&](const char* path, float v) {
         auto o = values.createNestedObject();
-        o["path"]  = path;
+        o["path"] = path;
         o["value"] = v;
     };
 
     add("navigation.headingMagnetic", last_h);
-    add("navigation.attitude.pitch",  delta.pitch_rad);
-    add("navigation.attitude.roll",   delta.roll_rad);
+    add("navigation.attitude.pitch", delta.pitch_rad);
+    add("navigation.attitude.roll", delta.roll_rad);
     if (compass.isSendingHeadingTrue()) add("navigation.headingTrue", delta.heading_true_rad);
 
     char buf[640];

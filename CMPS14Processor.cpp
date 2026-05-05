@@ -49,7 +49,7 @@ bool CMPS14Processor::update() {
     roll_level_raw = roll_raw;
 
     pitch_deg = pitch_raw + pitch_level;
-    roll_deg  = roll_raw + roll_level;
+    roll_deg = roll_raw + roll_level;
 
     // Radians for SignalK
     this->updateHeadingDelta();

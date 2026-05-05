@@ -9,13 +9,13 @@ This project uses the following open-source libraries:
 - **Repository:** https://github.com/gilmaimon/ArduinoWebsockets
 
 ## ArduinoJson
-- **Version:** 7.4.2
+- **Version:** 7.4.3
 - **Author:** Benoit Blanchon
 - **License:** MIT
 - **Repository:** https://github.com/bblanchon/ArduinoJson
 
 ## ArduinoOTA
-- **Version:** 1.1.0
+- **Version:** 1.1.1
 - **Authors:** Arduino, Juraj Andrassy
 - **License:** GNU Lesser General Public License v2.1
 - **Repository:** https://github.com/jandrassy/ArduinoOTA
@@ -27,7 +27,7 @@ This project uses the following open-source libraries:
 - **Repository:** https://github.com/johnrickman/LiquidCrystal_I2C
 
 ## Espressif ESP32 Arduino Core
-- **Version:** 3.3.5
+- **Version:** 3.3.8
 - **Author:** Espressif Systems
 - **License:** GNU Lesser General Public License v2.1
 - **Repository:** https://github.com/espressif/arduino-esp32
