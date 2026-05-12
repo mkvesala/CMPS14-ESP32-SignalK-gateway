@@ -174,10 +174,10 @@ namespace ESPNow {
         constexpr float RAD_TO_DEG_X10  = 180.0f * 10.0f / M_PI;
         constexpr float MS_TO_KNOTS_X10 = 1.94384f * 10.0f;
 
-        // COG: 0–2π → 0–3599
-        data.cog_true_x10  = (uint16_t)(delta.cog_true_rad * RAD_TO_DEG_X10);
+        // COG: NaN when stationary (UB cast → 0xFFFF = 65535 on ESP32) — treat as no fix
+        data.fix_ok        = (std::isnan(delta.cog_true_rad)) ? 0 : delta.fix_ok;
+        data.cog_true_x10  = data.fix_ok ? (uint16_t)(delta.cog_true_rad * RAD_TO_DEG_X10) : 0;
         data.sog_knots_x10 = (uint16_t)(delta.sog_ms * MS_TO_KNOTS_X10);
-        data.fix_ok        = delta.fix_ok;
 
         return data;
     }
