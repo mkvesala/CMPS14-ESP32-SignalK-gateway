@@ -77,6 +77,7 @@ void CMPS14Application::loop() {
   this->handleOTA();
   this->handleWebUI();
   this->handleWebsocket(now);
+  this->handleWatchdog(now);
   this->handleCompass(now);
   this->handleSignalK(now);
   this->handleESPNow(now);
@@ -201,8 +202,23 @@ void CMPS14Application::handleWebsocket(const unsigned long now) {
       next_ws_try_ms = now + expn_retry_ms;
       expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX_MS);
   }
-  if (signalk.isOpen()) expn_retry_ms = WS_RETRY_MS;
-  else compass.setUseManualVariation(true);
+  if (signalk.isOpen()) {
+    last_ws_activity_ms = now;
+    expn_retry_ms = WS_RETRY_MS;
+  } else {
+    compass.setUseManualVariation(true);
+  }
+}
+
+// Watchdog — restart if WiFi layer-2 appears connected but TCP/IP stack is silently dead
+void CMPS14Application::handleWatchdog(const unsigned long now) {
+  if (wifi_state != WifiState::CONNECTED) return;
+  if (signalk.isOpen()) return;
+  if (last_ws_activity_ms == 0) return;  // never connected — no restart without a prior session
+  if ((long)(now - last_ws_activity_ms) < WS_WATCHDOG_MS) return;
+  display.showInfoMessage("WATCHDOG", "RESTARTING...");
+  delay(1999);
+  ESP.restart();
 }
 
 // Compass

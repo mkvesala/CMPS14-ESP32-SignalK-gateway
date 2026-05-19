@@ -61,6 +61,7 @@ class CMPS14Application {
     static constexpr unsigned long MEM_CHECK_MS          = 120007;      // Memory check every 2 mins to LCD - debug
     static constexpr unsigned long RUNTIME_CHECK_MS      = 59999;       // Runtime monitoring of app.loop() - debug
     static constexpr unsigned long RSSI_DISPLAY_MS       = 90007;       // RSSI on LCD ~90s when WiFi connected - debug
+    static constexpr unsigned long WS_WATCHDOG_MS        = 599983UL;    // Restart if WiFi up but WebSocket silent for ~10 min
 
     // Timers
     unsigned long expn_retry_ms         = WS_RETRY_MS;
@@ -71,6 +72,7 @@ class CMPS14Application {
     unsigned long wifi_conn_start_ms    = 0;
     unsigned long wifi_last_check_ms    = 0;
     unsigned long last_espnow_tx_ms     = 0;
+    unsigned long last_ws_activity_ms   = 0; // Watchdog: last successful WebSocket open; 0 = never
     unsigned long last_mem_check_ms     = 0; // Debug
     unsigned long last_runtime_check_ms = 0; // Debug
     unsigned long last_rssi_display_ms  = 0; // Debug
@@ -104,6 +106,7 @@ class CMPS14Application {
     void handleOTA();
     void handleWebUI();
     void handleWebsocket(const unsigned long now);
+    void handleWatchdog(const unsigned long now);
     void handleCompass(const unsigned long now);
     void handleSignalK(const unsigned long now);
     void handleESPNow(const unsigned long now);

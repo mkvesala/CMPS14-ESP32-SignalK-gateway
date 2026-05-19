@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-05-03
+## [2.0.0] - 2026-05-19
 
 ### Added
 
@@ -23,6 +23,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - New `handleAPIntruder()` called from `loop()` immediately after `handleWifi()`
   - Clears the flag before display call so a rapid second event is not lost
   - Shows alert on LCD: `AP: INTRUDER!` / MAC
+
+#### WebSocket watchdog
+- New `handleWatchdog()` called from `loop()` immediately after `handleWebsocket()`
+- Detects the failure mode where WiFi layer-2 association is alive (`WiFi.isConnected()` returns `true`, RSSI valid) but the ESP32 TCP/IP stack (lwIP) is silently dead — a state that `handleWifi()` reconnect logic cannot detect because it only checks layer-2
+- Root cause: when the host running SignalK server goes to sleep, TCP connections are severed but the 802.11 association remains; on wake-up the lwIP stack may not recover, leaving `ping`, `WebServer` and ESP-NOW unresponsive while the Arduino loop continues normally
+- Watchdog triggers `ESP.restart()` when: `wifi_state == CONNECTED` AND WebSocket has not been open for `WS_WATCHDOG_MS` (~10 min) AND a prior successful WebSocket session exists
+  - The `last_ws_activity_ms == 0` guard prevents restart loops when a SignalK server is never reachable — watchdog only arms after first successful connection
+  - LCD shows `WATCHDOG` / `RESTARTING...` for ~2 s before restart
+- New timing constant: `WS_WATCHDOG_MS = 599983UL` (~10 min, prime to avoid harmonic collisions)
+- New timer variable: `last_ws_activity_ms` (updated in `handleWebsocket()` whenever `signalk.isOpen()` is true)
 
 #### WiFi connection monitoring
 - RSSI displayed on LCD every ~90 s while WiFi is connected (`WIFI RSSI` / `-xx dBm`)
