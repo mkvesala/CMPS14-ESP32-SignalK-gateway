@@ -195,18 +195,18 @@ void CMPS14Application::handleWebsocket(const unsigned long now) {
     return;
   }
   signalk.handleStatus();
-  
-  if (!signalk.isOpen() && (long)(now - next_ws_try_ms) >= 0){ 
-      display.showInfoMessage("SK WEBSOCKET", "CONNECTING");
-      signalk.connectWebsocket();
-      next_ws_try_ms = now + expn_retry_ms;
-      expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX_MS);
-  }
+
   if (signalk.isOpen()) {
     last_ws_activity_ms = now;
     expn_retry_ms = WS_RETRY_MS;
   } else {
     compass.setUseManualVariation(true);
+    if ((long)(now - next_ws_try_ms) >= 0) {
+      display.showInfoMessage("SK WEBSOCKET", "CONNECTING");
+      signalk.connectWebsocket();
+      next_ws_try_ms = now + expn_retry_ms;
+      expn_retry_ms = min(expn_retry_ms * 2, WS_RETRY_MAX_MS);
+    }
   }
 }
 
