@@ -210,8 +210,15 @@ void CMPS14Application::handleWebsocket(const unsigned long now) {
   }
 }
 
-// Watchdog — restart if WiFi layer-2 appears connected but TCP/IP stack is silently dead
+// Watchdog — restart on bloated loop runtime, or if WiFi layer-2 up but TCP/IP stack silently dead
 void CMPS14Application::handleWatchdog(const unsigned long now) {
+  // Loop runtime watchdog: restart if ws.connect() or other blocking call pushes EMA above threshold
+  if (monitoring && loop_avg_us > LOOP_WATCHDOG_US) {
+    display.showInfoMessage("LOOP WATCHDOG", "RESTARTING...");
+    delay(1999);
+    ESP.restart();
+  }
+  // Network watchdog: restart if WiFi layer-2 appears connected but TCP/IP stack is silently dead
   if (wifi_state != WifiState::CONNECTED) return;
   if (signalk.isOpen()) return;
   if (last_ws_activity_ms == 0) return;  // never connected — no restart without a prior session

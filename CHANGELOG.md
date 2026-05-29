@@ -34,6 +34,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - New timing constant: `WS_WATCHDOG_MS = 599983UL` (~10 min, prime to avoid harmonic collisions)
 - New timer variable: `last_ws_activity_ms` (updated in `handleWebsocket()` whenever `signalk.isOpen()` is true)
 
+#### Loop runtime watchdog
+- `handleWatchdog()` extended with a loop runtime check independent of WiFi state
+- Detects the failure mode where `ws.connect()` blocks the Arduino loop for the TCP connection timeout (~20 s) on each reconnect attempt — the loop keeps running but at a fraction of normal speed, causing the reconnect exponential backoff to collapse to minimum interval
+- Root cause: `ArduinoWebsockets::connect()` is a synchronous blocking call; when the SignalK server host goes to sleep (e.g. laptop lid closed), TCP SYN packets get no response and the call blocks until the lwIP TCP timeout fires
+- Loop runtime watchdog triggers `ESP.restart()` when: loop EMA `loop_avg_us > LOOP_WATCHDOG_US` (~100 ms) AND loop monitoring has been initialised (`monitoring == true`)
+  - EMA α = 0.01: a single 20 s blocking call pushes EMA to ~200 000 µs, well above the 99 991 µs threshold
+  - Guard `monitoring == false` on first boot prevents false trigger before EMA has been initialised
+  - LCD shows `LOOP WATCHDOG` / `RESTARTING...` for ~2 s before restart
+  - After restart, exponential WebSocket reconnect begins from minimum interval (`WS_RETRY_MS`)
+- New constant: `LOOP_WATCHDOG_US = 99991UL` (~100 ms, prime to avoid harmonic collisions)
+
 #### WiFi connection monitoring
 - RSSI displayed on LCD every ~90 s while WiFi is connected (`WIFI RSSI` / `-xx dBm`)
 - Reconnect counter shown on LCD when connection is lost (`WIFI LOST` / `RECONNECT #N`)
@@ -47,6 +58,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **WiFi reconnect — `initWifiServices()` called multiple times**: added `wifi_services_initialized` guard flag to `CMPS14Application`. `ArduinoOTA.begin()` and `webui.begin()` (including `setupRoutes()`) are now called only once for the lifetime of the application. Previously, each WiFi reconnect triggered a full re-initialisation: `ArduinoOTA.begin()` re-registered mDNS and re-bound UDP port 3232 without releasing the previous socket, and `setupRoutes()` appended duplicate route entries to the WebServer's internal linked list — both leaking memory on every reconnect. WebSocket reconnect is unaffected; it is handled as before by `handleWebsocket()`.
 
 - **Pitch and roll not updating in SignalK at heading rate**: previously pitch and roll were included in the SignalK heading delta only when they individually exceeded a 0.05° deadband. Because the CMPS14 BNO055 fusion algorithm produces stable attitude output while the EMA-smoothed heading fluctuates continuously, pitch and roll updated far less frequently than heading on the SignalK server. Pitch and roll are now included unconditionally in every delta that the heading deadband triggers — they update at the same rate as heading (~100 ms). The heading deadband is unchanged.
+
+- **WebSocket reconnect exponential backoff reset on brief connection**: `handleWebsocket()` previously used two sequential `if` blocks — the first attempted `connectWebsocket()`, the second checked `signalk.isOpen()`. If `ws.connect()` returned `true` (connection momentarily established), the second block immediately reset `expn_retry_ms` back to `WS_RETRY_MS` and `last_ws_activity_ms` to `now` in the same iteration — before `ws.poll()` had a chance to detect the `ConnectionClosed` event. The result was a hard ~2 s reconnect cycle with no exponential growth, and the network watchdog timer perpetually reset. Fixed by restructuring into `if (isOpen()) { ... } else { reconnect logic }` so that `expn_retry_ms` and `last_ws_activity_ms` are only updated when the connection was already confirmed open at the start of the iteration.
 
 ### Removed
 
