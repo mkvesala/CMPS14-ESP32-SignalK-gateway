@@ -14,3 +14,6 @@ inline constexpr const char* OTA_PASS = "your_OTA_password_here";
 inline constexpr const char* DEFAULT_WEB_PASSWORD = "your_default_web_password_here";
 inline constexpr const char* AP_SSID = "your_ap_ssid_here";   // hidden, name not critical
 inline constexpr const char* AP_PASS = "your_ap_password_here"; // min 8 chars (WPA2)
+inline constexpr const char* WIFI_STATIC_IP = "192.168.1.55";  // TODO: verify outside DHCP pool
+inline constexpr const char* WIFI_GATEWAY = "192.168.1.1";
+inline constexpr const char* WIFI_SUBNET = "255.255.255.0";

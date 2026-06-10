@@ -52,6 +52,8 @@ void CMPS14Application::begin() {
     ap_intruder = true;
   }, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
 
+  this->applyStaticIP();
+
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   wifi_state = WifiState::CONNECTING;
@@ -114,6 +116,7 @@ void CMPS14Application::handleWifi(const unsigned long now) {
         display.setWifiState(wifi_state);
         this->initWifiServices(); // Init wifi-dependent stuff
         expn_retry_ms = WS_RETRY_MS;
+        next_ws_try_ms = now; // discard stale pre-outage backoff timestamp
       }
       else if ((long)(now - wifi_conn_start_ms) >= WIFI_TIMEOUT_MS) {
         wifi_state = WifiState::FAILED;
@@ -139,13 +142,16 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       display.setWifiInfo(rssi, (uint32_t)WiFi.localIP());
       if (!WiFi.isConnected()) {
         wifi_reconnect_count++;
-        wifi_state = WifiState::DISCONNECTED;
         char msg[16];
         snprintf(msg, sizeof(msg), "RECONNECT #%u", wifi_reconnect_count);
         display.showInfoMessage("WIFI LOST", msg);
-        WiFi.disconnect();
-        WiFi.begin(WIFI_SSID, WIFI_PASS);
+        signalk.closeWebsocket();    // safe even if TCP already dead
         wifi_state = WifiState::CONNECTING;
+        WiFi.disconnect(true);       // wifioff=true: full STA teardown, AP_STA recovers
+        delay(200);                  // let radio settle before reconnecting
+        WiFi.setSleep(false);        // STA teardown resets this — reapply
+        this->applyStaticIP();       // static config doesn't survive STA teardown
+        WiFi.begin(WIFI_SSID, WIFI_PASS);
         display.setWifiState(wifi_state);
         wifi_conn_start_ms = now;
       } else if ((long)(now - last_rssi_display_ms) >= RSSI_DISPLAY_MS) {
@@ -299,6 +305,19 @@ void CMPS14Application::initWifiServices() {
 
   // Webserver handlers
   webui.begin();
+}
+
+// Apply static IP/gateway/subnet from secrets.h.
+// WiFi.disconnect(true) discards this config, so it must be reapplied
+// before every WiFi.begin() — both at boot and during hardened reconnect.
+void CMPS14Application::applyStaticIP() {
+  IPAddress ip, gateway, subnet;
+  ip.fromString(WIFI_STATIC_IP);
+  gateway.fromString(WIFI_GATEWAY);
+  subnet.fromString(WIFI_SUBNET);
+  if (!WiFi.config(ip, gateway, subnet, gateway)) {
+    display.showInfoMessage("STATIC IP", "CONFIG FAILED");
+  }
 }
 
 // Debug: show memory status

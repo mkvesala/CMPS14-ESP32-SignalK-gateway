@@ -50,6 +50,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Reconnect counter shown on LCD when connection is lost (`WIFI LOST` / `RECONNECT #N`)
 - `display.setWifiInfo()` called every 503 ms in `CONNECTED` state — keeps WebUI RSSI and IP address current between reconnects
 
+#### Hardened WiFi reconnect
+- `handleWifi()` `CONNECTED` state: replaced the plain `WiFi.disconnect(); WiFi.begin(...)` reconnect with a full STA teardown sequence:
+  - `signalk.closeWebsocket()` — closes any stale WebSocket before tearing down WiFi (safe even if the TCP connection is already dead)
+  - `WiFi.disconnect(true)` — full STA interface teardown (`wifioff=true`); the AP interface and AP-based intrusion detection are unaffected because `WiFi.begin()` later restores `AP_STA` mode
+  - `delay(200)` — lets the radio settle before restarting the connection attempt
+  - `WiFi.setSleep(false)` — reapplied, since STA teardown resets WiFi modem-sleep state
+  - `applyStaticIP()` — reapplied, since static IP configuration does not survive STA teardown
+- Root cause: the previous reconnect did not always recover the connection — observed when macOS power-saving stalled the SignalK server's network stack, leaving the ESP32 stuck until manually rebooted. The stale SignalK WebSocket also remained marked open (`ws_open == true`) until `handleWebsocket()` later detected the closure
+- `handleWifi()` `CONNECTING → CONNECTED` transition: added `next_ws_try_ms = now` alongside the existing `expn_retry_ms = WS_RETRY_MS` reset — prevents a stale pre-outage backoff timestamp from delaying the SignalK WebSocket reconnect by up to `WS_RETRY_MAX_MS` (~120 s) after WiFi recovers
+- Removed the dead `wifi_state = WifiState::DISCONNECTED` assignment in the `CONNECTED`-state reconnect branch — it was always immediately overwritten by `WifiState::CONNECTING` before any display update
+
+#### Static IP configuration
+- New `applyStaticIP()` method in `CMPS14Application`, called from `begin()` (before `WiFi.begin()`) and from the hardened reconnect sequence above
+- Applies `WIFI_STATIC_IP`, `WIFI_GATEWAY`, `WIFI_SUBNET` from `secrets.h` via `WiFi.config()` — the gateway address also doubles as the DNS server
+- On `WiFi.config()` failure, displays `STATIC IP` / `CONFIG FAILED` on LCD and falls back to DHCP (connection attempt proceeds regardless)
+- New `secrets.h` / `secrets.example.h` constants: `WIFI_STATIC_IP`, `WIFI_GATEWAY`, `WIFI_SUBNET` — always applied (no enable/disable flag); choose `WIFI_STATIC_IP` outside the router's DHCP pool to avoid conflicts
+
 #### New files / includes
 - `#include <esp_wifi.h>` added to `CMPS14Application.h` — provides `esp_wifi_deauth_sta()`
 

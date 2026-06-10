@@ -115,7 +115,8 @@ class CMPS14Application {
     void handleDisplay();
 
     void initWifiServices();
-    
+    void applyStaticIP();
+
     void monitorLoopRuntime(const unsigned long us); // Debug 
     void handleLoopRuntime(const unsigned long now); // Debug
 

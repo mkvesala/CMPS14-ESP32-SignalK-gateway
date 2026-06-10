@@ -458,7 +458,12 @@ Using different display can be done within `DisplayManager` class while ensuring
    inline constexpr const char* DEFAULT_WEB_PASSWORD = "your_default_web_password_here";
    inline constexpr const char* AP_SSID              = "your_ap_ssid_here";   // hidden, name not critical
    inline constexpr const char* AP_PASS              = "your_ap_password_here"; // min 8 chars (WPA2)
+   inline constexpr const char* WIFI_STATIC_IP       = "192.168.1.55";  // static IP for ESP32, outside router DHCP pool
+   inline constexpr const char* WIFI_GATEWAY         = "192.168.1.1";   // router/gateway address
+   inline constexpr const char* WIFI_SUBNET          = "255.255.255.0"; // subnet mask
    ```
+
+   **Note:** the ESP32 always configures itself with the static IP, gateway and subnet mask above (no enable/disable flag). Choose `WIFI_STATIC_IP` outside your router's DHCP address range to avoid IP conflicts.
 4. **Make sure that `secrets.h` is listed in your `.gitignore` file**
 5. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
 6. Connect and power up the ESP32 with the USB cable
