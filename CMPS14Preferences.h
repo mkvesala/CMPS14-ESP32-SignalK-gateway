@@ -11,6 +11,7 @@
 // - Class CMPS14Preferences - "the compass_prefs" responsible for managing ESP32 NVS
 // - Provides public API to save config persistently to NVS
 //   - Installation offset
+//   - Pitch/roll leveling (attitude zeroing)
 //   - Manual variation
 //   - Measured deviations at 8 cardinal/intercardinal points
 //   - Computed 5 coefficients for deviation calculation
@@ -29,6 +30,7 @@ public:
 
     void load();
     void saveInstallationOffset(float offset);
+    void saveLevel(float pitch_level, float roll_level);
     void saveManualVariation(float deg);
     void saveDeviationSettings(const float dev[8], const HarmonicCoeffs &hc);
     void saveCalibrationSettings(CalMode mode, unsigned long ms);

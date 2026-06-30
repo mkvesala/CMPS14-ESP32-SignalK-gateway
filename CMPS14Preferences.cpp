@@ -13,6 +13,10 @@ void CMPS14Preferences::load() {
     // Installation offset
     compass.setInstallationOffset(prefs.getFloat("offset_deg", 0.0f));
 
+    // Pitch/roll leveling (attitude zeroing)
+    compass.setPitchLevel(prefs.getFloat("pitch_lvl", 0.0f));
+    compass.setRollLevel(prefs.getFloat("roll_lvl", 0.0f));
+
     // Manual variation
     compass.setManualVariation(prefs.getFloat("mv_man_deg", 0.0f));
 
@@ -60,6 +64,14 @@ void CMPS14Preferences::load() {
 void CMPS14Preferences::saveInstallationOffset(float offset) {
     if (!prefs.begin(ns, false)) return;
     prefs.putFloat("offset_deg", offset);
+    prefs.end();
+}
+
+// Save pitch/roll leveling (attitude zeroing)
+void CMPS14Preferences::saveLevel(float pitch_level, float roll_level) {
+    if (!prefs.begin(ns, false)) return;
+    prefs.putFloat("pitch_lvl", pitch_level);
+    prefs.putFloat("roll_lvl", roll_level);
     prefs.end();
 }
 

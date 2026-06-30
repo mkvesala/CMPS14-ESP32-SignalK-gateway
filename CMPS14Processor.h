@@ -68,6 +68,8 @@ public:
 
     // Setters
     void setInstallationOffset(float offset) { installation_offset_deg = offset; }
+    void setPitchLevel(float v) { pitch_level = v; }
+    void setRollLevel(float v) { roll_level = v; }
     void setManualVariation(float variation) { magvar_manual_deg = variation; }
     void setLiveVariation(float variation) { magvar_live_deg = variation; }
     void setUseManualVariation(bool manual) { use_manual_magvar = manual; }

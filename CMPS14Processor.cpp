@@ -77,6 +77,8 @@ bool CMPS14Processor::reset() {
         cal_mode_runtime = CalMode::USE;
         cal_mode_boot = CalMode::USE;
         cal_profile_stored = false;
+        pitch_level = 0.0f;  // Sensor registers reset → clear attitude leveling too
+        roll_level = 0.0f;
         return true;
     }
     return false;

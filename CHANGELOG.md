@@ -67,6 +67,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - On `WiFi.config()` failure, displays `STATIC IP` / `CONFIG FAILED` on LCD and falls back to DHCP (connection attempt proceeds regardless)
 - New `secrets.h` / `secrets.example.h` constants: `WIFI_STATIC_IP`, `WIFI_GATEWAY`, `WIFI_SUBNET` — always applied (no enable/disable flag); choose `WIFI_STATIC_IP` outside the router's DHCP pool to avoid conflicts
 
+#### Persistent attitude leveling
+- Pitch/roll leveling (`pitch_level` / `roll_level`) now persists to NVS and is restored automatically at boot, alongside the other persisted settings
+- Root cause: leveling captured by the WebUI `/level` endpoint lived only in RAM. Any restart — in particular a watchdog-triggered `ESP.restart()` (see WebSocket / loop runtime watchdogs above) — silently discarded the leveling, returning attitude output to its un-zeroed state without any user-visible indication
+- New `CMPS14Preferences::saveLevel(float pitch_level, float roll_level)` writes NVS keys `pitch_lvl` / `roll_lvl` in a single `begin/end`; both restored in `load()` (default `0.0` when absent)
+- New setters `CMPS14Processor::setPitchLevel()` / `setRollLevel()` apply the loaded values back onto the compass
+- `WebUIManager::handleLevel()` persists the captured leveling immediately after `compass.level()`
+- `CMPS14Processor::reset()` now also clears `pitch_level` / `roll_level` (the WebUI RESET resets the sensor registers, so the stored leveling is reset with them); `WebUIManager::handleReset()` persists the cleared `0,0` to NVS. RESET is the only action that zeroes leveling — a normal restart preserves it
+
 #### New files / includes
 - `#include <esp_wifi.h>` added to `CMPS14Application.h` — provides `esp_wifi_deauth_sta()`
 

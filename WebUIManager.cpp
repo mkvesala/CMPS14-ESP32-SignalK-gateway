@@ -170,14 +170,15 @@ void WebUIManager::handleSaveCalibration(){
 // Web UI handler for RESET button
 void WebUIManager::handleReset(){
   if (compass.reset()) {
-    // ok
+    compass_prefs.saveLevel(compass.getPitchLevel(), compass.getRollLevel()); // reset cleared them → persist 0,0
   }
-  this->handleRoot(); 
+  this->handleRoot();
 }
 
 // Web UI handler for LEVEL CMPS14 button
 void WebUIManager::handleLevel(){
   compass.level();
+  compass_prefs.saveLevel(compass.getPitchLevel(), compass.getRollLevel());
   char line2[17];
   snprintf(line2, sizeof(line2), "P:%5.1f R:%5.1f", compass.getPitchLevel(), compass.getRollLevel());
   display.showInfoMessage("LEVEL CMPS14", line2);

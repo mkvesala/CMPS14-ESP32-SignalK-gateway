@@ -167,7 +167,7 @@ Class diagram including companion projects:
    - Live *navigation.magneticVariation* received from SignalK (prioritized over user input)
    - Manual variation from user input on web UI (used automatically whenever *navigation.magneticVariation* is not available)
 6. Applies leveling to pitch and roll
-7. Installation offset and selected heading mode are stored persistently in ESP32 NVS, leveling of pitch and roll is not
+7. Installation offset, selected heading mode and pitch/roll leveling are stored persistently in ESP32 NVS and restored automatically on boot
 
 ### Deviation
 
@@ -285,7 +285,7 @@ Additionally the user may:
    - If calibration profile has already been saved since ESP32 boot, the *REPLACE* button is shown instead of *SAVE*
 4. *RESET* CMPS14 to factory settings
    - There is a 600 ms delay after reset in the background, doubling the delay from data sheet recommendation
-   - Reset does *not* reset configuration settings stored in NVS
+   - Reset does *not* reset configuration settings stored in NVS, *except* the pitch/roll leveling factors which are cleared to zero (the sensor registers are reset, so the stored leveling is reset with them)
 5. *SHOW DEVIATION CURVE*
    - Opens a new page with a back-button pointing to the configuration page
    - Simplified deviation curve and deviation table presented 0...360° with 010° resolution
@@ -293,7 +293,8 @@ Additionally the user may:
    - Takes the negation of the latest pitch and roll to capture the leveling factors for attitude
    - Leveling factors are applied to the raw pitch and roll
    - Thus, user may reset the attitude to zero at any vessel position to start using proportional pitch and roll
-   - Leveling is not incremental and the leveling factors are *not* stored persistently in ESP32 NVS
+   - Leveling is not incremental
+   - The leveling factors are stored persistently in ESP32 NVS and restored automatically on boot, so a restart (including a watchdog-triggered self-restart) preserves the leveling; only *RESET* clears them
 8. *RESTART* the system
    - Opens a temporary page which will refresh back to the configuration page after 20 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
