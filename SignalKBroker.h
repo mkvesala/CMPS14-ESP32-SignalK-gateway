@@ -36,6 +36,8 @@ public:
     void sendHdgPitchRollDelta();
     const char* getSignalKSource() { return SK_SOURCE; }
     bool isOpen() const { return ws_open; }
+    void ping();                             // send a client ping frame if open
+    bool isStale(unsigned long now) const;   // open but no pong within PONG_TIMEOUT_MS
 
 private:
 
@@ -56,6 +58,10 @@ private:
     StaticJsonDocument<256> subscribe_doc;
 
     bool ws_open = false;
+
+    // Liveness — half-open TCP detection via client ping / server pong
+    static constexpr unsigned long PONG_TIMEOUT_MS = 29989UL;  // ~30 s w/o pong → stale
+    unsigned long last_pong_ms = 0;   // millis() of last GotPong / open; 0 = not connected
 
     char SK_URL[512];     // URL of SignalK server
     char SK_SOURCE[32];   // ESP32 source name for SignalK, used also as the OTA hostname

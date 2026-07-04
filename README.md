@@ -45,7 +45,7 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.0.0  | main                    | Latest release. ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix. See CHANGELOG. |
+| v2.0.0  | main                    | Latest release. ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix, WebSocket ping/pong liveness. See CHANGELOG. |
 | v1.3.1  | main                    | Documentation patch, no source code changes.                               |
 | v1.3.0  | main                    | Breaking change in ESP-NOW wire protocol. See CHANGELOG for details.       |
 | v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.                    |
@@ -209,6 +209,14 @@ ws://<server>:<port>/signalk/v1/stream?token=<optional>
 1. *navigation.magneticVariation* (if available at SignalK)
 
 **Please refer to Security section of this file.**
+
+### Connection resilience
+
+The SignalK WebSocket is kept alive and recovered on multiple layers:
+
+- **Ping/pong liveness (primary):** while the socket is open the gateway sends a client ping every ~10 s (`WS_PING_MS`) and timestamps every server pong. If no pong arrives within ~30 s (`PONG_TIMEOUT_MS`), `SignalKBroker::isStale()` reports the connection dead and the gateway closes and reconnects it — a **graceful transport-level reconnect, without restarting the device**, so uptime, ESP-NOW peers and the display state are preserved. This catches the *half-open TCP* failure mode where WiFi and `isOpen()` still look healthy but the server side has silently frozen (e.g. the SignalK host entering power-saving).
+- **Exponential backoff:** when the socket is closed, reconnect attempts start at `WS_RETRY_MS` (~2 s) and double up to `WS_RETRY_MAX_MS` (~2 min).
+- **Watchdogs (last-resort fallback):** the network watchdog (`ESP.restart()` after ~10 min of a silent-but-associated link) and the loop-runtime watchdog (restart if a blocking call bloats the loop) remain in place as a safety net. With ping/pong liveness handling the common case, they are expected to stay dormant and may be removed in a future release once liveness is field-proven.
 
 ### ESP-NOW communication
 

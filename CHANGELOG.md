@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-05-19
+## [2.0.0] - 2026-07-04
 
 ### Added
 
@@ -44,6 +44,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - LCD shows `LOOP WATCHDOG` / `RESTARTING...` for ~2 s before restart
   - After restart, exponential WebSocket reconnect begins from minimum interval (`WS_RETRY_MS`)
 - New constant: `LOOP_WATCHDOG_US = 99991UL` (~100 ms, prime to avoid harmonic collisions)
+
+#### WebSocket liveness (ping/pong) + graceful reconnect
+- New primary recovery mechanism for a dead SignalK connection — an active client ping/pong liveness probe that recovers the WebSocket at the transport level **without `ESP.restart()`**, preserving uptime, ESP-NOW peers and display state
+- `handleWebsocket()` now sends a client ping every `WS_PING_MS` (~10 s) while the socket is open; `SignalKBroker` records the arrival time of every server pong (`last_pong_ms`, refreshed in the `WebsocketsEvent::GotPong` handler and seeded on connect/open)
+- New `SignalKBroker::isStale(now)` returns `true` when the socket is open but no pong has been received within `PONG_TIMEOUT_MS` (~30 s). `handleWebsocket()` then calls `signalk.closeWebsocket()` and the existing exponential backoff reconnects on subsequent iterations
+- Catches the *half-open TCP* failure mode where WiFi layer-2 and the local TCP/IP stack are alive and `signalk.isOpen()` still returns `true`, but the server side has silently frozen (e.g. macOS power-saving stalling the SignalK host) so no data flows in either direction — a state the existing watchdogs cannot see because `isOpen()` keeps `last_ws_activity_ms` refreshing every loop
+- `WS_PING_MS` (~10 s) is kept below `PONG_TIMEOUT_MS` (~30 s) so at least two pongs must be missed before the socket is condemned, avoiding false positives on a single dropped frame
+- New timing constant: `WS_PING_MS = 9973` (`CMPS14Application`, prime to avoid harmonic collisions); new constant `PONG_TIMEOUT_MS = 29989UL` (`SignalKBroker`)
+- New state: `last_ping_ms` (`CMPS14Application`), `last_pong_ms` (`SignalKBroker`); new `SignalKBroker` API: `ping()` and `isStale(now)`
+- Both watchdogs from the previous sections are **deliberately retained** as a last-resort safety net now that ping/pong liveness is the primary recovery path — they are expected to remain dormant and will be removed in a later release only if they no longer fire once liveness is proven in the field
 
 #### WiFi connection monitoring
 - RSSI displayed on LCD every ~90 s while WiFi is connected (`WIFI RSSI` / `-xx dBm`)

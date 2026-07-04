@@ -40,6 +40,7 @@ void SignalKBroker::handleStatus() {
 bool SignalKBroker::connectWebsocket() {
     ws_open = ws.connect(SK_URL);
     if (ws_open) {
+        last_pong_ms = millis();   // seed liveness so a fresh socket is not flagged stale
         ws.onMessage([this](WebsocketsMessage msg) {
             this->onMessageCallback(msg);
         });
@@ -50,10 +51,22 @@ bool SignalKBroker::connectWebsocket() {
     return ws_open;
 }
 
-// Close websocket (used only from web UI restart() handler)
+// Close websocket (web UI restart() handler and liveness graceful reconnect)
 void SignalKBroker::closeWebsocket() {
     ws.close();
     ws_open = false;
+    last_pong_ms = 0;
+}
+
+// Send a client-initiated ping frame to probe liveness
+void SignalKBroker::ping() {
+    if (ws_open) ws.ping();
+}
+
+// Half-open detection: open, has been connected, but no pong within timeout
+bool SignalKBroker::isStale(unsigned long now) const {
+    return ws_open && last_pong_ms != 0 &&
+           (long)(now - last_pong_ms) >= (long)PONG_TIMEOUT_MS;
 }
 
 // Send heading, pitch and roll to SignalK server
@@ -94,6 +107,7 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     if (!ok) {
         ws.close();
         ws_open = false;
+        last_pong_ms = 0;
     }
 }
 
@@ -145,9 +159,10 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event) {
     switch (event) {
         case WebsocketsEvent::ConnectionOpened: {
             ws_open = true;
+            last_pong_ms = millis();   // seed liveness on open
             this->handleVariationDelta();
             break;
-        }   
+        }
         case WebsocketsEvent::ConnectionClosed:
             ws_open = false;
             break;
@@ -155,6 +170,8 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event) {
             ws.pong();
             break;
         case WebsocketsEvent::GotPong:
+            last_pong_ms = millis();   // liveness refresh — feeds isStale()
+            break;
         default:
             break;
     }

@@ -57,6 +57,7 @@ class CMPS14Application {
     static constexpr unsigned long WIFI_TIMEOUT_MS       = 179999;      // Try WiFi connection max 3 minutes
     static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
     static constexpr unsigned long WS_RETRY_MAX_MS       = 119993;      // Max reconnect delay for SignalK websocket
+    static constexpr unsigned long WS_PING_MS            = 9973;        // Client WebSocket ping cadence (~10 s) — liveness probe
     static constexpr unsigned long ESPNOW_TX_INTERVAL_MS = 53;          // Frequency for ESP-NOW broadcast
     static constexpr unsigned long MEM_CHECK_MS          = 120007;      // Memory check every 2 mins to LCD - debug
     static constexpr unsigned long RUNTIME_CHECK_MS      = 59999;       // Runtime monitoring of app.loop() - debug
@@ -74,6 +75,7 @@ class CMPS14Application {
     unsigned long wifi_last_check_ms    = 0;
     unsigned long last_espnow_tx_ms     = 0;
     unsigned long last_ws_activity_ms   = 0; // Watchdog: last successful WebSocket open; 0 = never
+    unsigned long last_ping_ms          = 0; // Liveness: last client ping sent
     unsigned long last_mem_check_ms     = 0; // Debug
     unsigned long last_runtime_check_ms = 0; // Debug
     unsigned long last_rssi_display_ms  = 0; // Debug

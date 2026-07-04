@@ -200,11 +200,18 @@ void CMPS14Application::handleWebsocket(const unsigned long now) {
     compass.setUseManualVariation(true);
     return;
   }
-  signalk.handleStatus();
+  signalk.handleStatus();   // poll() — also delivers the GotPong event that feeds isStale()
 
   if (signalk.isOpen()) {
-    last_ws_activity_ms = now;
-    expn_retry_ms = WS_RETRY_MS;
+    last_ws_activity_ms = now;             // feeds network watchdog
+    expn_retry_ms = WS_RETRY_MS;           // reset backoff only when already open
+    if ((long)(now - last_ping_ms) >= (long)WS_PING_MS) {
+      signalk.ping();                      // active liveness probe
+      last_ping_ms = now;
+    }
+    if (signalk.isStale(now)) {            // half-open TCP: open but no pong within timeout
+      signalk.closeWebsocket();           // next iterations reconnect via existing backoff
+    }
   } else {
     compass.setUseManualVariation(true);
     if ((long)(now - next_ws_try_ms) >= 0) {
