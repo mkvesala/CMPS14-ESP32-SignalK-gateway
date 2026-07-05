@@ -17,3 +17,8 @@ inline constexpr const char* AP_PASS = "your_ap_password_here"; // min 8 chars (
 inline constexpr const char* WIFI_STATIC_IP = "192.168.1.55";  // TODO: verify outside DHCP pool
 inline constexpr const char* WIFI_GATEWAY = "192.168.1.1";
 inline constexpr const char* WIFI_SUBNET = "255.255.255.0";
+
+// Static API token for machine clients (e.g. the MCP tool). Empty = token auth disabled.
+// Sent by the client in the "X-Auth-Token" header; grants access without a browser session.
+// Use a long random value, e.g. 32+ hex chars. Rotate = change here and reflash.
+inline constexpr const char* MCP_API_TOKEN = "";

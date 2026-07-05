@@ -2,7 +2,7 @@
 #include "secrets.h"
 
 // Value for static const char* array
-const char* WebUIManager::HEADER_KEYS[1] = {"Cookie"};
+const char* WebUIManager::HEADER_KEYS[2] = {"Cookie", "X-Auth-Token"};
 
 // === P U B L I C ===
 
@@ -42,7 +42,7 @@ void WebUIManager::begin() {
     // If NVS password equals the default, show warning
     display.showInfoMessage("DEFAULT PASSWORD!", "CHANGE NOW!");
   }
-  server.collectHeaders(HEADER_KEYS, 1);
+  server.collectHeaders(HEADER_KEYS, 2);
   this->setupRoutes();
   server.begin();
 }
@@ -131,6 +131,10 @@ void WebUIManager::setupRoutes() {
   server.on("/deviationdetails", HTTP_GET, [this]() {
     if (!this->requireAuth()) return;
     this->handleDeviationTable();
+  });
+  server.on("/deviations", HTTP_GET, [this]() {
+    if (!this->requireAuth()) return;
+    this->handleGetDeviations();
   });
   server.on("/level", HTTP_POST, [this]() {
     if (!this->requireAuth()) return;
@@ -248,6 +252,51 @@ void WebUIManager::handleStatus() {
   char out[1048];
   size_t n = serializeJson(status_doc, out, sizeof(out));
   server.send(200, "application/json; charset=utf-8", out);
+}
+
+// Machine-readable deviation data (JSON) for API clients (e.g. the MCP tool).
+// Returns the 8 measured deviations and the 5 harmonic coeffs. With ?table=1
+// it also streams the full 360-entry (1°) deviation lookup table.
+void WebUIManager::handleGetDeviations() {
+  float m[8];
+  compass.getMeasuredDeviations(m);
+  HarmonicCoeffs hc = compass.getHarmonicCoeffs();
+  bool with_table = (server.arg("table") == "1");
+
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.sendHeader("Connection", "close");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
+  server.send(200, "application/json; charset=utf-8", "");
+
+  char buf[256];
+  // Measured deviations (order matches /dev8/set: N, NE, E, SE, S, SW, W, NW)
+  snprintf(buf, sizeof(buf),
+    "{\"measured\":{\"N\":%.4f,\"NE\":%.4f,\"E\":%.4f,\"SE\":%.4f,"
+    "\"S\":%.4f,\"SW\":%.4f,\"W\":%.4f,\"NW\":%.4f},",
+    m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]);
+  server.sendContent(buf);
+
+  // Harmonic coefficients (deviation(θ) = A + B·sinθ + C·cosθ + D·sin2θ + E·cos2θ)
+  snprintf(buf, sizeof(buf),
+    "\"coeffs\":{\"A\":%.6f,\"B\":%.6f,\"C\":%.6f,\"D\":%.6f,\"E\":%.6f}",
+    hc.A, hc.B, hc.C, hc.D, hc.E);
+  server.sendContent(buf);
+
+  // Full 360-entry table (deg), index = compass heading 0..359
+  if (with_table) {
+    const DeviationLookup &dev_lut = compass.getDeviationLookup();
+    server.sendContent(",\"table\":[");
+    for (int i = 0; i < 360; i++) {
+      snprintf(buf, sizeof(buf), "%s%.3f", (i == 0 ? "" : ","), dev_lut.lookup((float)i));
+      server.sendContent(buf);
+    }
+    server.sendContent("]");
+  }
+
+  server.sendContent("}");
+  server.sendContent("");
 }
 
 // Web UI handler for installation offset, to correct raw compass heading
@@ -881,6 +930,10 @@ void WebUIManager::handleLogout() {
 
 // Authentication
 bool WebUIManager::requireAuth() {
+  // Machine clients (e.g. MCP tool) may authenticate with a static API token
+  // instead of a browser session. On no match, fall through to cookie auth.
+  if (this->checkApiToken()) return true;
+
   if (!server.hasHeader("Cookie")) {
     server.send(401, "text/plain", "Unauthorized");
     return false;
@@ -900,6 +953,24 @@ bool WebUIManager::requireAuth() {
   }
   
   return true;
+}
+
+// Check a static API token from the "X-Auth-Token" header (machine clients).
+// Disabled (returns false) when MCP_API_TOKEN is empty or shorter than 16 chars.
+// Uses a constant-time comparison to avoid leaking the token via timing.
+bool WebUIManager::checkApiToken() {
+  size_t expected_len = strlen(MCP_API_TOKEN);
+  if (expected_len < 16) return false; // token auth disabled / too weak
+  if (!server.hasHeader("X-Auth-Token")) return false;
+
+  String provided = server.header("X-Auth-Token");
+  if (provided.length() != expected_len) return false;
+
+  volatile uint8_t diff = 0;
+  for (size_t i = 0; i < expected_len; i++) {
+    diff |= (uint8_t)provided[i] ^ (uint8_t)MCP_API_TOKEN[i];
+  }
+  return diff == 0;
 }
 
 // Check authentication without any http response

@@ -45,7 +45,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.0.0  | main                    | Latest release. ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix, WebSocket ping/pong liveness. See CHANGELOG. |
+| v2.1.0  | main                    | Latest release. Machine-readable `/deviations` JSON endpoint and static API-token (`X-Auth-Token`) auth for machine clients (e.g. the `mcp-cmps14/` MCP tool). Additive, backward compatible. See CHANGELOG. |
+| v2.0.0  | main                    | ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix, WebSocket ping/pong liveness. See CHANGELOG. |
 | v1.3.1  | main                    | Documentation patch, no source code changes.                               |
 | v1.3.0  | main                    | Breaking change in ESP-NOW wire protocol. See CHANGELOG for details.       |
 | v1.2.0  | main                    | Added ESP-NOW communication. See CHANGELOG for details.                    |
@@ -356,7 +357,8 @@ The web UI is protected by session-based authentication.
 | `/calmode/set` | POST | Yes | Save calibration mode | `c=<0\|1\|2\|3>&t=<0...60>` // 0 = FULL AUTO, 1 = AUTO, 2 = MANUAL, 3 = USE |
 | `/offset/set` | POST | Yes | Installation offset | `v=<-180...180>` // Degrees (-) correct towards port side, (+) correct towards starboard  |
 | `/dev8/set` | POST | Yes | Eight deviation points | `N=<n>&NE=<n>&E=<n>&SE=<n>&S=<n>&SW=<n>&W=<n>&NW=<n>` // <n> = deviation in degrees |
-| `/deviationdetails` | GET | Yes | Deviation curve and table | none |
+| `/deviationdetails` | GET | Yes | Deviation curve and table (HTML/SVG) | none |
+| `/deviations` | GET | Yes | Deviation data as JSON (8 measured points + 5 harmonic coeffs; `?table=1` adds the full 360-entry, 1° deviation table) | `table=<1>` // optional |
 | `/magvar/set` | POST | Yes | Manual variation | `v=<-90...90>` // Degrees (-) west, (+) east |
 | `/heading/mode` | POST | Yes | Heading mode | `m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
 | `/status` | GET | Yes | Status block | none |
@@ -364,6 +366,16 @@ The web UI is protected by session-based authentication.
 | `/level` | POST | Yes | Level CMPS14 attitude | none |
 
 Endpoints can be used by external HTTP clients. Note that state-changing endpoints require POST method, parameters within POST body. For example, to add leveling of attitude to a [KIP](https://github.com/mxtommy/Kip) dashboard, you would create a button that sends a POST request to `http://<esp32ipaddress>/level`.
+
+#### API token authentication (for machine clients)
+
+In addition to the browser session cookie, all authenticated endpoints accept a **static API token** for non-interactive clients (e.g. an MCP tool or dashboard). The client sends the token in the `X-Auth-Token` request header; when it matches, the request is authorized without a login/session.
+
+- Set `MCP_API_TOKEN` in `secrets.h` to a long random value (32+ hex chars) to enable it. Empty (default) disables token auth entirely, leaving behaviour identical to earlier versions.
+- The token is compared in constant time and requires at least 16 characters.
+- Session-cookie authentication is unchanged; the token is an additive, opt-in alternative.
+
+Example: `curl -H "X-Auth-Token: <token>" "http://<esp32ipaddress>/deviations?table=1"`
 
 **Please refer to Security section of this file.**
 

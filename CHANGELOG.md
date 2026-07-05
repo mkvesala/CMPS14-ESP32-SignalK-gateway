@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-07-05
+
+### Added
+
+#### Machine-readable deviation API and API-token authentication
+- New `GET /deviations` endpoint returning JSON for machine clients (e.g. the companion MCP tool)
+  - Always returns the 8 measured deviation points (`N, NE, E, SE, S, SW, W, NW`) and the 5 harmonic coefficients (`A`–`E`)
+  - `?table=1` additionally streams the full 360-entry (1°) deviation lookup table (`DeviationLookup`), computed by the firmware
+  - Response is chunk-streamed to avoid a large in-heap JSON document
+  - Reuses existing getters (`getMeasuredDeviations()`, `getHarmonicCoeffs()`, `getDeviationLookup().lookup()`); no change to `/status` (kept lean for the 1 Hz poll) or `/deviationdetails` (HTML/SVG)
+- Static API-token authentication for non-interactive HTTP clients
+  - Clients send the token in the `X-Auth-Token` header; checked centrally at the start of `requireAuth()`, so it covers all authenticated endpoints (including the existing `POST /dev8/set` write path)
+  - Token from new `MCP_API_TOKEN` constant in `secrets.h` — empty (default) disables token auth, keeping behaviour identical to earlier versions
+  - Constant-time comparison; minimum 16 characters required to enable
+  - Purely additive: session-cookie authentication and the whole web UI are unchanged; on no token match the request falls through to the existing cookie logic
+- `X-Auth-Token` added to `WebServer::collectHeaders()` so the header is visible to handlers
+
+### Notes
+- All changes are backward compatible and additive. Existing installations with an empty `MCP_API_TOKEN` behave exactly as before.
+- Companion Python MCP tool lives in `mcp-cmps14/` and lets a Claude Desktop agent read status, read/write the 8 deviation points, and read the 360° deviation table.
+
 ## [2.0.0] - 2026-07-04
 
 ### Added

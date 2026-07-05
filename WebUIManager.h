@@ -61,6 +61,7 @@ private:
   // Webserver endpoint handlers
   void setupRoutes();
   void handleStatus();
+  void handleGetDeviations();
   void handleSetOffset();
   void handleSetDeviations();
   void handleSetCalmode();
@@ -82,6 +83,7 @@ private:
 
   // Authentication
   bool requireAuth();
+  bool checkApiToken();
   bool isAuthenticated();
   bool validateSession(const char* token);
   char* createSession();
@@ -114,7 +116,7 @@ private:
   static constexpr unsigned long THROTTLE_WINDOW_MS = 60000;  // 1 min
   static constexpr unsigned long LOCKOUT_DURATION_MS = 300000; // 5 min
   
-  static const char* HEADER_KEYS[1];
+  static const char* HEADER_KEYS[2];
   
   Session sessions[MAX_SESSIONS];
   LoginAttempt login_attempts[MAX_IP_FOLLOWUP];
