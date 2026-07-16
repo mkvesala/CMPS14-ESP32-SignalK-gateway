@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2026-07-05
+## [2.1.0] - 2026-07-17
 
 ### Added
 
@@ -20,6 +20,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Constant-time comparison; minimum 16 characters required to enable
   - Purely additive: session-cookie authentication and the whole web UI are unchanged; on no token match the request falls through to the existing cookie logic
 - `X-Auth-Token` added to `WebServer::collectHeaders()` so the header is visible to handlers
+
+### Changed
+
+#### `SignalKBroker` owns the WebSocket client via `std::unique_ptr`
+- The `WebsocketsClient` is now created per connect and destroyed on teardown, rather than kept as a permanent value member for the whole run
+- `connectWebsocket()` builds a fresh client with `std::make_unique<>()`, registers the `onMessage`/`onEvent` callbacks on it, then connects; a failed connect destroys the client immediately (`reset()`)
+- `closeWebsocket()` now destroys the object (`close()` + `reset()`) instead of only calling `close()` and leaving it for reuse; it is the single teardown point (the `sendHdgPitchRollDelta()` send-failure path routes through it)
+- Public API (`isOpen()`, backed by `ws_open`), the exponential backoff / reconnect driver in `CMPS14Application`, the ping/pong liveness path, and both last-resort watchdogs are unchanged
+
+### Fixed
+
+#### Permanent WebSocket reconnect failure after long uptime
+- After ~12–48 h of continuous operation the SignalK WebSocket could drop and never recover until a manual reboot — WiFi stayed up, heap/stack were healthy, the main loop ran, and stale-detection + exponential backoff fired correctly, yet every reconnect attempt failed permanently
+- Root cause: reusing a single lifetime `WebsocketsClient` meant the same underlying `WiFiClient` / lwIP socket was reused on every reconnect; once that socket wedged (or leaked its fd), each subsequent `connect()` inherited the corrupted transport
+- Fix: recreating the client per connect (see Changed above) runs the `WiFiClient` destructor, freeing the lwIP socket fd, so each reconnect starts from a clean TCP / WebSocket state. The network watchdog remains as a genuine last resort for failures below the socket layer
 
 ### Notes
 - All changes are backward compatible and additive. Existing installations with an empty `MCP_API_TOKEN` behave exactly as before.

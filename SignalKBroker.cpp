@@ -22,8 +22,8 @@ bool SignalKBroker::begin() {
 void SignalKBroker::handleStatus() {
 
     // Keep websocket alive
-    if (ws_open) {
-        ws.poll();
+    if (ws_open && ws) {
+        ws->poll();
     }
 
     // This was a safety net to kill a ghost websocket
@@ -36,31 +36,41 @@ void SignalKBroker::handleStatus() {
     // }
 }
 
-// Open Websocket to SignalK server and set callbacks
+// Open Websocket to SignalK server and set callbacks.
+// Build a brand-new client so every attempt starts from a clean TCP / lwIP socket state;
+// a reused client can retain a stuck socket fd that never recovers until reboot.
 bool SignalKBroker::connectWebsocket() {
-    ws_open = ws.connect(SK_URL);
+    ws = std::make_unique<WebsocketsClient>();
+    ws->onMessage([this](WebsocketsMessage msg) {
+        this->onMessageCallback(msg);
+    });
+    ws->onEvent([this](WebsocketsEvent event, const String &data) {
+        (void)data;                // const String &data not passed forward
+        this->onEventCallback(event);
+    });
+    ws_open = ws->connect(SK_URL);
     if (ws_open) {
         last_pong_ms = millis();   // seed liveness so a fresh socket is not flagged stale
-        ws.onMessage([this](WebsocketsMessage msg) {
-            this->onMessageCallback(msg);
-        });
-        ws.onEvent([this](WebsocketsEvent event, const String &data) {
-            this->onEventCallback(event); // const String &data not passed forward
-        });
+    } else {
+        ws.reset();                // failed connect → destroy immediately, free the socket
     }
     return ws_open;
 }
 
-// Close websocket (web UI restart() handler and liveness graceful reconnect)
+// Close websocket (web UI restart() handler and liveness graceful reconnect).
+// Destroy the client so no stale transport state survives into the next reconnect.
 void SignalKBroker::closeWebsocket() {
-    ws.close();
+    if (ws) {
+        ws->close();
+        ws.reset();
+    }
     ws_open = false;
     last_pong_ms = 0;
 }
 
 // Send a client-initiated ping frame to probe liveness
 void SignalKBroker::ping() {
-    if (ws_open) ws.ping();
+    if (ws_open && ws) ws->ping();
 }
 
 // Half-open detection: open, has been connected, but no pong within timeout
@@ -103,11 +113,8 @@ void SignalKBroker::sendHdgPitchRollDelta() {
 
     char buf[640];
     size_t n = serializeJson(hdg_pitch_roll_doc, buf, sizeof(buf));
-    bool ok = ws.send(buf, n);
-    if (!ok) {
-        ws.close();
-        ws_open = false;
-        last_pong_ms = 0;
+    if (!ws->send(buf, n)) {
+        this->closeWebsocket();   // destroy the client; backoff loop reconnects fresh
     }
 }
 
@@ -167,7 +174,7 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event) {
             ws_open = false;
             break;
         case WebsocketsEvent::GotPing:
-            ws.pong();
+            if (ws) ws->pong();
             break;
         case WebsocketsEvent::GotPong:
             last_pong_ms = millis();   // liveness refresh — feeds isStale()
@@ -191,7 +198,7 @@ void SignalKBroker::handleVariationDelta(){
 
     char buf[256];
     size_t n = serializeJson(subscribe_doc, buf, sizeof(buf));
-    ws.send(buf, n);
+    if (ws) ws->send(buf, n);
 }
 
 

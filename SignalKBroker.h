@@ -4,6 +4,7 @@
 #include <ArduinoWebsockets.h>
 #include <ArduinoJson.h>
 #include <esp_mac.h>
+#include <memory>
 #include "CMPS14Processor.h"
 
 // === S I G N A L K B R O K E R  C L A S S ===
@@ -50,7 +51,7 @@ private:
 private:
     
     CMPS14Processor &compass;
-    websockets::WebsocketsClient ws;
+    std::unique_ptr<websockets::WebsocketsClient> ws;  // fresh instance every connect
 
     // Reusable JSON documents
     StaticJsonDocument<512> hdg_pitch_roll_doc;
