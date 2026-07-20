@@ -246,6 +246,8 @@ void WebUIManager::handleStatus() {
   status_doc["runtime_avg"]          = runtime_avg_us;
   status_doc["runtime_peak"]         = runtime_peak_us;
   status_doc["uptime"]               = this->ms_to_hms_str(millis());
+  status_doc["last_reset"]           = resetReasonToString(compass_prefs.getLastResetReason());
+  status_doc["esp_reset"]            = espResetReasonToString(esp_reset_reason());
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
@@ -253,6 +255,10 @@ void WebUIManager::handleStatus() {
 
   char out[1048];
   size_t n = serializeJson(status_doc, out, sizeof(out));
+  if (n >= sizeof(out) - 1) {   // truncated — fail loudly instead of serving broken JSON
+    server.send(500, "text/plain", "status buffer too small");
+    return;
+  }
   server.send(200, "application/json; charset=utf-8", out);
 }
 
@@ -645,7 +651,8 @@ void WebUIManager::handleRoot() {
             'Loop runtime avg: '+fmt1(j.runtime_avg)+' \u00B5s, peak: '+fmt1(j.runtime_peak/1000)+' ms, loop task free stack: '+j.stack_free+' B',
             'WiFi: '+j.wifi+' ('+j.rssi+')',
             'SW release: '+j.version+', FW version: '+j.firmware,
-            'System uptime: '+j.uptime
+            'System uptime: '+j.uptime,
+            'Last reset: '+j.last_reset+' ('+j.esp_reset+')'
           ];
           document.getElementById('st').textContent=d.join('\n');
           renderControls(j);
@@ -1369,6 +1376,8 @@ void WebUIManager::handleRestart() {
     </body></html>
   )");
   server.sendContent("");
+
+  compass_prefs.saveResetReason(ResetReason::WEBUI_RESTART);
 
   delay(300);
 

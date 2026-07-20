@@ -21,6 +21,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Purely additive: session-cookie authentication and the whole web UI are unchanged; on no token match the request falls through to the existing cookie logic
 - `X-Auth-Token` added to `WebServer::collectHeaders()` so the header is visible to handlers
 
+#### Last restart reason persisted to NVS
+- The cause of the most recent restart now survives the reboot and is readable remotely, instead of only flashing on the LCD for ~2 s before `ESP.restart()`
+- New `ResetReason.h` (mirrors the `CalMode.h` pattern): `enum class ResetReason { NONE, LOOP_WATCHDOG, NETWORK_WATCHDOG, WEBUI_RESTART }` plus `resetReasonToString()`
+- `CMPS14Preferences` gains `saveResetReason()` and `getLastResetReason()`, backed by the NVS key `rst_reason`. Both watchdog branches in `CMPS14Application::handleWatchdog()` and the web UI's `handleRestart()` record their reason before restarting
+- `load()` reads the stored reason into RAM and immediately writes `NONE` back, so the value always describes only the restart immediately preceding the current boot — a later brownout or power-on cannot inherit a stale watchdog reason. Writing an unchanged value is a no-op in NVS, so this costs no flash wear on normal boots
+- Crashes (panic, brownout) never reach the NVS write, so `/status` also reports ESP-IDF's own `esp_reset_reason()` via a second mapper `espResetReasonToString()` — `POWERON`, `PANIC`, `BROWNOUT`, `SW_RESTART`, the interrupt/task watchdogs, and so on
+- `/status` gains `last_reset` and `esp_reset`; the web UI status list shows `Last reset: <reason> (<esp reason>)`. The existing `uptime` field is unchanged
+- Both new fields take their values from mappers returning string literals, whose addresses are stable for the whole run, so ArduinoJson's no-copy handling of `const char*` is safe for them
+
 #### Loop runtime peak diagnostics
 - New `loop_peak_us` tracks the raw, unclamped maximum iteration time per reporting window (`RUNTIME_CHECK_MS`, ~60 s), so blocking calls stay visible even though they no longer distort the EMA (see Fixed below)
 - LCD line changed from `LOOP RUNTIME AVG` / `%5.2f us` to `LOOP AVG/PEAK ms` / `%.1f/%lu ms`
@@ -36,6 +45,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Public API (`isOpen()`, backed by `ws_open`), the exponential backoff / reconnect driver in `CMPS14Application`, the ping/pong liveness path, and both last-resort watchdogs are unchanged
 
 ### Fixed
+
+#### `/status` served silently truncated JSON when the buffer filled
+- `serializeJson()`'s return value was never checked against the 1048-byte output buffer. On overflow the endpoint would serve a truncated, unparseable document, and the whole web UI would stop updating with no visible error
+- The handler now returns HTTP 500 instead of broken JSON. Current usage is ~815 of 1048 bytes
 
 #### Spurious loop runtime watchdog restarts during network disturbances
 - Field observation: several `ESP.restart()` events triggered by the loop runtime watchdog within one morning, while the SignalK WebSocket was healthy and data was flowing normally — i.e. false positives, not a frozen loop

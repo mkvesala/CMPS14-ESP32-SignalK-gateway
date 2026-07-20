@@ -5,6 +5,7 @@
 #include "CMPS14Processor.h"
 #include "harmonic.h"
 #include "CalMode.h"
+#include "ResetReason.h"
 
 // === C M P S 1 4 P R E F E R E N C E S  C L A S S ===
 //
@@ -18,6 +19,7 @@
 //   - Compass calibration mode to be loaded at ESP32 boot
 //   - Timeout for FULL AUTO calibration mode
 //   - Heading mode: HDG(T) / HDG(M)
+//   - Reason for the latest restart, consumed on boot
 // - Provides public API to load config from NVS
 // - Provides public API to save and load sha password for web UI
 // - Uses: CMPS14Processor ("the compass"), CalMode
@@ -37,9 +39,12 @@ public:
     void saveSendHeadingTrue(bool enable);
     void saveWebPassword(const char* password_sha256_hex);
     bool loadWebPasswordHash(char* out_hash_64bytes);
+    void saveResetReason(ResetReason reason);
+    ResetReason getLastResetReason() const { return last_reset; }
 
 private:
     const char* ns = "cmps14";
     Preferences prefs;
     CMPS14Processor &compass;
+    ResetReason last_reset = ResetReason::NONE;   // populated by load(), then cleared in NVS
 };

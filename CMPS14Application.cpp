@@ -227,6 +227,7 @@ void CMPS14Application::handleWebsocket(const unsigned long now) {
 void CMPS14Application::handleWatchdog(const unsigned long now) {
   // Loop runtime watchdog: restart if ws.connect() or other blocking call pushes EMA above threshold
   if (monitoring && loop_avg_us > LOOP_WATCHDOG_US) {
+    compass_prefs.saveResetReason(ResetReason::LOOP_WATCHDOG);
     display.showInfoMessage("LOOP WATCHDOG", "RESTARTING...");
     delay(1999);
     ESP.restart();
@@ -236,6 +237,7 @@ void CMPS14Application::handleWatchdog(const unsigned long now) {
   if (signalk.isOpen()) return;
   if (last_ws_activity_ms == 0) return;  // never connected — no restart without a prior session
   if ((long)(now - last_ws_activity_ms) < WS_WATCHDOG_MS) return;
+  compass_prefs.saveResetReason(ResetReason::NETWORK_WATCHDOG);
   display.showInfoMessage("WATCHDOG", "RESTARTING...");
   delay(1999);
   ESP.restart();

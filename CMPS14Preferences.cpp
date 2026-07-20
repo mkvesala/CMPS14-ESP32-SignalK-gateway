@@ -57,6 +57,11 @@ void CMPS14Preferences::load() {
     // Full auto timeout
     compass.setFullAutoTimeout((unsigned long)prefs.getULong("fastop", 0));
 
+    // Last reset reason — consumed here so the stored value only ever
+    // describes the restart immediately preceding this boot
+    last_reset = (ResetReason)prefs.getUChar("rst_reason", (uint8_t)ResetReason::NONE);
+    prefs.putUChar("rst_reason", (uint8_t)ResetReason::NONE);
+
     prefs.end();
 }
 
@@ -113,6 +118,13 @@ void CMPS14Preferences::saveCalibrationSettings(CalMode mode, unsigned long ms) 
 void CMPS14Preferences::saveSendHeadingTrue(bool enable) {
     if (!prefs.begin(ns, false)) return;
     prefs.putBool("send_hdg_true", enable);
+    prefs.end();
+}
+
+// Save reason for the restart about to happen — read back and cleared by load()
+void CMPS14Preferences::saveResetReason(ResetReason reason) {
+    if (!prefs.begin(ns, false)) return;
+    prefs.putUChar("rst_reason", (uint8_t)reason);
     prefs.end();
 }
 
