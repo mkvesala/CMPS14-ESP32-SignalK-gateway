@@ -348,12 +348,19 @@ void CMPS14Application::handleMemory(const unsigned long now) {
 // Debug: monitor exponential movig avg runtime of app.loop() in microseconds
 void CMPS14Application::monitorLoopRuntime(const unsigned long us) {
   
+  // Track the raw peak for diagnostics — reported and reset by handleLoopRuntime()
+  if (us > loop_peak_us) loop_peak_us = us;
+
+  // Clamp before the EMA: one blocking call (ws.connect(), WiFi teardown) must not dominate
+  // the average. The watchdog detects sustained degradation, not a one-off network stall.
+  const unsigned long sample = min(us, LOOP_SAMPLE_CAP_US);
+
   // EMA: alpha = 0.01 (1% new data, 99% history avg), forgets 95 % of history after ~600 iterations
   if (!monitoring) {
-    loop_avg_us = us;
+    loop_avg_us = sample;
     monitoring = true;
   } else {
-    loop_avg_us = 0.01 * us + 0.99 * loop_avg_us;
+    loop_avg_us = 0.01 * sample + 0.99 * loop_avg_us;
   }
 
 }
@@ -367,10 +374,11 @@ void CMPS14Application::handleLoopRuntime(const unsigned long now) {
   char l1[17];
   char l2[17];
 
-  snprintf(l1, sizeof(l1), "LOOP RUNTIME AVG");
-  snprintf(l2, sizeof(l2), "%5.2f us", loop_avg_us);
+  snprintf(l1, sizeof(l1), "LOOP AVG/PEAK ms");
+  snprintf(l2, sizeof(l2), "%.1f/%lu ms", loop_avg_us / 1000.0f, loop_peak_us / 1000UL);
   display.showInfoMessage(l1, l2);
-  webui.setLoopRuntimeInfo(loop_avg_us);
-  
+  webui.setLoopRuntimeInfo(loop_avg_us, loop_peak_us);
+  loop_peak_us = 0;   // peak window restarts on every report
+
 }
 

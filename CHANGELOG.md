@@ -21,6 +21,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Purely additive: session-cookie authentication and the whole web UI are unchanged; on no token match the request falls through to the existing cookie logic
 - `X-Auth-Token` added to `WebServer::collectHeaders()` so the header is visible to handlers
 
+#### Loop runtime peak diagnostics
+- New `loop_peak_us` tracks the raw, unclamped maximum iteration time per reporting window (`RUNTIME_CHECK_MS`, ~60 s), so blocking calls stay visible even though they no longer distort the EMA (see Fixed below)
+- LCD line changed from `LOOP RUNTIME AVG` / `%5.2f us` to `LOOP AVG/PEAK ms` / `%.1f/%lu ms`
+- `/status` gains a `runtime_peak` field (microseconds); the web UI status line now shows `Loop runtime avg: … µs, peak: … ms`
+- `WebUIManager::setLoopRuntimeInfo()` takes a second `unsigned long peak_us` parameter
+
 ### Changed
 
 #### `SignalKBroker` owns the WebSocket client via `std::unique_ptr`
@@ -30,6 +36,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Public API (`isOpen()`, backed by `ws_open`), the exponential backoff / reconnect driver in `CMPS14Application`, the ping/pong liveness path, and both last-resort watchdogs are unchanged
 
 ### Fixed
+
+#### Spurious loop runtime watchdog restarts during network disturbances
+- Field observation: several `ESP.restart()` events triggered by the loop runtime watchdog within one morning, while the SignalK WebSocket was healthy and data was flowing normally — i.e. false positives, not a frozen loop
+- Root cause: `monitorLoopRuntime()` fed every raw iteration time into the EMA. With alpha = 0.01, one sample of duration *T* raises `loop_avg_us` by ~`T/100` immediately, so a single blocking `signalk.connectWebsocket()` (DNS + TCP connect against an unreachable host can exceed 10 s) pushed the average straight to the ~100 ms threshold on its own. The watchdog was effectively measuring the longest single blocking call, not whether the loop was sustainedly healthy — the same applies to the deliberate `delay(200)` in the WiFi teardown path and the `delay(23)` in `CMPS14Sensor::sendCommand()`
+- Fix: per-iteration samples are clamped to the new `LOOP_SAMPLE_CAP_US = 199999UL` (~200 ms) before entering the EMA. A 10 s block now contributes ~2 ms instead of ~100 ms, so crossing the threshold requires the loop to stay degraded over hundreds of iterations. `LOOP_WATCHDOG_US` stays at `99991UL` (~100 ms); the cap is deliberately above the threshold, since clamping at or below it would make the watchdog unable to fire at all
+- `handleWatchdog()`, the network watchdog (`WS_WATCHDOG_MS`), ping/pong liveness and the exponential backoff are unchanged
+- Note: this watchdog detects a *slow* loop, not a permanently stuck one — an iteration that never returns never updates the EMA. Transport-level hangs remain covered by the network watchdog
 
 #### Permanent WebSocket reconnect failure after long uptime
 - After ~12–48 h of continuous operation the SignalK WebSocket could drop and never recover until a manual reboot — WiFi stayed up, heap/stack were healthy, the main loop ran, and stale-detection + exponential backoff fired correctly, yet every reconnect attempt failed permanently

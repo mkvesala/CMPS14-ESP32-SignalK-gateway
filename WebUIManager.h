@@ -42,7 +42,7 @@ public:
   void begin();
   void handleRequest();
 
-  void setLoopRuntimeInfo(float avg_us); // Debug
+  void setLoopRuntimeInfo(float avg_us, unsigned long peak_us); // Debug
 
 private:
   
@@ -56,7 +56,8 @@ private:
   StaticJsonDocument<1024> status_doc;
 
   // Debug app.loop() runtime
-  float runtime_avg_us = 0.0f;
+  float         runtime_avg_us  = 0.0f;
+  unsigned long runtime_peak_us = 0;
 
   // Webserver endpoint handlers
   void setupRoutes();

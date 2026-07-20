@@ -63,7 +63,8 @@ class CMPS14Application {
     static constexpr unsigned long RUNTIME_CHECK_MS      = 59999;       // Runtime monitoring of app.loop() - debug
     static constexpr unsigned long RSSI_DISPLAY_MS       = 90007;       // RSSI on LCD ~90s when WiFi connected - debug
     static constexpr unsigned long WS_WATCHDOG_MS        = 599983UL;    // Restart if WiFi up but WebSocket silent for ~10 min
-    static constexpr unsigned long LOOP_WATCHDOG_US      = 99991UL;     // Restart if loop EMA exceeds ~100 ms
+    static constexpr unsigned long LOOP_SAMPLE_CAP_US    = 199999UL;    // Clamp single-iteration outliers (~200 ms) before EMA
+    static constexpr unsigned long LOOP_WATCHDOG_US      = 99991UL;     // Restart if loop EMA sustained above ~100 ms
 
     // Timers
     unsigned long expn_retry_ms         = WS_RETRY_MS;
@@ -82,6 +83,7 @@ class CMPS14Application {
 
     // Loop runtime monitoring and watchdog
     float loop_avg_us = 0.0f;
+    unsigned long loop_peak_us = 0;   // Raw (unclamped) max sample within the current report window
     bool monitoring = false;
 
     bool compass_ok = false;

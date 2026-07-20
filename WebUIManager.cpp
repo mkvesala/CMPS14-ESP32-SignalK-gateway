@@ -53,8 +53,9 @@ void WebUIManager::handleRequest() {
 }
 
 // Debug: follow up app.loop() runtime stats
-void WebUIManager::setLoopRuntimeInfo(float avg_us) {
-  runtime_avg_us = avg_us;
+void WebUIManager::setLoopRuntimeInfo(float avg_us, unsigned long peak_us) {
+  runtime_avg_us  = avg_us;
+  runtime_peak_us = peak_us;
 }
 
 // === P R I V A T E ===
@@ -243,6 +244,7 @@ void WebUIManager::handleStatus() {
   status_doc["heap_percent"]         = heap_percent;
   status_doc["stack_free"]           = stack_free;
   status_doc["runtime_avg"]          = runtime_avg_us;
+  status_doc["runtime_peak"]         = runtime_peak_us;
   status_doc["uptime"]               = this->ms_to_hms_str(millis());
 
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -640,7 +642,7 @@ void WebUIManager::handleRoot() {
             'Acc: '+j.acc+', Mag: '+j.mag+', Sys: '+j.sys,
             'HcA: '+fmt1(j.hca)+', HcB: '+fmt1(j.hcb)+', HcC: '+fmt1(j.hcc)+', HcD: '+fmt1(j.hcd)+', HcE: '+fmt1(j.hce),
             'Heap: '+j.heap_free+' kB ('+j.heap_percent+' \u0025) free, total '+j.heap_total+' kB',
-            'Loop runtime avg: '+fmt1(j.runtime_avg)+' \u00B5s, loop task free stack: '+j.stack_free+' B',
+            'Loop runtime avg: '+fmt1(j.runtime_avg)+' \u00B5s, peak: '+fmt1(j.runtime_peak/1000)+' ms, loop task free stack: '+j.stack_free+' B',
             'WiFi: '+j.wifi+' ('+j.rssi+')',
             'SW release: '+j.version+', FW version: '+j.firmware,
             'System uptime: '+j.uptime
