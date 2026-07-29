@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-07-29
+
+Documentation and shared-protocol patch. **No change to this gateway's firmware logic** —
+no `.cpp`/`.ino` source file was touched, and the data this compass transmits is
+byte-for-byte identical to v2.1.0.
+
+### Changed
+
+#### Shared `espnow_protocol.h` updated to the fleet-wide superset
+- The copies of `espnow_protocol.h` held by the boat's ESP32 projects had drifted into four
+  different versions. They have been merged into one superset, which every project now holds
+  identically; this repo's copy is that superset
+- Added message types `HALMET_WATER_DELTA` (7) and `DEPTH_DELTA` (8) with their payload structs:
+  - `HALMETWaterDelta` — fresh water tank level (`tanks.freshWater.0.currentLevel`), sent by `HALMET-ESP32-SignalK-gateway`
+  - `DepthDelta` — depth below surface / transducer / keel plus an `age_ms` freshness field, relayed from the SignalK server by `SignalK-ESP-NOW-gateway` (16 bytes). Because a relayed value carries no freshness of its own, a per-path `NAN` marks an individual stale path and `age_ms` describes the depth feed as a whole
+- `msg_type` value 20 is reserved (commented out, **not** implemented) for a possible self-describing `GENERIC_SK_DELTA`, so the number is not handed to something else in the meantime
+- No existing enum value, payload struct or header field was modified, so the **wire format is unchanged** and every existing receiver stays compatible. This gateway continues to send only `HEADING_DELTA` (1) / `HeadingDelta`, exactly as before
+- The header now documents the rules it is maintained by: it is copied by hand, no single project owns it, a change is not done until every copy is identical, and versions are never reconciled field by field. It also carries the fleet-wide `msg_type` allocation table (senders and receivers) plus the `grep` one-liner for checking the number space before allocating a new value
+
+#### Receiver-side GNSS conversion corrected (carried in the shared header)
+- `convertGnssDeltaToData()` and the `GnssData` struct are receiver-side helpers used by the
+  CrowPanel displays; they live in the shared header and are therefore compiled — but never
+  used — by this compass gateway, which neither sends nor consumes GNSS data
+- Previously the converter folded a NaN COG into `fix_ok`. A stationary boat has a valid
+  position fix but an undefined course, so at anchor the receiver concluded there was no fix
+  at all and suppressed position and SOG — precisely the anchored-glance case the watch exists for
+- `GnssData` now tracks position validity (`fix_ok`) and course validity (`cog_valid`)
+  separately, exposed as `hasFix()` / `hasCog()`, and carries `lat_deg` / `lon_deg` for the
+  receiver's position display. The wire struct `GnssDelta` already contained latitude and
+  longitude and is unchanged
+- The `CROWPANEL INTERNAL DATA` section is now explicitly documented as receiver-side only and
+  not part of the wire format; it consists solely of structs and `inline` functions, so sending
+  projects emit no code for it
+
+### Notes
+- Firmware behaviour, SignalK output, ESP-NOW output, the web UI and the HTTP API are all
+  unchanged from v2.1.0 — the patch bump reflects a shared-header sync and documentation only
+
 ## [2.1.0] - 2026-07-17
 
 ### Added
@@ -535,6 +573,8 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[2.1.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.1
+[2.1.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.0
 [2.0.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.0.0
 [1.3.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.1
 [1.3.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v1.3.0

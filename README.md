@@ -45,7 +45,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.1.0  | main                    | Latest release. Machine-readable `/deviations` JSON endpoint and static API-token (`X-Auth-Token`) auth for machine clients (e.g. the `mcp-cmps14/` MCP tool). Additive, backward compatible. See CHANGELOG. |
+| v2.1.1  | main                    | Latest release. Shared `espnow_protocol.h` synced to the fleet-wide superset (new message types 7 and 8, ownership rules documented). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
+| v2.1.0  | main                    | Machine-readable `/deviations` JSON endpoint and static API-token (`X-Auth-Token`) auth for machine clients (e.g. the `mcp-cmps14/` MCP tool). Additive, backward compatible. See CHANGELOG. |
 | v2.0.0  | main                    | ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix, WebSocket ping/pong liveness. See CHANGELOG. |
 | v1.3.1  | main                    | Documentation patch, no source code changes.                               |
 | v1.3.0  | main                    | Breaking change in ESP-NOW wire protocol. See CHANGELOG for details.       |
@@ -226,6 +227,14 @@ The SignalK WebSocket is kept alive and recovered on multiple layers:
 Broadcasts compass data via ESP-NOW protocol for other ESP32 devices such as external displays.
 
 Since v1.3.0 all ESP-NOW messages use the shared `ESPNow::ESPNowPacket` (`ESPNowHeader` + typed payload) packet wrapper defined in `espnow_protocol.h` along with the typed payload structs.
+
+**`espnow_protocol.h` is shared by every ESP32 project on the boat.** It is copied by hand between the project repositories and no single project owns it — all devices must agree on it. A change is therefore made in whichever project needs it and then copied whole to every other project; it is not done until all copies are identical. Two diverged copies are never reconciled field by field, which is how they once drifted into four different versions. `ESPNowMsgType` is a single fleet-wide number space, so a new value must be checked against *every* copy, not just the sender's and the receiver's:
+
+```
+grep -A16 'enum class ESPNowMsgType' ~/Documents/Arduino/*/espnow_protocol.h
+```
+
+Current allocation — senders: `1 HEADING_DELTA` (this project), `2 BATTERY_DELTA`, `3 WEATHER_DELTA`, `4 GNSS_DELTA`, `5 HALMET_ENGINE_DELTA`, `6 HALMET_TANK_DELTA`, `7 HALMET_WATER_DELTA`, `8 DEPTH_DELTA`. This compass gateway sends only message type 1; the other payload structs, and the receiver-side `CROWPANEL INTERNAL DATA` helpers, are compiled but unused here (structs and `inline` functions, so no code is emitted for them).
 
 **Sends** at ~20 Hz frequency with a deadband of 0.05°:
 - `ESPNow::ESPNowPacket<HeadingDelta>` - payload `HeadingDelta` containing:
