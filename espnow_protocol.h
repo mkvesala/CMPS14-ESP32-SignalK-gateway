@@ -27,6 +27,7 @@
 //   6 HALMET_TANK_DELTA    HALMET-ESP32-SignalK-gateway
 //   7 HALMET_WATER_DELTA   HALMET-ESP32-SignalK-gateway
 //   8 DEPTH_DELTA          SignalK-ESP-NOW-gateway
+//   9 DATETIME_DELTA       UBLOX-ESP32-SignalK-gateway
 //
 // Receivers: ESP32-Crowpanel-SkippersWatch, ESP32-Crowpanel-compass, DFWind-ESP32-SignalK-gateway
 
@@ -45,6 +46,7 @@ namespace ESPNow {
         HALMET_TANK_DELTA    = 6,
         HALMET_WATER_DELTA   = 7,
         DEPTH_DELTA          = 8,
+        DATETIME_DELTA       = 9,
         // Reserved for runtime-configurable path relaying — NOT implemented.
         // A self-describing message would let a web UI add SignalK paths without a
         // firmware change at either end, at the cost of 48 bytes of path per packet:
@@ -139,6 +141,17 @@ namespace ESPNow {
         float    below_keel_m;        // environment.depth.belowKeel [m]
         uint32_t age_ms;              // ms since the freshest of the three; UINT32_MAX = never received
     };  // 16 bytes
+
+    // UTC date/time from GNSS (u-blox UTC via getUnixEpoch()). Lets receivers set
+    // their system clock with no RTC chip and no NTP. Sent by UBLOX-ESP32-SignalK-gateway.
+    // time_valid mirrors u-blox getConfirmedTime() && getDateValid() — false until the
+    // module reports a confirmed UTC. unix_utc is whole seconds (sub-second alignment
+    // isn't needed for a glance clock).
+    struct DateTimeDelta {
+        uint32_t unix_utc;     // seconds since 1970-01-01 00:00:00 UTC (leap-corrected by GNSS)
+        uint8_t  time_valid;   // 1 = u-blox reports confirmed valid UTC date+time
+        uint8_t  reserved[3];  // padding → 8 bytes
+    };  // 8 bytes
 
     // === W R A P P E R ===
 
