@@ -9,6 +9,16 @@
 [![Protocol: ESP-NOW](https://img.shields.io/badge/Protocol-ESP--NOW-red)](https://www.espressif.com/en/solutions/low-power-solutions/esp-now)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+## Disclaimer
+
+This is a personal hobby project. It is provided "as is", without warranty of any kind. See LICENSE.
+
+This firmware is NOT intended for navigation or for any safety-critical use at sea. Do not rely on the data it produces (such as heading, depth or position) to navigate a vessel. Always use certified navigation equipment and proper seamanship.
+
+You use this code entirely at your own risk. The author accepts no liability for any damage, injury or loss arising from its use.
+
+## Introduction
+
 ESP32-based reader for Robot Electronics [CMPS14](https://www.robot-electronics.co.uk/files/cmps14.pdf) compass & attitude sensor. Sends heading, pitch and roll to [SignalK](https://signalk.org) server via websocket/json and to other ESP32 devices via ESP-NOW.
 
 Applies installation offset, deviation and magnetic variation to raw angle to determine compass heading, magnetic heading and optionally true heading. Computes deviation at any compass heading, based on user-measured deviations at 8 cardinal and intercardinal directions. Subscribes magnetic variation from SignalK server. This is prioritized over manually entered variation to determine true heading.
@@ -45,7 +55,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.1.1  | main                    | Latest release. Shared `espnow_protocol.h` synced to the fleet-wide superset (new message types 7 and 8, ownership rules documented). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
+| v2.1.2  | main                    | Latest release. Documentation update only. |
+| v2.1.1  | main                    | Shared `espnow_protocol.h` synced to the fleet-wide superset (new message types 7 and 8, ownership rules documented). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
 | v2.1.0  | main                    | Machine-readable `/deviations` JSON endpoint and static API-token (`X-Auth-Token`) auth for machine clients (e.g. the `mcp-cmps14/` MCP tool). Additive, backward compatible. See CHANGELOG. |
 | v2.0.0  | main                    | ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix, WebSocket ping/pong liveness. See CHANGELOG. |
 | v1.3.1  | main                    | Documentation patch, no source code changes.                               |
@@ -227,14 +238,6 @@ The SignalK WebSocket is kept alive and recovered on multiple layers:
 Broadcasts compass data via ESP-NOW protocol for other ESP32 devices such as external displays.
 
 Since v1.3.0 all ESP-NOW messages use the shared `ESPNow::ESPNowPacket` (`ESPNowHeader` + typed payload) packet wrapper defined in `espnow_protocol.h` along with the typed payload structs.
-
-**`espnow_protocol.h` is shared by every ESP32 project on the boat.** It is copied by hand between the project repositories and no single project owns it — all devices must agree on it. A change is therefore made in whichever project needs it and then copied whole to every other project; it is not done until all copies are identical. Two diverged copies are never reconciled field by field, which is how they once drifted into four different versions. `ESPNowMsgType` is a single fleet-wide number space, so a new value must be checked against *every* copy, not just the sender's and the receiver's:
-
-```
-grep -A16 'enum class ESPNowMsgType' ~/Documents/Arduino/*/espnow_protocol.h
-```
-
-Current allocation — senders: `1 HEADING_DELTA` (this project), `2 BATTERY_DELTA`, `3 WEATHER_DELTA`, `4 GNSS_DELTA`, `5 HALMET_ENGINE_DELTA`, `6 HALMET_TANK_DELTA`, `7 HALMET_WATER_DELTA`, `8 DEPTH_DELTA`. This compass gateway sends only message type 1; the other payload structs, and the receiver-side `CROWPANEL INTERNAL DATA` helpers, are compiled but unused here (structs and `inline` functions, so no code is emitted for them).
 
 **Sends** at ~20 Hz frequency with a deadband of 0.05°:
 - `ESPNow::ESPNowPacket<HeadingDelta>` - payload `HeadingDelta` containing:
