@@ -18,7 +18,7 @@ to the gateway.
 
 ## Prerequisites
 
-1. Gateway firmware with the `/deviations` endpoint and API-token support flashed.
+1. Gateway firmware v2.1.0 or later flashed (provides the `/deviations` endpoint and API-token support).
 2. In the gateway's `secrets.h`, set a token and reflash:
    ```cpp
    inline constexpr const char* MCP_API_TOKEN = "<32+ hex chars>";
@@ -57,7 +57,7 @@ server entry (use **absolute paths**):
       "command": "/absolute/path/to/mcp-cmps14/.venv/bin/python",
       "args": ["-m", "cmps14_mcp"],
       "env": {
-        "CMPS14_BASE_URL": "http://192.168.1.54",
+        "CMPS14_BASE_URL": "http://192.168.1.55",
         "CMPS14_API_TOKEN": "<same token as MCP_API_TOKEN in secrets.h>",
         "CMPS14_TIMEOUT": "5.0"
       }
@@ -72,7 +72,7 @@ Restart Claude Desktop. The `cmps14` tools appear in the tool menu.
 
 | Variable | Required | Default | Meaning |
 |----------|----------|---------|---------|
-| `CMPS14_BASE_URL` | yes | – | Gateway base URL, e.g. `http://192.168.1.54` |
+| `CMPS14_BASE_URL` | yes | – | Gateway base URL, e.g. `http://192.168.1.55` |
 | `CMPS14_API_TOKEN` | yes | – | Must equal `MCP_API_TOKEN` in `secrets.h` (min 16 chars) |
 | `CMPS14_TIMEOUT` | no | `5.0` | Per-request timeout in seconds |
 
@@ -81,7 +81,7 @@ Restart Claude Desktop. The `cmps14` tools appear in the tool menu.
 With the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
 
 ```bash
-CMPS14_BASE_URL=http://192.168.1.54 CMPS14_API_TOKEN=<token> \
+CMPS14_BASE_URL=http://192.168.1.55 CMPS14_API_TOKEN=<token> \
   npx @modelcontextprotocol/inspector .venv/bin/python -m cmps14_mcp
 ```
 

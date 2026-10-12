@@ -48,6 +48,7 @@ bool SignalKBroker::connectWebsocket() {
         (void)data;                // const String &data not passed forward
         this->onEventCallback(event);
     });
+    var_subscribed = false;        // new connection → no subscription yet
     ws_open = ws->connect(SK_URL);
     if (ws_open) {
         last_pong_ms = millis();   // seed liveness so a fresh socket is not flagged stale
@@ -65,6 +66,7 @@ void SignalKBroker::closeWebsocket() {
         ws.reset();
     }
     ws_open = false;
+    var_subscribed = false;
     last_pong_ms = 0;
 }
 
@@ -167,11 +169,12 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event) {
         case WebsocketsEvent::ConnectionOpened: {
             ws_open = true;
             last_pong_ms = millis();   // seed liveness on open
-            this->handleVariationDelta();
+            this->subscribeVariation();
             break;
         }
         case WebsocketsEvent::ConnectionClosed:
             ws_open = false;
+            var_subscribed = false;
             break;
         case WebsocketsEvent::GotPing:
             if (ws) ws->pong();
@@ -184,8 +187,10 @@ void SignalKBroker::onEventCallback(WebsocketsEvent event) {
     }
 }
 
-// When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles
-void SignalKBroker::handleVariationDelta(){  
+// When in heading true mode, subscribe the navigation.magneticVariation from SignalK at ~1 Hz cycles.
+// Called on connection open and when heading mode changes on the web UI; sent once per connection.
+void SignalKBroker::subscribeVariation(){  
+    if (!ws_open || !ws || var_subscribed) return;
     if (!compass.isSendingHeadingTrue()) return;
     subscribe_doc.clear();
     subscribe_doc["context"] = "vessels.self";
@@ -198,7 +203,7 @@ void SignalKBroker::handleVariationDelta(){
 
     char buf[256];
     size_t n = serializeJson(subscribe_doc, buf, sizeof(buf));
-    if (ws) ws->send(buf, n);
+    var_subscribed = ws->send(buf, n);
 }
 
 

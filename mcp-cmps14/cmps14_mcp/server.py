@@ -9,7 +9,7 @@ deviation points, write new deviation points, and read the firmware-computed
 360-entry (1 degree) deviation curve.
 
 Configuration (environment variables, set in the Claude Desktop config `env` block):
-  CMPS14_BASE_URL   e.g. "http://192.168.1.54"   (required)
+  CMPS14_BASE_URL   e.g. "http://192.168.1.55"   (required)
   CMPS14_API_TOKEN  the value of MCP_API_TOKEN in the gateway's secrets.h (required)
   CMPS14_TIMEOUT    request timeout in seconds (optional, default 5.0)
 
@@ -43,7 +43,7 @@ def _get_client() -> httpx.Client:
     base_url = os.environ.get("CMPS14_BASE_URL", "").strip()
     token = os.environ.get("CMPS14_API_TOKEN", "").strip()
     if not base_url:
-        raise RuntimeError("CMPS14_BASE_URL is not set (e.g. http://192.168.1.54)")
+        raise RuntimeError("CMPS14_BASE_URL is not set (e.g. http://192.168.1.55)")
     if not token:
         raise RuntimeError("CMPS14_API_TOKEN is not set (must match MCP_API_TOKEN in secrets.h)")
 

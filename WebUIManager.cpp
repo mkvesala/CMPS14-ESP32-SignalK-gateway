@@ -410,6 +410,7 @@ void WebUIManager::handleSetHeadingMode() {
     send_hdg_true = (m == '1');
   }
   compass.setSendHeadingTrue(send_hdg_true);
+  signalk.subscribeVariation();   // switching to true mode → subscribe magvar without reconnect
 
   compass_prefs.saveSendHeadingTrue(send_hdg_true);
 

@@ -55,7 +55,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.1.2  | main                    | Latest release. Documentation update only. |
+| v2.1.3  | main                    | Latest release. Magnetic variation is subscribed from SignalK immediately when heading mode is switched to True (no reconnect needed). README: MCP integration section, `MCP_API_TOKEN` in secrets example, cross-check fixes. See CHANGELOG. |
+| v2.1.2  | main                    | Documentation update only. |
 | v2.1.1  | main                    | Shared `espnow_protocol.h` synced to the fleet-wide superset (new message types 7 and 8, ownership rules documented). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
 | v2.1.0  | main                    | Machine-readable `/deviations` JSON endpoint and static API-token (`X-Auth-Token`) auth for machine clients (e.g. the `mcp-cmps14/` MCP tool). Additive, backward compatible. See CHANGELOG. |
 | v2.0.0  | main                    | ESP-NOW level command removed. WiFi AP security, intrusion detection, pitch/roll SignalK fix, WebSocket ping/pong liveness. See CHANGELOG. |
@@ -194,7 +195,7 @@ Class diagram including companion projects:
 
 ### Magnetic variation
 
-1. Subscribes *navigation.magneticVariation* path from SignalK server at ~1 Hz cycles. This is treated as primary and the most trusted source of magnetic variation.
+1. When heading mode is True, subscribes *navigation.magneticVariation* path from SignalK server at ~1 Hz cycles. This is treated as primary and the most trusted source of magnetic variation. The subscription is sent when the SignalK WebSocket connection opens and, if the connection is already open, immediately when the heading mode is switched to True on the web UI.
 2. User may enter magnetic variation manually on the web UI. This is a backup and the value will be used automatically if variation is not available at SignalK path.
 3. User-defined manual variation is persistently stored in ESP32 NVS.
 4. Magnetic variation is used for computing true heading on magnetic heading.
@@ -219,7 +220,7 @@ ws://<server>:<port>/signalk/v1/stream?token=<optional>
 
 **Receives** at ~1 Hz frequency, in radians:
 
-1. *navigation.magneticVariation* (if available at SignalK)
+1. *navigation.magneticVariation* (if available at SignalK, subscribed only when heading mode is True)
 
 **Please refer to Security section of this file.**
 
@@ -280,20 +281,20 @@ Webserver provides simple responsive HTML/JS user interface for user to configur
 1. Calibration mode on boot and optional *FULL AUTO* timeout (mins)
    - 0 mins timeout never turns *FULL AUTO* mode off automatically
    - Effective after ESP32 boot
-3. Installation offset (degrees)
+2. Installation offset (degrees)
    - Positive offset corrects the heading *towards* starboard, meaning that the compass mounting is tilted port side
    - Negative offset corrects the heading *towards* port side, meaning that the compass mounting is tilted starboard
    - Effective immediately
-4. Measured deviations at 8 cardinal and intercardinal directions (degrees)
+3. Measured deviations at 8 cardinal and intercardinal directions (degrees)
    - Assumes the user has measured deviations with the standard maritime navigation routine:
      ```
      HDG(C) -> Dev -> HDG(M) -> Var -> HDG(T)
      ```
    - Effective immediately
-5. Manual magnetic variation (degrees)
+4. Manual magnetic variation (degrees)
    - Positive value is E, negative value is W
    - Effective immediately, however SignalK *navigation.magneticVariation* will be used instead whenever available
-6. Heading mode (true/magnetic)
+5. Heading mode (true/magnetic)
    - True is the default
    - Magnetic heading will always be sent to SignalK *navigation.headingMagnetic* path, also when True is selected
    - Effective immediately
@@ -318,17 +319,17 @@ Additionally the user may:
    - Thus, user may reset the attitude to zero at any vessel position to start using proportional pitch and roll
    - Leveling is not incremental
    - The leveling factors are stored persistently in ESP32 NVS and restored automatically on boot, so a restart (including a watchdog-triggered self-restart) preserves the leveling; only *RESET* clears them
-8. *RESTART* the system
+7. *RESTART* the system
    - Opens a temporary page which will refresh back to the configuration page after 20 seconds
    - In the background, the restart will be executed ~5 seconds after pushing the button
    - Calls `ESP.restart()` of `esp_system`
-9. View the parameters on status block
+8. View the parameters on status block
    - JS generated block that updates at ~1 Hz cycles
    - Shows: installation offset, compass heading, deviation on compass heading, magnetic heading, effective magnetic variation, true heading, pitch (leveling factor), roll (leveling factor), 3 calibration status indicators, 5 coeffs of harmonic model, debug heap memory status, debug loop task average runtime and free loop task stack memory, IP address and wifi signal level description, software version, CMPS14 firmware version, system uptime
-10. *CHANGE PASSWORD* for web UI authentication
+9. *CHANGE PASSWORD* for web UI authentication
     - Opens a page for user to change the web UI password
     - Minimum 8 characters
-11. *LOGOUT* from web UI
+10. *LOGOUT* from web UI
     - Clears session
 
 ### Web UI authentication
@@ -376,7 +377,7 @@ The web UI is protected by session-based authentication.
 | `/magvar/set` | POST | Yes | Manual variation | `v=<-90...90>` // Degrees (-) west, (+) east |
 | `/heading/mode` | POST | Yes | Heading mode | `m=<1\|0>` // 1 = HDG(T), 0 = HDG(M)  |
 | `/status` | GET | Yes | Status block | none |
-| `/restart` | POST | Yes | Restart ESP32 | `ms=5003` // Delay before actual restart in ms |
+| `/restart` | POST | Yes | Restart ESP32 | `ms=<2999...19999>` // Delay before actual restart in ms, default 2999 (web UI sends 5003) |
 | `/level` | POST | Yes | Level CMPS14 attitude | none |
 
 Endpoints can be used by external HTTP clients. Note that state-changing endpoints require POST method, parameters within POST body. For example, to add leveling of attitude to a [KIP](https://github.com/mxtommy/Kip) dashboard, you would create a button that sends a POST request to `http://<esp32ipaddress>/level`.
@@ -392,6 +393,27 @@ In addition to the browser session cookie, all authenticated endpoints accept a 
 Example: `curl -H "X-Auth-Token: <token>" "http://<esp32ipaddress>/deviations?table=1"`
 
 **Please refer to Security section of this file.**
+
+### MCP integration (Claude Desktop)
+
+The `mcp-cmps14/` folder contains a small Python [MCP](https://modelcontextprotocol.io) server that lets a **Claude Desktop** agent talk to the gateway over its HTTP API. It authenticates with the static API token (`X-Auth-Token` header, `MCP_API_TOKEN` in `secrets.h`) described above.
+
+| Tool | Gateway call | Purpose |
+|------|--------------|---------|
+| `get_status()` | `GET /status` | Live heading, deviation, calibration status, health |
+| `get_deviations()` | `GET /deviations` | The 8 stored deviation points + harmonic coefficients |
+| `get_deviation_table(step=1)` | `GET /deviations?table=1` | Firmware-computed 360-entry (1°) deviation curve |
+| `set_deviations(N=…, …, NW=…)` | `POST /dev8/set` | Write deviation points (merge-before-write) |
+
+Typical use: the Claude Desktop agent analyses COG(T)/HDG(T) data (e.g. from InfluxDB), derives the eight deviation values and writes them to the gateway with `set_deviations`. The analysis is done by the agent itself; the MCP tool is only the bridge to the gateway. `set_deviations` reads the current 8 values first and overrides only the directions given, so a partial update never zeroes the others.
+
+Quick setup:
+1. Set `MCP_API_TOKEN` in `secrets.h` and reflash the gateway
+2. Install the tool (Python 3.11+): `cd mcp-cmps14 && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
+3. Add a `cmps14` server entry to Claude Desktop's `claude_desktop_config.json` with environment variables `CMPS14_BASE_URL` (e.g. `http://192.168.1.55`), `CMPS14_API_TOKEN` (same value as `MCP_API_TOKEN`) and optionally `CMPS14_TIMEOUT` (seconds, default 5.0)
+4. Restart Claude Desktop
+
+See [mcp-cmps14/README.md](mcp-cmps14/README.md) for full installation, configuration and testing instructions.
 
 ### LCD 16x2
 
@@ -435,6 +457,7 @@ Using different display can be done within `DisplayManager` class while ensuring
 | `DisplayManager.h/DisplayManager.cpp` | Class DisplayManager, the "display" |
 | `WebUIManager.h/WebUIManager.cpp` | Class WebUIManager, the "webui" |
 | `CMPS14Application.h/CMPS14Application.cpp` | Class CMPS14Application, the "app" |
+| `mcp-cmps14/` | Optional Python MCP server for Claude Desktop (see [MCP integration](#mcp-integration-claude-desktop)) |
 
 ## Hardware
 
@@ -496,9 +519,12 @@ Using different display can be done within `DisplayManager` class while ensuring
    inline constexpr const char* WIFI_STATIC_IP       = "192.168.1.55";  // static IP for ESP32, outside router DHCP pool
    inline constexpr const char* WIFI_GATEWAY         = "192.168.1.1";   // router/gateway address
    inline constexpr const char* WIFI_SUBNET          = "255.255.255.0"; // subnet mask
+   inline constexpr const char* MCP_API_TOKEN        = "";              // optional API token for machine clients, empty = disabled
    ```
 
    **Note:** the ESP32 always configures itself with the static IP, gateway and subnet mask above (no enable/disable flag). Choose `WIFI_STATIC_IP` outside your router's DHCP address range to avoid IP conflicts.
+
+   **Note:** `MCP_API_TOKEN` is optional. Leave it empty (`""`) to disable token authentication entirely. To enable it, e.g. for the [MCP tool](#mcp-integration-claude-desktop), set a long random value (32+ hex chars, minimum 16 characters), for example generated with `python3 -c "import secrets; print(secrets.token_hex(24))"`. See [API token authentication](#api-token-authentication-for-machine-clients).
 4. **Make sure that `secrets.h` is listed in your `.gitignore` file**
 5. Connect CMPS14 and optionally LCD to the I2C pins of your ESP32 board
 6. Connect and power up the ESP32 with the USB cable
@@ -520,7 +546,7 @@ Check [issues](https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/issues).
 Long term observations on release v2.0.0 running on SH-ESP32 board, LCD connected, wifi connected, SignalK server up/down randomly, ESP-NOW broadcasting:
 
 - Free heap memory (from `ESP.getFreeHeap()`): approximately 153 kB (55 %) free, total being 277 kB - does not vary that much
-- Loop runtime exponential moving average (alpha 0.01): approximately 1. ms
+- Loop runtime exponential moving average (alpha 0.01): approximately 1 ms
 - Loop task free stack (from `uxTaskGetStackHighWaterMark(NULL)`): stays above 4300 bytes
 
 ## Security
@@ -576,6 +602,11 @@ WebServer endpoints are protected by session-based authentication:
 6. **`secrets.h`**
    - Make sure that `secrets.h` is listed in your `.gitignore` file
 
+7. **API token (`MCP_API_TOKEN`)**
+   - Grants full access to all authenticated endpoints without login, keep it secret
+   - Transmitted in plaintext over HTTP (`X-Auth-Token` header)
+   - Leave empty if not needed; rotate by changing it in `secrets.h` and reflashing
+
 ### Deployment
 
 **Recommended:**
@@ -599,7 +630,7 @@ ESP32 Webserver [Beginner's Guide](https://randomnerdtutorials.com/esp32-web-ser
 
 No paid partnerships.
 
-This is a companion project to [ESP32-Crowpanel-compass](https://github.com/mkvesala/ESP32-Crowpanel-compass), [BME280-ESP32-SignalK-gateway](https://github.com/mkvesala/BME280-ESP32-SignalK-gateway), [UBLOX-ESP32-SignalK-gateway](https://github.com/mkvesala/UBLOX-ESP32-SignalK-gateway) and [VEDirect-ESP32-SignalK-gateway](https://github.com/mkvesala/VEDirect-ESP32-SignalK-gateway). See below diagram how these projects relate:
+This is a companion project to [ESP32-Crowpanel-compass](https://github.com/mkvesala/ESP32-Crowpanel-compass), [BME280-ESP32-SignalK-gateway](https://github.com/mkvesala/BME280-ESP32-SignalK-gateway), [UBLOX-ESP32-SignalK-gateway](https://github.com/mkvesala/UBLOX-ESP32-SignalK-gateway), [VEDirect-ESP32-SignalK-gateway](https://github.com/mkvesala/VEDirect-ESP32-SignalK-gateway) and [HALMET-ESP32-SignalK-gateway](https://github.com/mkvesala/HALMET-ESP32-SignalK-gateway). See below diagram how these projects relate:
 
 <img src="https://raw.githubusercontent.com/mkvesala/ESP32-Crowpanel-compass/main/docs/full_uml_diagram.jpeg" width="480">
 

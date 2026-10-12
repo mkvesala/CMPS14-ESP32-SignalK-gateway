@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3] - 2026-10-12
+
+Patch release: one firmware fix to the SignalK magnetic variation subscription, plus a
+README cross-check against the firmware and the `mcp-cmps14` tool.
+
+### Fixed
+
+#### Firmware
+- Magnetic variation subscription when switching heading mode to True: previously
+  *navigation.magneticVariation* was subscribed only in the WebSocket `ConnectionOpened`
+  event, so switching from Magnetic to True on the web UI while connected left the gateway
+  on manual variation until the next reconnect or restart. `WebUIManager::handleSetHeadingMode()`
+  now calls `SignalKBroker::subscribeVariation()` so the subscription is sent immediately
+- `SignalKBroker::handleVariationDelta()` (private) renamed to `subscribeVariation()` and made
+  public. It now sends the subscription at most once per connection (`var_subscribed` flag,
+  cleared on connect, close and `ConnectionClosed`) and only when the socket is open, so
+  toggling the heading mode repeatedly does not stack duplicate subscriptions on the server
+
+#### Documentation
+- README: magnetic variation documented as subscribed only when heading mode is True
+  (previously documented as unconditional)
+- README: `/restart` endpoint `ms` parameter documented with its accepted range
+  (2999…19999 ms, default 2999)
+- README: Web UI feature lists renumbered (items 2 and 7 were skipped)
+- README: Debug section loop runtime figure restored to "approximately 1 ms" (was a
+  truncated "1. ms")
+- `mcp-cmps14`: example gateway address unified to `192.168.1.55` (matches the
+  `WIFI_STATIC_IP` example in `secrets.example.h`); prerequisites state firmware v2.1.0+
+
+### Added
+- README: `MCP_API_TOKEN` added to the `secrets.h` example in Installation, with a note on
+  how to enable/disable it and generate a token
+- README: "MCP integration (Claude Desktop)" section describing the `mcp-cmps14/` tool, its
+  four tools, quick setup and a link to `mcp-cmps14/README.md`
+- README: `mcp-cmps14/` row in Project structure
+- README: API token item in Security considerations
+- README: HALMET-ESP32-SignalK-gateway added to the companion projects
+
 ## [2.1.2] - 2026-10-12
 
 Documentation patch only. **No change to firmware logic** — only `README.md`, `CHANGELOG.md`
@@ -588,6 +626,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[2.1.3]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.3
 [2.1.2]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.2
 [2.1.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.1
 [2.1.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.0

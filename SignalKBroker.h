@@ -17,6 +17,7 @@
 //   - Send SignalK deltas as JSON to the server
 //   - Get the source name that is visible to the server
 //   - Check the websocket connection status
+//   - Subscribe navigation.magneticVariation (heading true mode)
 // - Uses: CMPS14Processor ("the compass")
 // - Owns: WebsocketsClient
 
@@ -39,6 +40,7 @@ public:
     bool isOpen() const { return ws_open; }
     void ping();                             // send a client ping frame if open
     bool isStale(unsigned long now) const;   // open but no pong within PONG_TIMEOUT_MS
+    void subscribeVariation();               // subscribe magvar if open, true mode and not yet subscribed
 
 private:
 
@@ -46,7 +48,6 @@ private:
     void setSignalKSource();
     void onMessageCallback(websockets::WebsocketsMessage msg);
     void onEventCallback(websockets::WebsocketsEvent event);
-    void handleVariationDelta();
 
 private:
     
@@ -59,6 +60,7 @@ private:
     StaticJsonDocument<256> subscribe_doc;
 
     bool ws_open = false;
+    bool var_subscribed = false;   // magvar subscription sent on the current connection
 
     // Liveness — half-open TCP detection via client ping / server pong
     static constexpr unsigned long PONG_TIMEOUT_MS = 29989UL;  // ~30 s w/o pong → stale
