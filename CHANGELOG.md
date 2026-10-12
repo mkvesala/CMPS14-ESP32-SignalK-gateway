@@ -577,6 +577,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[2.1.2]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.2
 [2.1.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.1
 [2.1.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.0
 [2.0.0]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.0.0
