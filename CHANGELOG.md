@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.1.2] - 2026-10-12
 
-Documentation patch only.
+Documentation patch only. **No change to firmware logic** — only `README.md`, `CHANGELOG.md`
+and `version.h` were touched.
+
+### Added
+- README: Disclaimer section — personal hobby project provided "as is" without warranty,
+  not intended for navigation or any safety-critical use at sea, used entirely at own risk
+
+### Removed
+- README: the `espnow_protocol.h` maintenance rules (hand-copied between projects, no single
+  owner, never reconciled field by field), the `grep` one-liner and the fleet-wide `msg_type`
+  allocation list. These are documented in the shared header itself since 2.1.1, so the
+  README copy was redundant and liable to drift
 
 ## [2.1.1] - 2026-07-29
 
