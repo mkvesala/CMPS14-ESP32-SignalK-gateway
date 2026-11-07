@@ -28,6 +28,7 @@
 //   7 HALMET_WATER_DELTA   HALMET-ESP32-SignalK-gateway
 //   8 DEPTH_DELTA          SignalK-ESP-NOW-gateway
 //   9 DATETIME_DELTA       UBLOX-ESP32-SignalK-gateway
+//  10 HALMET_OIL_DELTA     HALMET-ESP32-SignalK-gateway
 //
 // Receivers: ESP32-Crowpanel-SkippersWatch, ESP32-Crowpanel-compass, DFWind-ESP32-SignalK-gateway
 
@@ -47,6 +48,7 @@ namespace ESPNow {
         HALMET_WATER_DELTA   = 7,
         DEPTH_DELTA          = 8,
         DATETIME_DELTA       = 9,
+        HALMET_OIL_DELTA     = 10,
         // Reserved for runtime-configurable path relaying — NOT implemented.
         // A self-describing message would let a web UI add SignalK paths without a
         // firmware change at either end, at the cost of 48 bytes of path per packet:
@@ -125,6 +127,13 @@ namespace ESPNow {
     // Sent by HALMET-ESP32-SignalK-gateway
     struct HALMETWaterDelta {
         float water_level_ratio;  // tanks.freshWater.0.currentLevel [0.0..1.0]
+    };
+
+    // Engine oil pressure, read passively from the VDO gauge's sender line
+    // Sent by HALMET-ESP32-SignalK-gateway. Not sent at all while the value is
+    // stale or the gauge model is uncalibrated, so a receiver should age it out.
+    struct HALMETOilDelta {
+        float oil_pressure_pa;    // propulsion.0.oilPressure [Pa]
     };
 
     // Depth relayed from the SignalK server, not measured locally.

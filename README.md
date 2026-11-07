@@ -55,7 +55,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.1.3  | main                    | Latest release. Magnetic variation is subscribed from SignalK immediately when heading mode is switched to True (no reconnect needed). README: MCP integration section, `MCP_API_TOKEN` in secrets example, cross-check fixes. See CHANGELOG. |
+| v2.1.4  | main                    | Latest release. Shared `espnow_protocol.h` synced with the fleet-wide copy (adds `HALMET_OIL_DELTA` (10)). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
+| v2.1.3  | main                    | Magnetic variation is subscribed from SignalK immediately when heading mode is switched to True (no reconnect needed). README: MCP integration section, `MCP_API_TOKEN` in secrets example, cross-check fixes. See CHANGELOG. |
 | v2.1.2  | main                    | Documentation update only. |
 | v2.1.1  | main                    | Shared `espnow_protocol.h` synced to the fleet-wide superset (new message types 7 and 8, ownership rules documented). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
 | v2.1.0  | main                    | Machine-readable `/deviations` JSON endpoint and static API-token (`X-Auth-Token`) auth for machine clients (e.g. the `mcp-cmps14/` MCP tool). Additive, backward compatible. See CHANGELOG. |

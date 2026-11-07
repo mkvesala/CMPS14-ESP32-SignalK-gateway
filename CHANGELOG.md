@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.4] - 2026-11-07
+
+Patch release: shared protocol header sync only, no firmware logic changes.
+
+### Changed
+
+#### Firmware
+- Shared `espnow_protocol.h` synced with the fleet-wide copy: adds the `HALMET_OIL_DELTA` (10)
+  message type and its `HALMETOilDelta` payload struct (engine oil pressure,
+  *propulsion.0.oilPressure* [Pa], sent by HALMET-ESP32-SignalK-gateway). Additive only: no
+  existing enum value or payload struct changed, so the wire format is unchanged and every
+  existing receiver stays compatible. This gateway neither sends nor reads the new type
+
 ## [2.1.3] - 2026-10-12
 
 Patch release: one firmware fix to the SignalK magnetic variation subscription, plus a
@@ -626,6 +639,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[2.1.4]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.4
 [2.1.3]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.3
 [2.1.2]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.2
 [2.1.1]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.1
