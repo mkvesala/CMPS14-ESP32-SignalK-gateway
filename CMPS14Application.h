@@ -54,7 +54,11 @@ class CMPS14Application {
     static constexpr unsigned long READ_MS               = 47;          // Frequency to read values from CMPS14 in loop()
     static constexpr unsigned long CAL_POLL_MS           = 499;         // Frequency to poll calibration status in loop() 
     static constexpr unsigned long WIFI_STATUS_CHECK_MS  = 503;         // Frequency to check wifi status
-    static constexpr unsigned long WIFI_TIMEOUT_MS       = 179999;      // Try WiFi connection max 3 minutes
+    static constexpr unsigned long WIFI_TIMEOUT_MS       = 14983;   // One STA connect attempt (was 179999)
+    static constexpr unsigned long WIFI_RETRY_MS         = 29989;   // First wait before a WiFi retry
+    static constexpr unsigned long WIFI_RETRY_MAX_MS     = 119993;  // WiFi retry backoff ceiling
+    // ESP-NOW channel — must equal the router's fixed WiFi channel and the receivers' channel
+    static constexpr uint8_t ESPNOW_CHANNEL = 6;
     static constexpr unsigned long WS_RETRY_MS           = 1999;        // Shortest reconnect delay for SignalK websocket
     static constexpr unsigned long WS_RETRY_MAX_MS       = 119993;      // Max reconnect delay for SignalK websocket
     static constexpr unsigned long WS_PING_MS            = 9973;        // Client WebSocket ping cadence (~10 s) — liveness probe
@@ -74,6 +78,8 @@ class CMPS14Application {
     unsigned long last_cal_poll_ms      = 0;
     unsigned long wifi_conn_start_ms    = 0;
     unsigned long wifi_last_check_ms    = 0;
+    unsigned long wifi_retry_ms         = WIFI_RETRY_MS;
+    unsigned long wifi_next_retry_ms    = 0;
     unsigned long last_espnow_tx_ms     = 0;
     unsigned long last_ws_activity_ms   = 0; // Watchdog: last successful WebSocket open; 0 = never
     unsigned long last_ping_ms          = 0; // Liveness: last client ping sent
@@ -107,6 +113,7 @@ class CMPS14Application {
 
     // Handlers for loop - timers and operations
     void handleWifi(const unsigned long now);
+    void enterWifiWait(const unsigned long now);
     void handleAPIntruder();
     void handleOTA();
     void handleWebUI();

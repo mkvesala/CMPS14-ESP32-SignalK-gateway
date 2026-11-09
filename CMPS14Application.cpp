@@ -40,7 +40,7 @@ void CMPS14Application::begin() {
   // Init WiFi (AP_STA mode enables ESP-NOW alongside WiFi).
   // softAP() secures the AP interface immediately — hidden SSID, WPA2, single connection max.
   WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(AP_SSID, AP_PASS, 1 /*channel*/, 1 /*ssid_hidden*/, 1 /*max_connection*/);
+  WiFi.softAP(AP_SSID, AP_PASS, ESPNOW_CHANNEL, 1 /*ssid_hidden*/, 1 /*max_connection*/);
 
   // Register AP intruder callback before WiFi.begin() so no event is missed.
   // Callback runs in FreeRTOS "arduino_events" task: deauth immediately, flag loop().
@@ -55,6 +55,7 @@ void CMPS14Application::begin() {
   this->applyStaticIP();
 
   WiFi.setSleep(false);
+  WiFi.setAutoReconnect(false);   // handleWifi() is the only reconnect logic — no background scans
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   wifi_state = WifiState::CONNECTING;
   wifi_conn_start_ms = millis();
@@ -115,24 +116,15 @@ void CMPS14Application::handleWifi(const unsigned long now) {
         display.showWifiStatus();
         display.setWifiState(wifi_state);
         this->initWifiServices(); // Init wifi-dependent stuff
+        wifi_retry_ms = WIFI_RETRY_MS;
         expn_retry_ms = WS_RETRY_MS;
         next_ws_try_ms = now; // discard stale pre-outage backoff timestamp
+        if (last_ws_activity_ms != 0) last_ws_activity_ms = now; // fresh watchdog window after an outage
       }
       else if ((long)(now - wifi_conn_start_ms) >= WIFI_TIMEOUT_MS) {
-        wifi_state = WifiState::FAILED;
+        // Timeout only — WL_NO_SSID_AVAIL / WL_CONNECT_FAILED may be stale right after begin()
         display.showSuccessMessage("WIFI CONNECT", false);
-        WiFi.disconnect(true);
-        WiFi.mode(WIFI_OFF);
-        wifi_state = WifiState::OFF;
-        display.setWifiState(wifi_state);
-      }
-      else if (status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
-        wifi_state = WifiState::FAILED;
-        display.showSuccessMessage("WIFI CONNECT", false);
-        WiFi.disconnect(true);
-        WiFi.mode(WIFI_OFF);
-        wifi_state = WifiState::OFF;
-        display.setWifiState(wifi_state);
+        this->enterWifiWait(now);
       }
       break;
     }
@@ -163,12 +155,38 @@ void CMPS14Application::handleWifi(const unsigned long now) {
       break;
     }
 
+    case WifiState::DISCONNECTED: {
+      // STA idle, radio on — hold the ESP-NOW channel until the next retry
+      uint8_t primary = 0;
+      wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
+      if (esp_wifi_get_channel(&primary, &second) == ESP_OK && primary != ESPNOW_CHANNEL) {
+        esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+      }
+      if ((long)(now - wifi_next_retry_ms) >= 0) {
+        wifi_state = WifiState::CONNECTING;
+        WiFi.setSleep(false);        // reapply before every WiFi.begin()
+        this->applyStaticIP();       // reapply before every WiFi.begin()
+        WiFi.begin(WIFI_SSID, WIFI_PASS);
+        wifi_conn_start_ms = now;
+        display.setWifiState(wifi_state);
+      }
+      break;
+    }
+
     case WifiState::FAILED:
-    case WifiState::DISCONNECTED: // Todo add retry?
     case WifiState::OFF:
       break;
   }
 
+}
+
+// Stop the connect attempt, keep the radio on for ESP-NOW and schedule the next retry
+void CMPS14Application::enterWifiWait(const unsigned long now) {
+  WiFi.disconnect();   // STA idle only — never disconnect(true) or WiFi.mode(WIFI_OFF) here
+  wifi_state = WifiState::DISCONNECTED;
+  wifi_next_retry_ms = now + wifi_retry_ms;
+  wifi_retry_ms = min(wifi_retry_ms * 2, WIFI_RETRY_MAX_MS);
+  display.setWifiState(wifi_state);
 }
 
 // AP intruder alert — deauth already done in event callback; log + display here

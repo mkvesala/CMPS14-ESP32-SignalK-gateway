@@ -55,7 +55,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.1.4  | main                    | Latest release. Shared `espnow_protocol.h` synced with the fleet-wide copy (adds `HALMET_OIL_DELTA` (10)). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
+| v2.1.5  | main                    | Latest release. WiFi outage recovery: the radio stays on, so ESP-NOW keeps broadcasting while the router is down, and WiFi and SignalK reconnect by themselves. See CHANGELOG. |
+| v2.1.4  | main                    | Shared `espnow_protocol.h` synced with the fleet-wide copy (adds `HALMET_OIL_DELTA` (10)). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
 | v2.1.3  | main                    | Magnetic variation is subscribed from SignalK immediately when heading mode is switched to True (no reconnect needed). README: MCP integration section, `MCP_API_TOKEN` in secrets example, cross-check fixes. See CHANGELOG. |
 | v2.1.2  | main                    | Documentation update only. |
 | v2.1.1  | main                    | Shared `espnow_protocol.h` synced to the fleet-wide superset (new message types 7 and 8, ownership rules documented). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
@@ -251,6 +252,8 @@ Since v1.3.0 all ESP-NOW messages use the shared `ESPNow::ESPNowPacket` (`ESPNow
 **Broadcast mode:** Uses broadcast address (FF:FF:FF:FF:FF:FF) - any ESP-NOW receiver on the same WiFi channel can listen.
 
 **WiFi coexistence:** ESP-NOW operates alongside WiFi (AP_STA mode). Both SignalK WebSocket and ESP-NOW broadcast function simultaneously.
+
+**WiFi outage:** if the router goes down, ESP-NOW keeps broadcasting: the radio stays on in `WIFI_AP_STA` mode, held on `ESPNOW_CHANNEL` (6) between attempts. Each connection attempt lasts up to ~15 s and retries back off from ~30 s to ~2 min, so WiFi and SignalK return without a reboot.
 
 **Note: ESP-NOW receivers must be on the same WiFi channel as the compass. Simplest approach is to connect both devices to the same WiFi network with a fixed channel.**
 
