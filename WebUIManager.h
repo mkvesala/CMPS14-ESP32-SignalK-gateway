@@ -53,7 +53,7 @@ private:
   DisplayManager &display;
 
   // Reusable JSON document
-  StaticJsonDocument<1024> status_doc;
+  JsonDocument status_doc;
 
   // Debug app.loop() runtime
   float         runtime_avg_us  = 0.0f;

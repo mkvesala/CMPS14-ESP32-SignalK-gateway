@@ -3,6 +3,21 @@
 
 using namespace websockets;
 
+// === S T A T I C ===
+
+// Deserialization filter for incoming deltas: keeps only updates[].values[].path and .value.
+// Built once; rebuilt if a heap shortage left it incomplete.
+static const JsonDocument &incomingFilter() {
+    static JsonDocument filter;
+    if (filter.isNull() || filter.overflowed()) {
+        filter.clear();
+        filter["updates"][0]["values"][0]["path"]  = true;
+        filter["updates"][0]["values"][0]["value"] = true;
+        filter.shrinkToFit();   // keep ~100 bytes for good instead of a whole memory pool
+    }
+    return filter;
+}
+
 // === P U B L I C ===
 
 // Constructor
@@ -97,13 +112,13 @@ void SignalKBroker::sendHdgPitchRollDelta() {
 
     hdg_pitch_roll_doc.clear();
     hdg_pitch_roll_doc["context"] = "vessels.self";
-    auto updates = hdg_pitch_roll_doc.createNestedArray("updates");
-    auto up = updates.createNestedObject();
+    auto updates = hdg_pitch_roll_doc["updates"].to<JsonArray>();
+    auto up = updates.add<JsonObject>();
     up["$source"] = SK_SOURCE;
-    auto values = up.createNestedArray("values");
+    auto values = up["values"].to<JsonArray>();
 
     auto add = [&](const char* path, float v) {
-        auto o = values.createNestedObject();
+        auto o = values.add<JsonObject>();
         o["path"] = path;
         o["value"] = v;
     };
@@ -113,6 +128,10 @@ void SignalKBroker::sendHdgPitchRollDelta() {
     add("navigation.attitude.roll", delta.roll_rad);
     if (compass.isSendingHeadingTrue()) add("navigation.headingTrue", delta.heading_true_rad);
 
+    if (hdg_pitch_roll_doc.overflowed()) {   // heap ran out while building — never send a partial delta
+        last_h = NAN;                         // reopen the deadband so the next cycle sends
+        return;
+    }
     char buf[640];
     size_t n = serializeJson(hdg_pitch_roll_doc, buf, sizeof(buf));
     if (!ws->send(buf, n)) {
@@ -142,12 +161,14 @@ void SignalKBroker::onMessageCallback(WebsocketsMessage msg) {
     if (!compass.isSendingHeadingTrue()) return;
     if (!msg.isText()) return;
     incoming_doc.clear();
-    if (deserializeJson(incoming_doc, msg.data())) return;
-    if (!incoming_doc.containsKey("updates")) return;
+    // Without subscribe=none the server streams all of vessels.self; the filter keeps the
+    // heap use of each message to the few fields read below
+    if (deserializeJson(incoming_doc, msg.data(), DeserializationOption::Filter(incomingFilter()))) return;
+    if (!incoming_doc["updates"].is<JsonArray>()) return;
     for (JsonObject up : incoming_doc["updates"].as<JsonArray>()) {
-        if (!up.containsKey("values")) continue;
+        if (!up["values"].is<JsonArray>()) continue;
         for (JsonObject v : up["values"].as<JsonArray>()) {
-            if (!v.containsKey("path")) continue;
+            if (!v["path"].is<const char*>()) continue;
             const char* path = v["path"];
             if (!path) continue;
             if (strcmp(path, "navigation.magneticVariation") == 0) {
@@ -194,13 +215,14 @@ void SignalKBroker::subscribeVariation(){
     if (!compass.isSendingHeadingTrue()) return;
     subscribe_doc.clear();
     subscribe_doc["context"] = "vessels.self";
-    auto subscribe = subscribe_doc.createNestedArray("subscribe");
-    auto s = subscribe.createNestedObject();
+    auto subscribe = subscribe_doc["subscribe"].to<JsonArray>();
+    auto s = subscribe.add<JsonObject>();
     s["path"] = "navigation.magneticVariation";
     s["format"] = "delta";
     s["policy"] = "ideal";
     s["period"] = 1000;
 
+    if (subscribe_doc.overflowed()) return;   // heap ran out while building — never send a partial subscription
     char buf[256];
     size_t n = serializeJson(subscribe_doc, buf, sizeof(buf));
     var_subscribed = ws->send(buf, n);

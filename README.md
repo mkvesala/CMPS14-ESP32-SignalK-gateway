@@ -55,7 +55,8 @@ The project started as procedural .ino implementation in Arduino. Later, refacto
 
 | Release | Branch                  | Comment                                                                    |
 |---------|-------------------------|----------------------------------------------------------------------------|
-| v2.1.5  | main                    | Latest release. WiFi outage recovery: the radio stays on, so ESP-NOW keeps broadcasting while the router is down, and WiFi and SignalK reconnect by themselves. See CHANGELOG. |
+| v2.1.6  | main                    | Latest release. ArduinoJson 7 API migration: deprecated calls replaced, SignalK traffic unchanged. See CHANGELOG. |
+| v2.1.5  | main                    | WiFi outage recovery: the radio stays on, so ESP-NOW keeps broadcasting while the router is down, and WiFi and SignalK reconnect by themselves. See CHANGELOG. |
 | v2.1.4  | main                    | Shared `espnow_protocol.h` synced with the fleet-wide copy (adds `HALMET_OIL_DELTA` (10)). Wire format unchanged, no firmware logic changes. See CHANGELOG. |
 | v2.1.3  | main                    | Magnetic variation is subscribed from SignalK immediately when heading mode is switched to True (no reconnect needed). README: MCP integration section, `MCP_API_TOKEN` in secrets example, cross-check fixes. See CHANGELOG. |
 | v2.1.2  | main                    | Documentation update only. |

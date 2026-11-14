@@ -55,9 +55,9 @@ private:
     std::unique_ptr<websockets::WebsocketsClient> ws;  // fresh instance every connect
 
     // Reusable JSON documents
-    StaticJsonDocument<512> hdg_pitch_roll_doc;
-    StaticJsonDocument<1024> incoming_doc;
-    StaticJsonDocument<256> subscribe_doc;
+    JsonDocument hdg_pitch_roll_doc;
+    JsonDocument incoming_doc;
+    JsonDocument subscribe_doc;
 
     bool ws_open = false;
     bool var_subscribed = false;   // magvar subscription sent on the current connection

@@ -255,7 +255,7 @@ void WebUIManager::handleStatus() {
 
   char out[1048];
   size_t n = serializeJson(status_doc, out, sizeof(out));
-  if (n >= sizeof(out) - 1) {   // truncated — fail loudly instead of serving broken JSON
+  if (n >= sizeof(out) - 1 || status_doc.overflowed()) {   // truncated — fail loudly instead of serving broken JSON
     server.send(500, "text/plain", "status buffer too small");
     return;
   }

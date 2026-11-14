@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.6] - 2026-11-14
+
+Patch release: ArduinoJson 7 API migration. The ArduinoJson 6-style calls that ArduinoJson 7
+deprecates are replaced with their ArduinoJson 7 equivalents. SignalK traffic is unchanged.
+
+### Changed
+- `StaticJsonDocument<N>` → `JsonDocument` (SignalK delta, incoming and subscribe documents, web
+  UI `status_doc`). In ArduinoJson 7 the capacity `N` was already ignored and the documents
+  already lived on the heap, so memory behaviour is unchanged.
+- `createNestedArray(key)` / `createNestedObject()` → `doc[key].to<JsonArray>()` /
+  `array.add<JsonObject>()`. The old calls were inline wrappers for exactly these, so the JSON
+  sent to SignalK is byte-for-byte the same.
+- `containsKey()` → `is<JsonArray>()` / `is<const char*>()` in the incoming delta handler. Every
+  incoming message leads to the same `setUseManualVariation()` / `setLiveVariation()` calls as
+  before.
+- Incoming deltas are parsed with a `DeserializationOption::Filter` that keeps only
+  `updates[].values[].path` and `.value`, the only fields read. Without `subscribe=none` the
+  server streams all of vessels.self, so this cuts the heap kept between messages from the whole
+  delta to those fields. The filter document is built once and shrunk to ~100 bytes.
+
+### Fixed
+- A heading delta or magnetic variation subscription is no longer sent if the heap ran out while
+  it was being built (`JsonDocument::overflowed()`). Previously a partial delta could reach
+  SignalK. The next cycle sends normally; a skipped subscription is retried on the next connect or
+  heading mode switch.
+- `/status` returns the existing 500 error instead of incomplete JSON in the same situation.
+
+### Notes
+- Requires ArduinoJson 7.x (built with 7.4.3); the build no longer shows ArduinoJson deprecation
+  warnings.
+- Verified on the host against a simulated SignalK server: outgoing frames and the handling of 34
+  incoming test messages in both heading modes are identical to v2.1.5, no heap growth over 10 000
+  cycles. Not yet tested on the boat.
+- No change to SignalK paths, subscriptions, the ESP-NOW wire format, NVS settings or the web UI.
+
 ## [2.1.5] - 2026-11-09
 
 Patch release: WiFi outage recovery. ESP-NOW no longer stops when the boat's WiFi router goes
@@ -670,6 +705,7 @@ If you call the web endpoints:
 ### Added
 - Initial procedural implementation
 
+[2.1.6]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.6
 [2.1.5]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.5
 [2.1.4]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.4
 [2.1.3]: https://github.com/mkvesala/CMPS14-ESP32-SignalK-gateway/releases/tag/v2.1.3
